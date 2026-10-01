@@ -1,0 +1,19 @@
+{
+  "name": "sorted",
+  "private": true,
+  "description": "저장소 전체에 쓰는 포맷·린트 도구. 앱 자체의 의존성은 app/package.json에 있다.",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0"
+  }
+}

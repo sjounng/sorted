@@ -1,0 +1,41 @@
+name: 기능
+description: 요구사항 명세의 FR 하나(또는 그 일부)를 구현한다
+title: "[FR-] "
+labels: ["feature"]
+body:
+  - type: input
+    id: fr
+    attributes:
+      label: 요구사항 번호
+      description: 기획안의 FR 번호. 여러 개면 쉼표로 구분한다.
+      placeholder: FR-1, FR-2
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: 무엇을 만드나
+      description: 사용자 입장에서 한두 문장으로 쓴다.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 인수 조건
+      description: 기획안의 인수 조건을 체크리스트로 옮긴다. PR을 합치기 전에 모두 체크되어야 한다.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - 확장 (extension/)
+        - 앱 화면 (app/src/)
+        - 앱 내부 (app/src-tauri, app/core, app/native-host)
+        - 여러 영역
+    validations:
+      required: true

@@ -1,0 +1,26 @@
+# 빌드 결과물
+node_modules/
+dist/
+target/
+app/src-tauri/gen/
+*.tsbuildinfo
+
+# OS·에디터
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 비밀 정보
+.env
+.env.*
+*.pem
+*.key
+
+# 개인정보: 실제 강의자료와 실행 로그는 커밋하지 않는다.
+# 로그나 다운로드 URL에는 학번(user_id)이 들어갈 수 있다.
+*.pdf
+*.log
+logs/
+# 테스트용으로 직접 만든 가짜 PDF만 예외로 둔다.
+!**/fixtures/**/*.pdf
