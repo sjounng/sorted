@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Sorted",
+  "version": "0.1.0",
+  "description": "LMS에서 받은 강의자료를 Sorted 앱으로 넘겨 과목·주차별로 정리합니다.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAod1xemcvTghaiG7/RKib+mG5iZ0NBM2VWX0ZH0/NRi0wW2wIywWnhslewzXO6xVPfKbisV8ptW5VABAbz4hEftXejvGNiI45OqEeb6rxslJyN0BtBzIEPwzY6IiF3ESZ99vm5LBRYoEc/sqFLJxWnvGTmKn9+pOCTpTRJiFnKZOmZHQoa2lXZEBpcwEPHf3F7eA9zMUGjDlfoLj/QMZ3mi9KRP1q07k/wu5Mu1mvNj40jL2KqRJMLAzdksQ2RNyQnLDGDVAc461Es1AX4W5uqDGY9PZmH97jB2p1CmVme+Zf4T8onz/Rbk8xtP0+hLXhizJHsIk8JTsVXcKQBs7PWQIDAQAB",
+  "permissions": ["nativeMessaging"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Sorted 앱 연결 확인"
+  }
+}

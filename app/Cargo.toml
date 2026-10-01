@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["src-tauri", "core", "native-host"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+# 중계 프로그램은 다운로드마다 새로 뜨므로 작고 빨리 뜨는 게 낫다.
+lto = true
+codegen-units = 1
+strip = true
