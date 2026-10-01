@@ -1,0 +1,9 @@
+[package]
+name = "sorted-native-host"
+description = "Chrome이 띄우는 중계 프로그램. 확장의 메시지를 Sorted 앱에 전달한다."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sorted-core = { path = "../core" }

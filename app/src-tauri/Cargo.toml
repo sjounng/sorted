@@ -1,0 +1,20 @@
+[package]
+name = "sorted"
+description = "Sorted 메뉴 막대 앱"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+# 이름이 바이너리와 겹치지 않게 _lib를 붙인다 (Tauri 템플릿 관례).
+name = "sorted_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sorted-core = { path = "../core" }
