@@ -2,6 +2,7 @@
 //! 다운로드 폴더 권한 상태, 최근 변경 기록(history.json), 처리하지 못한 파일.
 //! Tauri에 의존하지 않는다. 화면과 주고받는 명령은 lib.rs에 있다 (docs/app-api.md).
 
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -113,6 +114,61 @@ impl Organizer {
         count
     }
 
+    /// 목록의 경로에 없는 파일을 정리 폴더에서 속성으로 찾아 경로를 고친다 (FR-14).
+    /// 찾은 파일이 문서의 최신 버전이고 `<과목>/<주차>/` 안에 있으면 목록의 과목·주차도 그 폴더를 따른다.
+    /// 경로가 모두 맞으면 정리 폴더를 훑지 않는다. 무엇이든 고쳤으면 true.
+    pub fn locate(&self) -> bool {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let all_there = lib
+            .documents
+            .iter()
+            .flat_map(|d| &d.versions)
+            .all(|v| v.path.is_file());
+        if all_there {
+            return false;
+        }
+
+        let found = scan_tags(self.root());
+        let mut changed = false;
+        let mut new_courses = Vec::new();
+        for doc in &mut lib.documents {
+            let doc_id = doc.key.id();
+            let latest = doc.versions.iter().map(|v| v.number).max();
+            for version in &mut doc.versions {
+                if version.path.is_file() {
+                    continue;
+                }
+                let Some(path) = found.get(&(doc_id.clone(), version.number)) else {
+                    continue;
+                };
+                version.path = path.clone();
+                changed = true;
+                if Some(version.number) != latest {
+                    continue;
+                }
+                // 사용자가 옮긴 폴더가 정답: <과목>/<주차>/파일 이면 그 과목·주차로
+                if let Some((course, week)) = folder_of(self.root(), path) {
+                    if let Some(week) = week {
+                        doc.week = week;
+                    }
+                    if doc.course != course {
+                        doc.course = course.clone();
+                        new_courses.push(course);
+                    }
+                }
+            }
+        }
+        for course in new_courses {
+            lib.remember_course(None, &course, &[]);
+        }
+        if changed {
+            if let Err(e) = lib.save(&self.library_file) {
+                eprintln!("library.json 저장 실패: {e}");
+            }
+        }
+        changed
+    }
+
     /// 방금 정리한 파일에 속성을 붙인다 (FR-14). 실패해도 정리는 그대로 둔다.
     fn tag_file(&self, path: &Path) {
         let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
@@ -129,6 +185,8 @@ impl Organizer {
 
     /// 다운로드 메시지 하나를 처리한다. 결과가 보류면 보류 목록에 두고, 아니면 목록에서 뺀다.
     pub fn handle(&self, id: u64, message: &Value, course_override: Option<&str>) -> Outcome {
+        // 중복 판정이 옮긴 파일의 새 경로를 가리키도록 먼저 따라간다
+        self.locate();
         let outcome = match serde_json::from_value::<Download>(message.clone()) {
             Ok(dl) => {
                 let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
@@ -245,6 +303,9 @@ impl Organizer {
 
     /// 메인 창 전체 (FR-13)
     pub fn overview(&self) -> Overview {
+        if self.locate() {
+            self.tag_untagged();
+        }
         let lib = self.library();
         let changes = {
             let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
@@ -281,6 +342,9 @@ impl Organizer {
     }
 
     pub fn course_detail(&self, course_id: &str) -> Option<CourseDetail> {
+        if self.locate() {
+            self.tag_untagged();
+        }
         screen::course_detail(&self.library(), course_id)
     }
 
@@ -389,6 +453,51 @@ impl Organizer {
             .iter()
             .find(|p| p.id == id && matches!(p.outcome, Outcome::NeedsCourse { .. }))
             .cloned()
+    }
+}
+
+/// 정리 폴더 아래에서 앱이 새긴 속성이 있는 파일: (문서 ID, 버전) → 경로.
+/// 숨김 파일·폴더와 심볼릭 링크는 건너뛰고, 속성이 없는 파일은 무시한다 (읽기만 한다).
+fn scan_tags(root: &Path) -> HashMap<(String, u32), PathBuf> {
+    let mut found = HashMap::new();
+    let mut dirs = vec![root.to_path_buf()];
+    while let Some(dir) = dirs.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().starts_with('.') {
+                continue;
+            }
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+            if kind.is_dir() {
+                dirs.push(path);
+            } else if kind.is_file() {
+                if let Some(tag) = filetag::read(&path) {
+                    found.insert((tag.doc, tag.v), path);
+                }
+            }
+        }
+    }
+    found
+}
+
+/// 정리 폴더 기준 `<과목>/<주차>/…/파일`이면 (과목, Some(주차)), `<과목>/파일`이면 (과목, None).
+/// 정리 폴더 바로 아래 파일이면 None.
+fn folder_of(root: &Path, path: &Path) -> Option<(String, Option<String>)> {
+    let rel = path.strip_prefix(root).ok()?;
+    let parts: Vec<String> = rel
+        .parent()?
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    match parts.as_slice() {
+        [] => None,
+        [course] => Some((course.clone(), None)),
+        [course, week, ..] => Some((course.clone(), Some(week.clone()))),
     }
 }
 
@@ -712,5 +821,83 @@ mod tests {
         let reopened = Organizer::open(dir.join("Sorted"), dir.join("library.json")).unwrap();
         assert_eq!(filetag::read(&path), Some(tag));
         assert_eq!(reopened.tag_untagged(), 0);
+    }
+
+    /// 운영체제/1주차/a.pdf 하나를 정리해 두고 (dir, org, 정리된 경로)
+    fn organized(name: &str) -> (PathBuf, Organizer, PathBuf) {
+        let (dir, org) = setup(name);
+        let a = dir.join("Downloads/a.pdf");
+        fs::write(&a, "%PDF-1.7 a").unwrap();
+        let lms = json!({ "courseName": "운영체제", "week": { "name": "1주차" } });
+        let out = org.handle(
+            1,
+            &json!({ "filename": a, "contentId": "abc", "lms": lms }),
+            None,
+        );
+        let Outcome::Organized { path, .. } = out else {
+            panic!("{out:?}")
+        };
+        (dir, org, path)
+    }
+
+    fn the_doc(org: &Organizer) -> Document {
+        org.library().documents[0].clone()
+    }
+
+    #[test]
+    fn renamed_file_is_followed() {
+        let (dir, org, path) = organized("follow-rename");
+        let renamed = dir.join("Sorted/운영체제/1주차/내 필기본.pdf");
+        fs::rename(&path, &renamed).unwrap();
+        assert!(org.locate());
+        let doc = the_doc(&org);
+        assert_eq!(doc.versions[0].path, renamed);
+        assert_eq!(
+            (doc.course.as_str(), doc.week.as_str()),
+            ("운영체제", "1주차")
+        );
+        assert!(!org.locate(), "경로가 맞으면 다시 훑지 않는다");
+    }
+
+    #[test]
+    fn moved_to_another_week_or_course_folder_is_followed() {
+        let (dir, org, path) = organized("follow-move");
+        fs::create_dir_all(dir.join("Sorted/운영체제/3주차")).unwrap();
+        let to_week = dir.join("Sorted/운영체제/3주차/a.pdf");
+        fs::rename(&path, &to_week).unwrap();
+        org.locate();
+        assert_eq!(the_doc(&org).week, "3주차");
+
+        fs::create_dir_all(dir.join("Sorted/알고리즘/2주차")).unwrap();
+        let to_course = dir.join("Sorted/알고리즘/2주차/a.pdf");
+        fs::rename(&to_week, &to_course).unwrap();
+        org.locate();
+        let doc = the_doc(&org);
+        assert_eq!(
+            (doc.course.as_str(), doc.week.as_str()),
+            ("알고리즘", "2주차")
+        );
+        assert!(org.library().courses.iter().any(|c| c.name == "알고리즘"));
+        // 옮긴 뒤에도 같은 문서로 알아본다: 같은 내용을 다시 받으면 중복
+        let again = dir.join("Downloads/a.pdf");
+        fs::write(&again, "%PDF-1.7 a").unwrap();
+        let out = org.handle(
+            2,
+            &json!({ "filename": again, "contentId": "abc",
+                     "lms": { "courseName": "운영체제", "week": { "name": "1주차" } } }),
+            None,
+        );
+        assert!(matches!(out, Outcome::Duplicate { ref existing, .. } if existing == &to_course));
+    }
+
+    #[test]
+    fn files_the_app_did_not_put_are_left_alone() {
+        let (dir, org, path) = organized("not-ours");
+        let mine = dir.join("Sorted/운영체제/1주차/내 메모.pdf");
+        fs::write(&mine, "%PDF-1.7 mine").unwrap();
+        fs::remove_file(&path).unwrap();
+        assert!(!org.locate(), "속성이 없는 파일은 우리 문서로 보지 않는다");
+        assert!(mine.exists());
+        assert!(filetag::read(&mine).is_none());
     }
 }
