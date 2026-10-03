@@ -70,11 +70,11 @@ export function Home() {
   const main: NavItem[] = [
     { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
     { id: "classes", label: "My Classes", icon: ClassesIcon },
-    { id: "schedule", label: "일정", icon: ScheduleIcon },
-    { id: "changes", label: "최근 변경", icon: ChangesIcon },
+    { id: "schedule", label: "Schedule", icon: ScheduleIcon },
+    { id: "changes", label: "Recent Changes", icon: ChangesIcon },
     {
       id: "unprocessed",
-      label: "처리 못한 파일",
+      label: "Unsorted Files",
       icon: UnprocessedIcon,
       count: data.unprocessed.length,
     },
@@ -82,7 +82,7 @@ export function Home() {
 
   return (
     <main className="home">
-      <nav className="side-nav" aria-label="메뉴">
+      <nav className="side-nav" aria-label="Menu">
         <div className="brand-logo">
           <span className="brand-mark" aria-hidden>
             S
@@ -98,7 +98,7 @@ export function Home() {
 
         <ul className="nav-list nav-bottom">
           <NavButton
-            item={{ id: "trash", label: "휴지통", icon: TrashIcon, count: data.trashCount }}
+            item={{ id: "trash", label: "Trash", icon: TrashIcon, count: data.trashCount }}
             active={tab === "trash"}
             quietCount
             onClick={go}
@@ -106,17 +106,17 @@ export function Home() {
           <li>
             <button
               className="nav-item"
-              title={`${data.sortedFolder} 열기`}
+              title={`Open ${data.sortedFolder}`}
               onClick={() => api.revealInFinder(data.sortedFolder)}
             >
               <FolderIcon />
-              <span className="nav-label">폴더 열기</span>
+              <span className="nav-label">Open Folder</span>
             </button>
           </li>
           <li>
-            <button className="nav-item" title="설정" onClick={() => openView("setup")}>
+            <button className="nav-item" title="Settings" onClick={() => openView("setup")}>
               <SettingsIcon />
-              <span className="nav-label">설정</span>
+              <span className="nav-label">Settings</span>
             </button>
           </li>
         </ul>
