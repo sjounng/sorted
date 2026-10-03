@@ -2140,3 +2140,154 @@ button.link {
     margin-top: 0;
   }
 }
+
+/* Dashboard 한 화면 모드: 창이 충분히 크면 스크롤 없이 칸을 높이 비율로 나눈다.
+   (useFitCount.ts의 DASH_FIT과 같은 조건. 더 작은 창에서는 위의 쌓이는 레이아웃과 스크롤) */
+@media (min-width: 1080px) and (min-height: 680px) {
+  .panel-dash {
+    overflow: hidden;
+  }
+
+  .dash {
+    box-sizing: border-box;
+    height: 100%;
+    /* 위젯 칸과 달성률 칸이 남은 높이를 끝까지 채우게 (기본은 위로 붙음) */
+    align-items: stretch;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 20px 22px;
+    padding: 26px 30px 28px;
+  }
+
+  .dash-head h1 {
+    font-size: 42px;
+  }
+
+  .dash-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 20px;
+    min-height: 0;
+  }
+
+  .widget {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 16px 18px;
+    overflow: hidden;
+  }
+
+  .widget-head {
+    margin-bottom: 10px;
+  }
+
+  /* 목록은 남은 높이를 다 쓰고, 넘치는 항목은 useFitCount가 아예 그리지 않는다 */
+  .up-list,
+  .mini-rows {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .up-item {
+    flex: none;
+    height: 52px;
+    box-sizing: border-box;
+  }
+
+  .up-date {
+    width: 52px;
+    height: 52px;
+  }
+
+  .mini-row {
+    flex: none;
+    height: 46px;
+    box-sizing: border-box;
+  }
+
+  /* 달력은 칸 높이를 채우고 날짜 칸이 그에 맞춰 줄어든다 */
+  .dash-cal {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .dash-cal .cal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 520px;
+    height: 100%;
+    margin: 0;
+    padding: 10px 14px 12px;
+    box-sizing: border-box;
+  }
+
+  .dash-cal .cal-head {
+    margin-bottom: 4px;
+  }
+
+  /* 요일 줄은 글자 높이만, 날짜 줄들이 남은 높이를 나눈다 */
+  .dash-cal .cal-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: auto;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .dash-cal .cal-wd {
+    padding: 0;
+  }
+
+  .dash-cal .cal-day {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .dash-cal .cal-day .num {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* 달성률: 고리 카드 두 장이 높이를 나눠 갖고, 숫자 카드 두 장은 한 줄에 */
+  .dash-stats {
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .dash-stats > .stat-card {
+    flex: 1;
+    min-height: 0;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .stat-ring {
+    flex: 1;
+    width: auto;
+    height: auto;
+    max-height: 120px;
+    min-height: 0;
+    aspect-ratio: 1;
+  }
+}
+
+/* 숫자 카드 두 장(정리한 자료, 처리 못한 파일)은 나란히 */
+.stat-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-small {
+  padding: 12px 8px;
+}
+
+.stat-small .stat-big {
+  font-size: 26px;
+}

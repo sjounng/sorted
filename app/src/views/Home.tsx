@@ -152,7 +152,11 @@ export function Home() {
         </ul>
       </nav>
 
-      <section className="panel" role="tabpanel" ref={panel}>
+      <section
+        className={tab === "dashboard" ? "panel panel-dash" : "panel"}
+        role="tabpanel"
+        ref={panel}
+      >
         {tab === "dashboard" && (
           <Dashboard
             data={data}

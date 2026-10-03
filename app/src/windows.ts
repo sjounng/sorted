@@ -8,7 +8,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 export type View = "main" | "log" | "setup" | "assign" | "duplicate" | "compare" | "cleanup";
 
 const SIZES: Record<View, { title: string; width: number; height: number }> = {
-  main: { title: "Sorted", width: 960, height: 720 },
+  main: { title: "Sorted", width: 1200, height: 780 },
   log: { title: "Sorted Message Log", width: 480, height: 600 },
   setup: { title: "Welcome to Sorted", width: 460, height: 520 },
   assign: { title: "Choose a Class", width: 420, height: 480 },

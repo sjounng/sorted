@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
 import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
+import { useFitCount } from "../useFitCount";
 import { useLoad } from "../useLoad";
 import { MonthCalendar, firstOfMonth } from "./ScheduleView";
 import { SearchBox } from "./SearchBox";
@@ -38,6 +39,9 @@ export function Dashboard(props: {
   const { data, name, onEditName, onOpenSchedule, onOpenChanges, onOpenUnprocessed, onOpenCourse } =
     props;
   const schedule = useLoad(api.schedule);
+  // 한 화면 모드에서는 칸 높이에 들어가는 만큼만 보여 준다 (알약 52px, 줄 46px, 간격 10px)
+  const [upRef, upCount] = useFitCount(52, 10, 4);
+  const [changeRef, changeCount] = useFitCount(46, 10, 4);
   const [month, setMonth] = useState(() => firstOfMonth(Date.now()));
 
   const now = Date.now();
@@ -53,7 +57,7 @@ export function Dashboard(props: {
   const upcoming = items
     .filter((i) => !i.done && i.dueAtMs >= now)
     .sort((a, b) => a.dueAtMs - b.dueAtMs)
-    .slice(0, 4);
+    .slice(0, upCount);
   const soon = items.filter((i) => !i.done && i.dueAtMs >= now && daysLeft(i.dueAtMs, now) <= 3);
 
   // 달성률: 일주일 안에 마감인 것까지 (이미 지난 것 포함)
@@ -89,69 +93,67 @@ export function Dashboard(props: {
       <div className="dash-main">
         <section className="widget">
           <WidgetHead title="Upcoming deadlines" more="See all" onMore={() => onOpenSchedule()} />
-          {upcoming.length === 0 ? (
-            <p className="widget-empty muted">No upcoming deadlines.</p>
-          ) : (
-            <ul className="up-list">
-              {upcoming.map((item) => {
-                const { name, color } = look(item);
-                const left = daysLeft(item.dueAtMs, now);
-                return (
-                  <li key={item.id}>
-                    <button
-                      className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
-                      style={{ "--course": color } as React.CSSProperties}
-                      onClick={() => api.openInBrowser(item.url)}
-                      title="Open in LMS"
-                    >
-                      <span className="up-date">
-                        <strong>{new Date(item.dueAtMs).getDate()}</strong>
-                        <small>{dDay(item.dueAtMs, now)}</small>
+          <ul className="up-list" ref={upRef}>
+            {upcoming.length === 0 && (
+              <li className="widget-empty muted">No upcoming deadlines.</li>
+            )}
+            {upcoming.map((item) => {
+              const { name, color } = look(item);
+              const left = daysLeft(item.dueAtMs, now);
+              return (
+                <li key={item.id}>
+                  <button
+                    className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
+                    style={{ "--course": color } as React.CSSProperties}
+                    onClick={() => api.openInBrowser(item.url)}
+                    title="Open in LMS"
+                  >
+                    <span className="up-date">
+                      <strong>{new Date(item.dueAtMs).getDate()}</strong>
+                      <small>{dDay(item.dueAtMs, now)}</small>
+                    </span>
+                    <span className="up-text">
+                      <strong>{item.title}</strong>
+                      <span className="muted">
+                        {KIND_LABEL[item.kind]} · {name} · {clock(item.dueAtMs)}
                       </span>
-                      <span className="up-text">
-                        <strong>{item.title}</strong>
-                        <span className="muted">
-                          {KIND_LABEL[item.kind]} · {name} · {clock(item.dueAtMs)}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section className="widget">
           <WidgetHead title="Recent changes" more="See more" onMore={onOpenChanges} />
-          {data.changes.length === 0 ? (
-            <p className="widget-empty muted">No recent changes.</p>
-          ) : (
-            <ul className="mini-rows">
-              {data.changes.slice(0, 4).map((c) => {
-                const course = known.get(c.courseId);
-                const color = course ? courseColor(data.courses, course.id) : "var(--muted)";
-                return (
-                  <li key={c.id}>
-                    <button
-                      className="mini-row"
-                      style={{ "--course": color } as React.CSSProperties}
-                      onClick={() => course && onOpenCourse(course, color)}
-                    >
-                      <span className="course-dot" aria-hidden />
-                      <span className="mini-text">
-                        <strong>{c.fileName}</strong>
-                        <span className="muted">
-                          <span className={`tag ${c.kind}`}>{CHANGE_LABEL[c.kind]}</span>
-                          {c.courseName} · {ago(c.atMs)}
-                        </span>
+          <ul className="mini-rows" ref={changeRef}>
+            {data.changes.length === 0 && (
+              <li className="widget-empty muted">No recent changes.</li>
+            )}
+            {data.changes.slice(0, changeCount).map((c) => {
+              const course = known.get(c.courseId);
+              const color = course ? courseColor(data.courses, course.id) : "var(--muted)";
+              return (
+                <li key={c.id}>
+                  <button
+                    className="mini-row"
+                    style={{ "--course": color } as React.CSSProperties}
+                    onClick={() => course && onOpenCourse(course, color)}
+                  >
+                    <span className="course-dot" aria-hidden />
+                    <span className="mini-text">
+                      <strong>{c.fileName}</strong>
+                      <span className="muted">
+                        <span className={`tag ${c.kind}`}>{CHANGE_LABEL[c.kind]}</span>
+                        {c.courseName} · {ago(c.atMs)}
                       </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section className="widget widget-wide">
@@ -181,20 +183,22 @@ export function Dashboard(props: {
           color="var(--ring-teal)"
           note="due within a week"
         />
-        <div className="stat-card">
-          <span className="stat-title">Files sorted</span>
-          <strong className="stat-big">{files}</strong>
-          <span className="stat-note">
-            {data.courses.length} {data.courses.length === 1 ? "class" : "classes"}
-          </span>
+        <div className="stat-pair">
+          <div className="stat-card stat-small">
+            <span className="stat-title">Files sorted</span>
+            <strong className="stat-big">{files}</strong>
+            <span className="stat-note">
+              {data.courses.length} {data.courses.length === 1 ? "class" : "classes"}
+            </span>
+          </div>
+          {data.unprocessed.length > 0 && (
+            <button className="stat-card stat-small stat-warn" onClick={onOpenUnprocessed}>
+              <span className="stat-title">Unsorted files</span>
+              <strong className="stat-big">{data.unprocessed.length}</strong>
+              <span className="stat-note">Review ›</span>
+            </button>
+          )}
         </div>
-        {data.unprocessed.length > 0 && (
-          <button className="stat-card stat-warn" onClick={onOpenUnprocessed}>
-            <span className="stat-title">Unsorted files</span>
-            <strong className="stat-big">{data.unprocessed.length}</strong>
-            <span className="stat-note">Review ›</span>
-          </button>
-        )}
       </aside>
     </div>
   );
