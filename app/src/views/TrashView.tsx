@@ -7,18 +7,12 @@ import { useLoad } from "../useLoad";
  * Sorted 휴지통: 지운 과목을 되살리거나 완전히 지운다.
  * 완전히 지워도 과목 폴더는 macOS 휴지통으로 가므로 Finder에서는 한 번 더 꺼낼 수 있다.
  */
-export function TrashView({ onBack }: { onBack: () => void }) {
+export function TrashView() {
   const { data, error, reload } = useLoad(api.trash);
   const [confirmEmpty, setConfirmEmpty] = useState(false);
 
   return (
     <div className="course trash">
-      <div className="course-bar">
-        <button className="link back" onClick={onBack}>
-          ‹ 과목
-        </button>
-      </div>
-
       <header className="trash-head">
         <div>
           <strong>휴지통</strong>

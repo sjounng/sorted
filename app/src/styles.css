@@ -161,6 +161,32 @@ h1 {
   text-align: center;
 }
 
+/* 휴지통 탭: 글자 대신 아이콘. 오른쪽 끝에 붙고 지운 과목 수를 모서리 배지로 보여 준다 */
+.tab-icon {
+  position: relative;
+  margin-left: auto;
+  padding: 5px 9px;
+}
+
+.badge.corner {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 2px solid var(--bg);
+  border-radius: 10px;
+  background: var(--muted);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.tab.active .badge.corner {
+  border-color: var(--bg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
 .tab.active .badge {
   background: #fff;
   color: var(--brand);
@@ -1050,18 +1076,13 @@ button.link {
 
 /* Sorted 휴지통 */
 
-.foot-right {
-  display: flex;
-  gap: 8px;
-}
-
 .trash-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  margin-top: 4px;
+  margin-top: clamp(14px, 3vw, 28px);
   border-radius: 4px;
   background: var(--bg);
   box-shadow:

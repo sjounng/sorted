@@ -8,7 +8,7 @@ import { CourseCards } from "./CourseCards";
 import { CourseDetail } from "./CourseDetail";
 import { TrashView } from "./TrashView";
 
-type Tab = "courses" | "changes" | "unprocessed";
+type Tab = "courses" | "changes" | "unprocessed" | "trash";
 
 /** 메뉴 막대 아이콘을 누르면 열리는 작은 창 (FR-13). */
 export function Popover() {
@@ -16,14 +16,12 @@ export function Popover() {
   const [tab, setTab] = useState<Tab>("courses");
   // 과목 카드를 누르면 과목 탭 안에서 그 과목 화면으로 들어간다.
   const [opened, setOpened] = useState<{ course: Course; color: string }>();
-  // 하단의 "휴지통"을 누르면 과목 탭 안에서 휴지통을 연다.
-  const [inTrash, setInTrash] = useState(false);
   const panel = useRef<HTMLElement>(null);
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
   useEffect(() => {
     panel.current?.scrollTo({ top: 0 });
-  }, [opened, inTrash]);
+  }, [opened, tab]);
 
   useEffect(() => {
     // 구독마다 새 함수를 넘긴다. 같은 함수를 넘기면 StrictMode의 구독→해제→재구독에서
@@ -60,20 +58,32 @@ export function Popover() {
             onClick={() => {
               setTab(t.id);
               setOpened(undefined);
-              setInTrash(false);
             }}
           >
             {t.label}
             {t.count ? <span className="badge">{t.count}</span> : null}
           </button>
         ))}
+        <button
+          role="tab"
+          aria-selected={tab === "trash"}
+          aria-label={`휴지통${data.trashCount ? ` ${data.trashCount}개` : ""}`}
+          title="휴지통"
+          className={tab === "trash" ? "tab tab-icon active" : "tab tab-icon"}
+          onClick={() => {
+            setTab("trash");
+            setOpened(undefined);
+          }}
+        >
+          <TrashIcon />
+          {data.trashCount > 0 && <span className="badge corner">{data.trashCount}</span>}
+        </button>
       </nav>
 
       <section className="panel" role="tabpanel" ref={panel}>
+        {tab === "trash" && <TrashView />}
         {tab === "courses" &&
-          (inTrash ? (
-            <TrashView onBack={() => setInTrash(false)} />
-          ) : opened ? (
+          (opened ? (
             <CourseDetail
               courseId={opened.course.id}
               folder={`${data.sortedFolder}/${opened.course.name}`}
@@ -88,7 +98,6 @@ export function Popover() {
             data={data}
             onOpenCourse={(course, color) => {
               setTab("courses");
-              setInTrash(false);
               setOpened({ course, color });
             }}
           />
@@ -100,21 +109,9 @@ export function Popover() {
         <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
           {data.sortedFolder} 열기
         </button>
-        <span className="foot-right">
-          <button
-            className="link"
-            onClick={() => {
-              setTab("courses");
-              setOpened(undefined);
-              setInTrash(true);
-            }}
-          >
-            휴지통{data.trashCount > 0 && ` ${data.trashCount}`}
-          </button>
-          <button className="link" onClick={() => openView("setup")}>
-            설정
-          </button>
-        </span>
+        <button className="link" onClick={() => openView("setup")}>
+          설정
+        </button>
       </footer>
     </main>
   );
@@ -155,4 +152,22 @@ function UnprocessedList({ data }: { data: Overview }) {
 
 function Empty({ text }: { text: string }) {
   return <p className="empty muted">{text}</p>;
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </svg>
+  );
 }
