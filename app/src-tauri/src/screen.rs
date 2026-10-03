@@ -28,12 +28,17 @@ pub fn courses(lib: &Library) -> Vec<Course> {
     lib.courses
         .iter()
         .map(|c| {
+            // 정리 폴더에서 사라진 버전(missing)은 세지 않는다 (FR-14)
             let docs = lib.documents.iter().filter(|d| d.course == c.name);
-            let file_count = docs.clone().map(|d| d.versions.len()).sum();
+            let file_count = docs
+                .clone()
+                .map(|d| d.versions.iter().filter(|v| !v.missing).count())
+                .sum();
             let latest_week = docs
                 .filter_map(|d| {
                     d.versions
                         .iter()
+                        .filter(|v| !v.missing)
                         .map(|v| v.added_at_ms)
                         .max()
                         .map(|t| (t, d))
@@ -218,20 +223,24 @@ pub fn course_detail(lib: &Library, course_id: &str) -> Option<CourseDetail> {
     let course = courses(lib).into_iter().find(|c| c.id == course_id)?;
     let mut weeks: Vec<WeekGroup> = Vec::new();
     for doc in lib.documents.iter().filter(|d| d.course == course.name) {
-        let files = doc.versions.iter().map(|v| CourseFile {
-            id: format!("{}-v{}", doc.key.id(), v.number),
-            document_id: doc.key.id(),
-            file_name: v
-                .path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| doc.file_name.clone()),
-            path: v.path.clone(),
-            version: v.number,
-            size_bytes: v.size,
-            saved_at_ms: v.added_at_ms,
-            unseen_change: false,
-        });
+        let files = doc
+            .versions
+            .iter()
+            .filter(|v| !v.missing)
+            .map(|v| CourseFile {
+                id: format!("{}-v{}", doc.key.id(), v.number),
+                document_id: doc.key.id(),
+                file_name: v
+                    .path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| doc.file_name.clone()),
+                path: v.path.clone(),
+                version: v.number,
+                size_bytes: v.size,
+                saved_at_ms: v.added_at_ms,
+                unseen_change: false,
+            });
         match weeks.iter_mut().find(|w| w.week == doc.week) {
             Some(w) => w.files.extend(files),
             None => weeks.push(WeekGroup {
@@ -240,6 +249,8 @@ pub fn course_detail(lib: &Library, course_id: &str) -> Option<CourseDetail> {
             }),
         }
     }
+    // 파일이 모두 사라진 주차는 보이지 않는다
+    weeks.retain(|w| !w.files.is_empty());
     weeks.sort_by_key(|w| week_order(&w.week));
     for w in &mut weeks {
         w.files
@@ -286,6 +297,7 @@ mod tests {
                     size: 1,
                     path: PathBuf::from("/x"),
                     added_at_ms: *t,
+                    missing: false,
                 })
                 .collect(),
         }
@@ -369,5 +381,21 @@ mod tests {
         assert_eq!(two[0].version, 1);
         assert_eq!(two[1].id, format!("{}-v2", two[1].document_id));
         assert!(course_detail(&lib, "nope").is_none());
+    }
+
+    #[test]
+    fn missing_versions_are_hidden() {
+        let mut lib = Library::default();
+        lib.remember_course(Some("210208"), "소프트웨어공학", &[]);
+        lib.documents.push(doc("소프트웨어공학", "2주차", &[3, 9]));
+        lib.documents.push(doc("소프트웨어공학", "3주차", &[5]));
+        lib.documents[0].versions[1].missing = true;
+        lib.documents[1].versions[0].missing = true;
+
+        let c = &courses(&lib)[0];
+        assert_eq!((c.file_count, c.latest_week.as_str()), (1, "2주차"));
+        let d = course_detail(&lib, "210208").unwrap();
+        assert_eq!(d.weeks.len(), 1, "파일이 모두 사라진 주차는 보이지 않는다");
+        assert_eq!(d.weeks[0].files.len(), 1);
     }
 }

@@ -104,6 +104,13 @@ pub struct Version {
     pub size: u64,
     pub path: PathBuf,
     pub added_at_ms: u64,
+    /// 정리 폴더에서 찾을 수 없다 (사용자가 밖으로 옮겼거나 지움, FR-14). 화면에서 숨기고 해시는 남긴다
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub missing: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 impl Library {
@@ -216,6 +223,7 @@ mod tests {
                 size: 10,
                 path: "/x/a.pdf".into(),
                 added_at_ms: 1,
+                missing: false,
             }],
         });
         lib

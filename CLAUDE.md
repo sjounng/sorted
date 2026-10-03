@@ -33,7 +33,9 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
 
 > **이 Mac에서는 `~/Sorted` = 저장소 `~/sorted`** (디스크가 대소문자를 구분하지 않음). 그대로 두면 강의 PDF가 저장소 안에 들어간다.
-> 확인할 때는 `open --env SORTED_ROOT="$HOME/Documents/Sorted-test" app/target/release/bundle/macos/Sorted.app`로 띄운다.
+> 확인할 때는 `open --env SORTED_ROOT="$HOME/SortedTest" app/target/release/bundle/macos/Sorted.app`로 띄운다.
+> 실제 데이터 화면으로 보려면 `VITE_BACKEND=tauri npm run tauri build -- --bundles app`로 빌드한다 (기본은 목업).
+> 테스트 폴더를 문서·데스크톱 같은 보호 폴더 안에 두지 않는다: 빌드마다 서명이 바뀌어 macOS가 권한 창을 다시 띄운다.
 
 ## 확인 명령 (CI와 같음)
 
