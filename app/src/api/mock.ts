@@ -182,8 +182,18 @@ function recentChanges(): Change[] {
   return [...recent, duplicate].sort((a, b) => b.atMs - a.atMs);
 }
 
-// courses는 overview()를 부를 때 library에서 새로 만든다.
-const overview: Omit<Overview, "courses"> = {
+/** Sorted 휴지통. 되살릴 때 원래 자리와 최근 변경까지 돌려놓으려고 같이 보관한다 */
+const trashed: { detail: CourseDetail; index: number; changes: Change[]; removedAtMs: number }[] =
+  [];
+
+function findTrashed(courseId: string) {
+  const found = trashed.find((t) => t.detail.course.id === courseId);
+  if (!found) throw new Error(`휴지통에 없는 과목이에요: ${courseId}`);
+  return found;
+}
+
+// courses와 trashCount는 overview()를 부를 때 새로 센다.
+const overview: Omit<Overview, "courses" | "trashCount"> = {
   sortedFolder: SORTED,
   changes: recentChanges(),
   unprocessed: [
@@ -233,7 +243,8 @@ const cleanup: CleanupRequest = {
 };
 
 export const mockBackend: Backend = {
-  overview: () => wait(structuredClone({ ...overview, courses: courses() })),
+  overview: () =>
+    wait(structuredClone({ ...overview, courses: courses(), trashCount: trashed.length })),
   onOverviewChanged: async (callback) => {
     listeners.add(callback);
     return () => listeners.delete(callback);
@@ -271,9 +282,49 @@ export const mockBackend: Backend = {
   },
   removeCourse: async (courseId) => {
     const found = findCourse(courseId);
-    library.splice(library.indexOf(found), 1);
+    const index = library.indexOf(found);
+    library.splice(index, 1);
+    trashed.unshift({
+      detail: found,
+      index,
+      changes: overview.changes.filter((c) => c.courseId === courseId),
+      removedAtMs: Date.now(),
+    });
     overview.changes = overview.changes.filter((c) => c.courseId !== courseId);
-    log("과목 삭제 (폴더는 휴지통으로)", found.course.name);
+    log("과목을 Sorted 휴지통으로", found.course.name);
+    changed();
+  },
+
+  trash: async () =>
+    wait(
+      structuredClone(
+        trashed.map((t) => ({ course: t.detail.course, removedAtMs: t.removedAtMs })),
+      ),
+    ),
+  restoreCourse: async (courseId) => {
+    const t = findTrashed(courseId);
+    const problem = courseNameProblem(t.detail.course.name, courses());
+    if (problem) {
+      throw new Error(`${problem} 먼저 지금 있는 과목의 이름을 바꿔 주세요.`);
+    }
+    trashed.splice(trashed.indexOf(t), 1);
+    library.splice(Math.min(t.index, library.length), 0, t.detail);
+    overview.changes = [...overview.changes, ...t.changes].sort((a, b) => b.atMs - a.atMs);
+    log("과목 되살림", t.detail.course.name);
+    changed();
+  },
+  purgeCourse: async (courseId) => {
+    const t = findTrashed(courseId);
+    trashed.splice(trashed.indexOf(t), 1);
+    log("과목 폴더를 macOS 휴지통으로", t.detail.course.name);
+    changed();
+  },
+  emptyTrash: async () => {
+    log(
+      "휴지통 비우기",
+      trashed.map((t) => t.detail.course.name),
+    );
+    trashed.length = 0;
     changed();
   },
 

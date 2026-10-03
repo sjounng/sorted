@@ -6,6 +6,7 @@ import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
 import { CourseCards } from "./CourseCards";
 import { CourseDetail } from "./CourseDetail";
+import { TrashView } from "./TrashView";
 
 type Tab = "courses" | "changes" | "unprocessed";
 
@@ -15,12 +16,14 @@ export function Popover() {
   const [tab, setTab] = useState<Tab>("courses");
   // 과목 카드를 누르면 과목 탭 안에서 그 과목 화면으로 들어간다.
   const [opened, setOpened] = useState<{ course: Course; color: string }>();
+  // 하단의 "휴지통"을 누르면 과목 탭 안에서 휴지통을 연다.
+  const [inTrash, setInTrash] = useState(false);
   const panel = useRef<HTMLElement>(null);
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
   useEffect(() => {
     panel.current?.scrollTo({ top: 0 });
-  }, [opened]);
+  }, [opened, inTrash]);
 
   useEffect(() => {
     // 구독마다 새 함수를 넘긴다. 같은 함수를 넘기면 StrictMode의 구독→해제→재구독에서
@@ -57,6 +60,7 @@ export function Popover() {
             onClick={() => {
               setTab(t.id);
               setOpened(undefined);
+              setInTrash(false);
             }}
           >
             {t.label}
@@ -67,7 +71,9 @@ export function Popover() {
 
       <section className="panel" role="tabpanel" ref={panel}>
         {tab === "courses" &&
-          (opened ? (
+          (inTrash ? (
+            <TrashView onBack={() => setInTrash(false)} />
+          ) : opened ? (
             <CourseDetail
               courseId={opened.course.id}
               folder={`${data.sortedFolder}/${opened.course.name}`}
@@ -82,6 +88,7 @@ export function Popover() {
             data={data}
             onOpenCourse={(course, color) => {
               setTab("courses");
+              setInTrash(false);
               setOpened({ course, color });
             }}
           />
@@ -93,9 +100,21 @@ export function Popover() {
         <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
           {data.sortedFolder} 열기
         </button>
-        <button className="link" onClick={() => openView("setup")}>
-          설정
-        </button>
+        <span className="foot-right">
+          <button
+            className="link"
+            onClick={() => {
+              setTab("courses");
+              setOpened(undefined);
+              setInTrash(true);
+            }}
+          >
+            휴지통{data.trashCount > 0 && ` ${data.trashCount}`}
+          </button>
+          <button className="link" onClick={() => openView("setup")}>
+            설정
+          </button>
+        </span>
       </footer>
     </main>
   );

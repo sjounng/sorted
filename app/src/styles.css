@@ -1047,3 +1047,115 @@ button.link {
   margin-bottom: 8px;
   font-size: 15px;
 }
+
+/* Sorted 휴지통 */
+
+.foot-right {
+  display: flex;
+  gap: 8px;
+}
+
+.trash-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.trash-head strong {
+  font-size: 15px;
+}
+
+.trash-head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.trash-head button {
+  flex: none;
+}
+
+.callout.trash-confirm {
+  margin-top: 12px;
+}
+
+.callout.trash-confirm p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.trash-list {
+  overflow: hidden;
+  margin-top: 16px;
+  border-radius: 4px;
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.trash-row {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.trash-row:last-child {
+  border-bottom: 0;
+}
+
+.trash-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trash-text {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trash-text strong {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-text .muted {
+  font-size: 12px;
+}
+
+.trash-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.trash-actions button,
+.trash-row .actions button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.trash-row .trash-confirm p {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.trash-row .actions {
+  padding-top: 8px;
+}
+
+.trash-error {
+  margin-top: 6px;
+}

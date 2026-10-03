@@ -69,10 +69,18 @@ export interface Unprocessed {
   atMs: number;
 }
 
+/** Sorted 휴지통에 있는 과목. 되살리면 자료·최근 변경과 함께 돌아온다 */
+export interface TrashedCourse {
+  course: Course;
+  removedAtMs: number;
+}
+
 /** 메뉴 막대 팝오버 전체 (FR-13) */
 export interface Overview {
   sortedFolder: string;
   courses: Course[];
+  /** Sorted 휴지통에 있는 과목 수 */
+  trashCount: number;
   changes: Change[];
   unprocessed: Unprocessed[];
 }

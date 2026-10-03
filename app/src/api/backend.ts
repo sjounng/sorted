@@ -10,6 +10,7 @@ import type {
   DuplicateNotice,
   Overview,
   SetupStatus,
+  TrashedCourse,
 } from "./types";
 
 /**
@@ -26,8 +27,15 @@ export interface Backend {
   addCourse(name: string): Promise<Course>;
   /** 과목명(=폴더 이름)을 바꾼다. 과목 ID와 자료는 그대로다 */
   renameCourse(courseId: string, name: string): Promise<void>;
-  /** 과목을 목록에서 지운다. 과목 폴더는 휴지통으로 간다 */
+  /** 과목을 Sorted 휴지통으로 옮긴다. 자료는 그대로 두어 되살릴 수 있다 */
   removeCourse(courseId: string): Promise<void>;
+
+  trash(): Promise<TrashedCourse[]>;
+  /** 휴지통의 과목을 되살린다. 같은 이름의 과목이 이미 있으면 거절한다 */
+  restoreCourse(courseId: string): Promise<void>;
+  /** 휴지통에서 지운다. 과목 폴더는 macOS 휴지통으로 가서 Finder에서는 아직 꺼낼 수 있다 */
+  purgeCourse(courseId: string): Promise<void>;
+  emptyTrash(): Promise<void>;
   /** PDF를 기본 앱(미리보기 등)으로 연다 */
   openFile(path: string): Promise<void>;
 

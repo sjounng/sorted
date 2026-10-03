@@ -142,15 +142,15 @@ function CourseCard(props: {
             <br />
             <span className="muted">
               {course.fileCount > 0
-                ? `과목 폴더와 자료 ${course.fileCount}개는 휴지통으로 가요.`
-                : "빈 과목 폴더는 휴지통으로 가요."}
+                ? `자료 ${course.fileCount}개와 함께 휴지통으로 옮겨요. 휴지통에서 되살릴 수 있어요.`
+                : "휴지통으로 옮겨요. 휴지통에서 되살릴 수 있어요."}
             </span>
           </p>
           {error && <p className="warn">{error}</p>}
           <div className="actions">
             <button onClick={() => setMode("view")}>취소</button>
             <button className="danger" onClick={remove}>
-              삭제
+              휴지통으로
             </button>
           </div>
         </div>
