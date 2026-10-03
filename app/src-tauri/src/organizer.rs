@@ -237,7 +237,7 @@ impl Organizer {
                     .cloned(),
             )
             .collect();
-        unprocessed.sort_by(|a, b| b.at_ms.cmp(&a.at_ms));
+        unprocessed.sort_by_key(|u| std::cmp::Reverse(u.at_ms));
         Overview {
             sorted_folder: self.root().to_owned(),
             courses: screen::courses(&lib),
