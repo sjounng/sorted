@@ -39,11 +39,7 @@ impl Course {
     pub fn id(&self) -> String {
         match &self.lms_id {
             Some(id) => id.clone(),
-            None => {
-                let hash = Sha256::digest(self.name.as_bytes());
-                let hex: String = hash.iter().take(6).map(|b| format!("{b:02x}")).collect();
-                format!("local-{hex}")
-            }
+            None => format!("local-{}", short_hash(&self.name)),
         }
     }
 }
@@ -58,6 +54,34 @@ pub enum DocKey {
     ModuleItem { value: String },
     /// 둘 다 없을 때: 과목 + 정규화한 파일 이름
     Name { course: String, name: String },
+}
+
+impl DocKey {
+    /// 화면이 쓰는 문서 ID. 창 이름에 쓰이므로 영문·숫자·`-`만 들어간다 (docs/app-api.md).
+    pub fn id(&self) -> String {
+        match self {
+            DocKey::ContentId { value } if is_plain(value) => format!("cid-{value}"),
+            DocKey::ModuleItem { value } if is_plain(value) => format!("item-{value}"),
+            DocKey::ContentId { value } => format!("cid-{}", short_hash(value)),
+            DocKey::ModuleItem { value } => format!("item-{}", short_hash(value)),
+            DocKey::Name { course, name } => {
+                format!("name-{}", short_hash(&format!("{course}/{name}")))
+            }
+        }
+    }
+}
+
+fn is_plain(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 64 && s.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+/// SHA-256 앞 6바이트(16진수 12자리)
+fn short_hash(s: &str) -> String {
+    Sha256::digest(s.as_bytes())
+        .iter()
+        .take(6)
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -114,6 +138,13 @@ impl Library {
         self.courses
             .iter()
             .find(|c| c.lms_id.as_deref() == Some(id))
+    }
+
+    /// 정리 폴더의 파일 경로로 그 문서와 버전을 찾는다.
+    pub fn version_at(&self, path: &Path) -> Option<(&Document, &Version)> {
+        self.documents
+            .iter()
+            .find_map(|d| d.versions.iter().find(|v| v.path == path).map(|v| (d, v)))
     }
 
     /// 화면이 쓰는 과목 ID(`Course::id`)로 찾는다.
@@ -261,5 +292,32 @@ mod tests {
         assert!(local.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
         assert_eq!(lib.course_by_id(&local).unwrap().name, "운영체제");
         assert!(lib.course_by_id("nope").is_none());
+    }
+
+    #[test]
+    fn doc_ids_are_ascii_and_stable() {
+        let cid = DocKey::ContentId {
+            value: "6aa284ef1cf74".into(),
+        };
+        assert_eq!(cid.id(), "cid-6aa284ef1cf74");
+        let item = DocKey::ModuleItem {
+            value: "8582056".into(),
+        };
+        assert_eq!(item.id(), "item-8582056");
+        let name = DocKey::Name {
+            course: "운영체제".into(),
+            name: "강의 노트".into(),
+        };
+        assert_eq!(name.id(), name.id());
+        assert!(name.id().starts_with("name-"));
+        let odd = DocKey::ContentId {
+            value: "a/b 한글".into(),
+        };
+        for id in [name.id(), odd.id()] {
+            assert!(
+                id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+                "{id}"
+            );
+        }
     }
 }

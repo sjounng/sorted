@@ -33,13 +33,13 @@
 
 | 명령       | 인자 | 돌려주는 것 | 단계 | 상태 |
 | ---------- | ---- | ----------- | ---- | ---- |
-| `overview` | 없음 | `Overview`  | 3    | 새로 |
+| `overview` | 없음 | `Overview`  | 3    | 있음 |
 
 ### 과목 (FR-11, FR-12)
 
 | 명령            | 인자                                 | 돌려주는 것    | 뜻                                                    | 단계 | 상태 |
 | --------------- | ------------------------------------ | -------------- | ----------------------------------------------------- | ---- | ---- |
-| `course_detail` | `{ courseId: string }`               | `CourseDetail` | 과목의 자료 전체, 주차는 LMS 순서대로                 | 3    | 새로 |
+| `course_detail` | `{ courseId: string }`               | `CourseDetail` | 과목의 자료 전체, 주차는 LMS 순서대로                 | 3    | 있음 |
 | `add_course`    | `{ name: string }`                   | `Course`       | 과목을 직접 추가. 정리 폴더에 같은 이름의 폴더가 생김 | 3    | 새로 |
 | `rename_course` | `{ courseId: string; name: string }` | 없음           | 과목명(= 폴더 이름)을 바꿈. 과목 ID와 자료는 그대로   | 3    | 새로 |
 | `remove_course` | `{ courseId: string }`               | 없음           | Sorted 휴지통으로. 자료는 그대로 두어 되살릴 수 있음  | 3    | 새로 |
@@ -74,8 +74,10 @@
 
 | 명령               | 인자               | 돌려주는 것 | 뜻                                       | 단계 | 상태 |
 | ------------------ | ------------------ | ----------- | ---------------------------------------- | ---- | ---- |
-| `open_file`        | `{ path: string }` | 없음        | PDF를 기본 앱(미리보기 등)으로           | 3    | 새로 |
-| `reveal_in_finder` | `{ path: string }` | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌 | 3    | 새로 |
+| `open_file`        | `{ path: string }` | 없음        | PDF를 기본 앱(미리보기 등)으로           | 3    | 있음 |
+| `reveal_in_finder` | `{ path: string }` | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌 | 3    | 있음 |
+
+두 명령 모두 정리 폴더 안(정리 폴더 자신 포함)의 경로만 받는다. 밖이거나 없는 경로는 이유를 담아 거절한다.
 
 ### 과목 지정 (FR-5)
 
@@ -105,16 +107,18 @@
 | `cleanup_request` | `{ documentId: string }`                        | `CleanupRequest` | 구버전 정리 창에 보여 줄 것                                  | 4    | 새로 |
 | `resolve_cleanup` | `{ documentId: string; choice: CleanupChoice }` | 없음             | `delete`: 구버전을 휴지통으로, 비교용 데이터도 지움 / `keep` | 4    | 새로 |
 
-### 지금 있는 명령이 옮겨 갈 곳
+### 없앤 명령
 
-PR #20이 머지되고 화면이 새 명령으로 옮겨 가면 지운다.
+화면이 새 명령으로 옮겨 가서 없앴다: `pending_downloads`·`library`·`sorted_root` → `overview`·`course_detail`, `retry_permission` → `request_downloads_access`, `open_privacy_settings` → `open_system_settings`.
+`received_messages`는 개발용 메시지 기록 창이 쓰므로 그대로 둔다.
 
-| 지금 있는 명령      | 옮겨 갈 곳                                           |
-| ------------------- | ---------------------------------------------------- |
-| `pending_downloads` | `overview`의 `unprocessed`                           |
-| `library`           | `overview`(과목·최근 변경), `course_detail`(자료)    |
-| `sorted_root`       | `overview.sortedFolder`, `setup_status.sortedFolder` |
-| `received_messages` | 그대로 둠 (개발용, 메시지 기록 창)                   |
+### `overview`·`course_detail` 동작
+
+- `changes`: 정리할 때마다 남기는 기록. 앱 데이터 폴더의 `history.json`에 최근 200개까지 남아 앱을 다시 켜도 보인다. 새것부터 온다.
+- `unprocessed`: 과목을 기다리는 파일(`unknownCourse`)과 PDF가 아님·로그인 만료·옮기기 실패. 앱이 켜져 있는 동안만 기억한다 (보류 목록과 같음).
+- `trashCount`: 휴지통이 아직 없어 0.
+- `course_detail`: 주차는 `N주차`를 숫자 순서로, 숫자 없는 이름은 그 뒤 가나다순, `미분류`는 맨 끝. 같은 주차 안에서는 받은 순서. 문서의 버전마다 파일 하나다.
+- 문서 ID: `cid-<content_id>`, `item-<모듈 항목 번호>`, 파일명으로 식별한 문서는 `name-<해시>`. 파일 ID는 `<문서 ID>-v<버전>`.
 
 ## `Outcome`
 

@@ -124,6 +124,145 @@ pub fn course_name_problem(name: &str, lib: &Library) -> Option<&'static str> {
     None
 }
 
+// ── 메인 창 (FR-13) ──
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Overview {
+    pub sorted_folder: PathBuf,
+    pub courses: Vec<Course>,
+    /// Sorted 휴지통에 있는 과목 수 (휴지통은 아직 없음)
+    pub trash_count: usize,
+    /// 최근 변경. 새것부터
+    pub changes: Vec<Change>,
+    /// 판정하지 못해 다운로드 폴더에 그대로 둔 파일. 새것부터
+    pub unprocessed: Vec<Unprocessed>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ChangeKind {
+    Organized,
+    NewVersion,
+    Duplicate,
+}
+
+/// 최근 변경 한 줄. 앱 데이터 폴더의 history.json에 남는다.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Change {
+    pub id: String,
+    pub kind: ChangeKind,
+    pub document_id: String,
+    pub course_id: String,
+    pub course_name: String,
+    pub file_name: String,
+    /// 새 버전에서 바뀐 장 수 (변경 비교는 4단계)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changed_pages: Option<u32>,
+    pub at_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum UnprocessedReason {
+    UnknownCourse,
+    NotPdf,
+    LoginExpired,
+    MoveFailed,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Unprocessed {
+    /// 받은 메시지 번호. `unknownCourse`면 assign_request·skip_assign의 fileId
+    pub id: String,
+    pub file_name: String,
+    pub reason: UnprocessedReason,
+    pub at_ms: u64,
+}
+
+// ── 과목 화면 ──
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CourseDetail {
+    pub course: Course,
+    pub weeks: Vec<WeekGroup>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WeekGroup {
+    pub week: String,
+    pub files: Vec<CourseFile>,
+}
+
+/// 정리 폴더에 있는 PDF 하나 (문서의 버전 하나)
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CourseFile {
+    pub id: String,
+    pub document_id: String,
+    pub file_name: String,
+    pub path: PathBuf,
+    pub version: u32,
+    pub size_bytes: u64,
+    pub saved_at_ms: u64,
+    /// 새 버전을 아직 비교해 보지 않았다 (변경 비교는 4단계라 지금은 항상 false)
+    pub unseen_change: bool,
+}
+
+/// 과목 하나의 자료 전체. 과목 ID가 없으면 None.
+pub fn course_detail(lib: &Library, course_id: &str) -> Option<CourseDetail> {
+    let course = courses(lib).into_iter().find(|c| c.id == course_id)?;
+    let mut weeks: Vec<WeekGroup> = Vec::new();
+    for doc in lib.documents.iter().filter(|d| d.course == course.name) {
+        let files = doc.versions.iter().map(|v| CourseFile {
+            id: format!("{}-v{}", doc.key.id(), v.number),
+            document_id: doc.key.id(),
+            file_name: v
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| doc.file_name.clone()),
+            path: v.path.clone(),
+            version: v.number,
+            size_bytes: v.size,
+            saved_at_ms: v.added_at_ms,
+            unseen_change: false,
+        });
+        match weeks.iter_mut().find(|w| w.week == doc.week) {
+            Some(w) => w.files.extend(files),
+            None => weeks.push(WeekGroup {
+                week: doc.week.clone(),
+                files: files.collect(),
+            }),
+        }
+    }
+    weeks.sort_by_key(|w| week_order(&w.week));
+    for w in &mut weeks {
+        w.files
+            .sort_by(|a, b| (a.saved_at_ms, &a.file_name).cmp(&(b.saved_at_ms, &b.file_name)));
+    }
+    Some(CourseDetail { course, weeks })
+}
+
+/// 주차 정렬: "N주차"는 숫자 순서로 먼저, 숫자 없는 이름은 그 뒤 가나다순, 미분류는 맨 끝
+fn week_order(week: &str) -> (u8, u32, String) {
+    if week == sorted_core::organize::UNSORTED_WEEK {
+        return (2, 0, String::new());
+    }
+    let digits: String = week.chars().take_while(char::is_ascii_digit).collect();
+    match (
+        digits.parse::<u32>(),
+        week[digits.len()..].starts_with("주차"),
+    ) {
+        (Ok(n), true) => (0, n, String::new()),
+        _ => (1, 0, week.to_owned()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,5 +350,24 @@ mod tests {
             serde_json::to_value(Permission::Granted).unwrap(),
             "granted"
         );
+    }
+
+    #[test]
+    fn course_detail_groups_by_week_in_order() {
+        let mut lib = Library::default();
+        lib.remember_course(Some("210208"), "소프트웨어공학", &[]);
+        lib.documents.push(doc("소프트웨어공학", "10주차", &[5]));
+        lib.documents.push(doc("소프트웨어공학", "미분류", &[1]));
+        lib.documents.push(doc("소프트웨어공학", "Unit-1", &[2]));
+        lib.documents.push(doc("소프트웨어공학", "2주차", &[3, 9]));
+
+        let d = course_detail(&lib, "210208").unwrap();
+        let weeks: Vec<&str> = d.weeks.iter().map(|w| w.week.as_str()).collect();
+        assert_eq!(weeks, ["2주차", "10주차", "Unit-1", "미분류"]);
+        let two = &d.weeks[0].files;
+        assert_eq!(two.len(), 2);
+        assert_eq!(two[0].version, 1);
+        assert_eq!(two[1].id, format!("{}-v2", two[1].document_id));
+        assert!(course_detail(&lib, "nope").is_none());
     }
 }
