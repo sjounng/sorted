@@ -627,9 +627,12 @@ button.link {
     0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
+/* 버튼 안에서 flex를 쓰면 WebKit(앱 화면)이 너비를 글자 길이로 잡아 카드 밖으로 넘친다.
+   블록으로 두고 너비를 카드에 맞춘다. */
 .card-main {
-  display: flex;
-  flex-direction: column;
+  display: block;
+  width: 100%;
+  min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -640,6 +643,7 @@ button.link {
 
 .card-cover {
   display: block;
+  width: 100%;
   height: clamp(56px, 12vw, 140px);
   background: var(--course);
 }
@@ -652,14 +656,20 @@ button.link {
   padding: 16px 20px 0;
 }
 
-.card-body > span,
-.card-title {
+.card-body > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* 과목명은 자르지 않고 두 줄까지 보여 준다 */
 .card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
   color: var(--course);
   font-size: 16px;
   font-weight: 700;

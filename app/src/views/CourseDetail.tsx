@@ -28,7 +28,9 @@ export function CourseDetail(props: {
             <span className="course-cover" />
             <div className="course-titles">
               <strong className="card-title">{data.course.name}</strong>
-              <span className="card-sub">{data.course.lmsTitle ?? "직접 추가한 과목"}</span>
+              <span className="card-sub" title={data.course.lmsTitle}>
+                {data.course.lmsTitle ?? "직접 추가한 과목"}
+              </span>
               <span className="muted">
                 {data.course.term} · 파일 {data.course.fileCount}개
               </span>
