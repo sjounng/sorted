@@ -19,10 +19,11 @@ type KindFilter = "all" | ScheduleKind;
  * 일정 탭: LMS의 과제·퀴즈·영상 마감을 한곳에서 본다.
  * 왼쪽 달력에서 날을 고르면 그날 일정만, 아니면 다가오는 일정을 D-day 순으로.
  */
-export function ScheduleView({ courses }: { courses: Course[] }) {
+export function ScheduleView(props: { courses: Course[]; initialDay?: number }) {
+  const { courses, initialDay } = props;
   const { data, error } = useLoad(api.schedule);
-  const [month, setMonth] = useState(() => firstOfMonth(Date.now()));
-  const [day, setDay] = useState<number>();
+  const [month, setMonth] = useState(() => firstOfMonth(initialDay ?? Date.now()));
+  const [day, setDay] = useState<number | undefined>(initialDay);
   const [kind, setKind] = useState<KindFilter>("all");
   const [showDone, setShowDone] = useState(false);
 
@@ -176,7 +177,7 @@ function ScheduleRow(props: {
   );
 }
 
-function MonthCalendar(props: {
+export function MonthCalendar(props: {
   month: number;
   items: ScheduleItem[];
   selected?: number;
@@ -263,7 +264,7 @@ function MonthCalendar(props: {
   );
 }
 
-function firstOfMonth(ms: number): number {
+export function firstOfMonth(ms: number): number {
   const d = new Date(ms);
   return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
 }

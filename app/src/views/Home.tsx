@@ -1,22 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Course, type Overview, type UnprocessedReason } from "../api";
 import { ago } from "../format";
+import {
+  ChangesIcon,
+  ClassesIcon,
+  DashboardIcon,
+  FolderIcon,
+  ScheduleIcon,
+  SettingsIcon,
+  TrashIcon,
+  UnprocessedIcon,
+} from "../icons";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
 import { CourseCards } from "./CourseCards";
 import { CourseDetail } from "./CourseDetail";
+import { Dashboard } from "./Dashboard";
 import { ScheduleView } from "./ScheduleView";
 import { TrashView } from "./TrashView";
 
-type Tab = "courses" | "schedule" | "changes" | "unprocessed" | "trash";
+type Tab = "dashboard" | "classes" | "schedule" | "changes" | "unprocessed" | "trash";
 
-/** 메인 창: 과목·최근 변경·처리 못한 파일·휴지통 (FR-13). */
+interface NavItem {
+  id: Tab;
+  label: string;
+  icon: () => React.JSX.Element;
+  count?: number;
+}
+
+/** 메인 창: 왼쪽 사이드바 + 오른쪽 화면 (FR-13). 열면 Dashboard부터. */
 export function Home() {
   const { data, error, reload } = useLoad(api.overview);
-  const [tab, setTab] = useState<Tab>("courses");
-  // 과목 카드를 누르면 과목 탭 안에서 그 과목 화면으로 들어간다.
+  const [tab, setTab] = useState<Tab>("dashboard");
+  // 과목 카드를 누르면 My Classes 안에서 그 과목 화면으로 들어간다.
   const [opened, setOpened] = useState<{ course: Course; color: string }>();
+  // 대시보드 달력에서 고른 날로 일정 탭을 연다.
+  const [scheduleDay, setScheduleDay] = useState<number>();
   const panel = useRef<HTMLElement>(null);
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
@@ -37,55 +57,85 @@ export function Home() {
   if (error) return <p className="empty warn">{error}</p>;
   if (!data) return <main className="home" />;
 
-  const tabs: { id: Tab; label: string; count?: number }[] = [
-    { id: "courses", label: "과목" },
-    { id: "schedule", label: "일정" },
-    { id: "changes", label: "최근 변경" },
-    { id: "unprocessed", label: "처리 못한 파일", count: data.unprocessed.length },
+  const go = (next: Tab) => {
+    setTab(next);
+    setOpened(undefined);
+    setScheduleDay(undefined);
+  };
+  const openCourse = (course: Course, color: string) => {
+    go("classes");
+    setOpened({ course, color });
+  };
+
+  const main: NavItem[] = [
+    { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
+    { id: "classes", label: "My Classes", icon: ClassesIcon },
+    { id: "schedule", label: "일정", icon: ScheduleIcon },
+    { id: "changes", label: "최근 변경", icon: ChangesIcon },
+    {
+      id: "unprocessed",
+      label: "처리 못한 파일",
+      icon: UnprocessedIcon,
+      count: data.unprocessed.length,
+    },
   ];
 
   return (
     <main className="home">
-      <header className="home-head">
-        <h1>Sorted</h1>
-      </header>
+      <nav className="side-nav" aria-label="메뉴">
+        <div className="brand-logo">
+          <span className="brand-mark" aria-hidden>
+            S
+          </span>
+          <span className="nav-label">Sorted</span>
+        </div>
 
-      <nav className="tabs" role="tablist">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            className={tab === t.id ? "tab active" : "tab"}
-            onClick={() => {
-              setTab(t.id);
-              setOpened(undefined);
-            }}
-          >
-            {t.label}
-            {t.count ? <span className="badge">{t.count}</span> : null}
-          </button>
-        ))}
-        <button
-          role="tab"
-          aria-selected={tab === "trash"}
-          aria-label={`휴지통${data.trashCount ? ` ${data.trashCount}개` : ""}`}
-          title="휴지통"
-          className={tab === "trash" ? "tab tab-icon active" : "tab tab-icon"}
-          onClick={() => {
-            setTab("trash");
-            setOpened(undefined);
-          }}
-        >
-          <TrashIcon />
-          {data.trashCount > 0 && <span className="badge corner">{data.trashCount}</span>}
-        </button>
+        <ul className="nav-list" role="tablist" aria-orientation="vertical">
+          {main.map((item) => (
+            <NavButton key={item.id} item={item} active={tab === item.id} onClick={go} />
+          ))}
+        </ul>
+
+        <ul className="nav-list nav-bottom">
+          <NavButton
+            item={{ id: "trash", label: "휴지통", icon: TrashIcon, count: data.trashCount }}
+            active={tab === "trash"}
+            quietCount
+            onClick={go}
+          />
+          <li>
+            <button
+              className="nav-item"
+              title={`${data.sortedFolder} 열기`}
+              onClick={() => api.revealInFinder(data.sortedFolder)}
+            >
+              <FolderIcon />
+              <span className="nav-label">폴더 열기</span>
+            </button>
+          </li>
+          <li>
+            <button className="nav-item" title="설정" onClick={() => openView("setup")}>
+              <SettingsIcon />
+              <span className="nav-label">설정</span>
+            </button>
+          </li>
+        </ul>
       </nav>
 
       <section className="panel" role="tabpanel" ref={panel}>
-        {tab === "trash" && <TrashView />}
-        {tab === "schedule" && <ScheduleView courses={data.courses} />}
-        {tab === "courses" &&
+        {tab === "dashboard" && (
+          <Dashboard
+            data={data}
+            onOpenSchedule={(day) => {
+              go("schedule");
+              setScheduleDay(day);
+            }}
+            onOpenChanges={() => go("changes")}
+            onOpenUnprocessed={() => go("unprocessed")}
+            onOpenCourse={openCourse}
+          />
+        )}
+        {tab === "classes" &&
           (opened ? (
             <CourseDetail
               courseId={opened.course.id}
@@ -96,27 +146,46 @@ export function Home() {
           ) : (
             <CourseCards data={data} onSelect={(course, color) => setOpened({ course, color })} />
           ))}
-        {tab === "changes" && (
-          <ChangesByCourse
-            data={data}
-            onOpenCourse={(course, color) => {
-              setTab("courses");
-              setOpened({ course, color });
-            }}
+        {tab === "schedule" && (
+          <ScheduleView
+            key={scheduleDay ?? "upcoming"}
+            courses={data.courses}
+            initialDay={scheduleDay}
           />
         )}
+        {tab === "changes" && <ChangesByCourse data={data} onOpenCourse={openCourse} />}
         {tab === "unprocessed" && <UnprocessedList data={data} />}
+        {tab === "trash" && <TrashView />}
       </section>
-
-      <footer className="home-foot">
-        <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
-          {data.sortedFolder} 열기
-        </button>
-        <button className="link" onClick={() => openView("setup")}>
-          설정
-        </button>
-      </footer>
     </main>
+  );
+}
+
+function NavButton(props: {
+  item: NavItem;
+  active: boolean;
+  /** 휴지통처럼 경고가 아닌 개수는 회색으로 */
+  quietCount?: boolean;
+  onClick: (tab: Tab) => void;
+}) {
+  const { item, active, quietCount, onClick } = props;
+  const Icon = item.icon;
+  return (
+    <li>
+      <button
+        role="tab"
+        aria-selected={active}
+        className={active ? "nav-item active" : "nav-item"}
+        title={item.label}
+        onClick={() => onClick(item.id)}
+      >
+        <Icon />
+        <span className="nav-label">{item.label}</span>
+        {item.count ? (
+          <span className={quietCount ? "nav-count quiet" : "nav-count"}>{item.count}</span>
+        ) : null}
+      </button>
+    </li>
   );
 }
 
@@ -155,22 +224,4 @@ function UnprocessedList({ data }: { data: Overview }) {
 
 function Empty({ text }: { text: string }) {
   return <p className="empty muted">{text}</p>;
-}
-
-function TrashIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
-    </svg>
-  );
 }
