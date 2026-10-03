@@ -852,3 +852,51 @@ button.link {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* 최근 변경 탭: 과목별 묶음 */
+
+.stack {
+  padding: 0 clamp(14px, 3vw, 28px) 24px;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-left: 4px solid var(--course);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+.group-head:hover {
+  background: var(--hover);
+}
+
+.group-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.group-title strong {
+  overflow: hidden;
+  color: var(--course);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-title .muted {
+  font-size: 12px;
+}
+
+.chevron {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}

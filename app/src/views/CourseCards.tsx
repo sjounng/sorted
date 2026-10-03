@@ -1,17 +1,6 @@
 import type { Change, Course, Overview } from "../api";
+import { courseColor } from "../courseColor";
 import { openView } from "../windows";
-
-// LMS 대시보드의 과목 카드 색. 목록 순서대로 돌려 써서 8과목까지는 색이 겹치지 않는다.
-const COLORS = [
-  "#e0638f",
-  "#4a9eb7",
-  "#6f9c5b",
-  "#9d82d6",
-  "#5aa287",
-  "#ad8b2f",
-  "#d9774b",
-  "#5b7fd6",
-];
 
 /** 과목 탭: LMS 대시보드처럼 과목을 카드로 보여 준다. 창 폭에 맞춰 한 줄에 1~여러 장. */
 export function CourseCards(props: {
@@ -26,15 +15,15 @@ export function CourseCards(props: {
   }
   return (
     <ul className="cards">
-      {data.courses.map((c, i) => (
+      {data.courses.map((c) => (
         <CourseCard
           key={c.id}
           course={c}
-          color={COLORS[i % COLORS.length]}
+          color={courseColor(data.courses, c.name)}
           newVersions={data.changes.filter(
             (ch) => ch.kind === "newVersion" && ch.courseName === c.name,
           )}
-          onOpen={() => onSelect(c, COLORS[i % COLORS.length])}
+          onOpen={() => onSelect(c, courseColor(data.courses, c.name))}
         />
       ))}
     </ul>

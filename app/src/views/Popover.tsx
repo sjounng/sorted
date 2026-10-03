@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type Change, type Course, type Overview, type UnprocessedReason } from "../api";
+import { api, type Course, type Overview, type UnprocessedReason } from "../api";
 import { ago } from "../format";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
+import { ChangesByCourse } from "./ChangesByCourse";
 import { CourseCards } from "./CourseCards";
 import { CourseDetail } from "./CourseDetail";
 
@@ -74,7 +75,15 @@ export function Popover() {
           ) : (
             <CourseCards data={data} onSelect={(course, color) => setOpened({ course, color })} />
           ))}
-        {tab === "changes" && <ChangeList data={data} />}
+        {tab === "changes" && (
+          <ChangesByCourse
+            data={data}
+            onOpenCourse={(course, color) => {
+              setTab("courses");
+              setOpened({ course, color });
+            }}
+          />
+        )}
         {tab === "unprocessed" && <UnprocessedList data={data} />}
       </section>
 
@@ -87,38 +96,6 @@ export function Popover() {
         </button>
       </footer>
     </main>
-  );
-}
-
-const CHANGE_LABEL: Record<Change["kind"], (c: Change) => string> = {
-  organized: () => "정리됨",
-  newVersion: (c) => `새 버전 · ${c.changedPages ?? 0}장 변경`,
-  duplicate: () => "이미 받은 파일",
-};
-
-function ChangeList({ data }: { data: Overview }) {
-  if (data.changes.length === 0) return <Empty text="최근 변경이 없어요." />;
-  return (
-    <ul className="rows">
-      {data.changes.map((c) => (
-        <li key={c.id}>
-          <button
-            className="row"
-            onClick={() =>
-              c.kind === "newVersion"
-                ? openView("compare", c.documentId)
-                : api.revealInFinder(`${data.sortedFolder}/${c.courseName}`)
-            }
-          >
-            <strong>{c.fileName}</strong>
-            <span className="muted">
-              <span className={`tag ${c.kind}`}>{CHANGE_LABEL[c.kind](c)}</span>
-              {c.courseName} · {ago(c.atMs)}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 

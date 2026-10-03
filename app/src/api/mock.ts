@@ -1,5 +1,6 @@
 import type { Backend } from "./backend";
 import type {
+  Change,
   CleanupRequest,
   Comparison,
   Course,
@@ -150,36 +151,38 @@ function fakeSize(name: string): number {
 const library = details();
 const courses: Course[] = library.map((d) => d.course);
 
+/** 최근 이틀 안에 받은 자료는 "최근 변경"에 나온다. 과목 화면의 목록과 항상 맞는다. */
+function recentChanges(): Change[] {
+  const recent: Change[] = library.flatMap((d) =>
+    d.weeks.flatMap((w) =>
+      w.files
+        .filter((f) => now - f.savedAtMs < 2 * DAY)
+        .map((f): Change => ({
+          id: `c-${f.id}`,
+          kind: f.version > 1 ? "newVersion" : "organized",
+          documentId: f.documentId,
+          courseName: d.course.name,
+          fileName: f.fileName,
+          changedPages: f.version > 1 ? 4 : undefined,
+          atMs: f.savedAtMs,
+        })),
+    ),
+  );
+  const duplicate: Change = {
+    id: "c-dup",
+    kind: "duplicate",
+    documentId: "5f0e33a91c7b2",
+    courseName: "확률과통계",
+    fileName: "05_조건부확률.pdf",
+    atMs: now - DAY - 3 * HOUR,
+  };
+  return [...recent, duplicate].sort((a, b) => b.atMs - a.atMs);
+}
+
 const overview: Overview = {
   sortedFolder: SORTED,
   courses,
-  changes: [
-    {
-      id: "c1",
-      kind: "newVersion",
-      documentId: "6aa284ef1cf74",
-      courseName: "소프트웨어공학",
-      fileName: "Phase1_과제명세 (v2).pdf",
-      changedPages: 4,
-      atMs: now - 4 * MINUTE,
-    },
-    {
-      id: "c2",
-      kind: "organized",
-      documentId: "7bc1190a2de01",
-      courseName: "시스템감리론",
-      fileName: "04_감리절차.pdf",
-      atMs: now - 2 * HOUR,
-    },
-    {
-      id: "c3",
-      kind: "duplicate",
-      documentId: "5f0e33a91c7b2",
-      courseName: "확률과통계",
-      fileName: "05_조건부확률.pdf",
-      atMs: now - DAY - 3 * HOUR,
-    },
-  ],
+  changes: recentChanges(),
   unprocessed: [
     { id: "u1", fileName: "original.pdf", reason: "unknownCourse", atMs: now - 30 * MINUTE },
     { id: "u2", fileName: "original (1).pdf", reason: "loginExpired", atMs: now - 3 * DAY },
