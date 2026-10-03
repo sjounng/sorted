@@ -1,7 +1,8 @@
 //! 확장에서 받은 메시지 처리. Tauri에 의존하지 않아서 단위 테스트가 쉽다.
 //!
-//! 지금은 받은 것을 기록하고 "받았다"고 답하기만 한다.
-//! 다운로드 정리(FR-1~)는 이후 여기서 `sorted_core`의 판정 로직을 부른다.
+//! 받은 것을 기록하고 바로 "받았다"고 답한다. 다운로드 메시지는 파일 확인(probe)이
+//! 끝나면 그 결과를 같은 항목에 붙인다. 중계 프로그램은 5초 안에 답을 받아야 하므로
+//! 오래 걸리는 확인은 답한 뒤에 따로 한다.
 
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,10 +16,21 @@ const KEEP: usize = 200;
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Received {
+    pub id: u64,
     pub received_at_ms: u64,
     /// "live": 확장에서 바로 옴, "queued": 앱이 꺼져 있던 동안 보관됐다가 옴
     pub source: Source,
     pub message: Value,
+    /// 다운로드 메시지의 파일 확인 결과. 아직 확인 중이거나 다운로드가 아니면 null
+    pub probe: Option<Value>,
+    /// 다운로드 메시지의 정리 결과 (pipeline::Outcome). 아직이거나 다운로드가 아니면 null
+    pub outcome: Option<Value>,
+}
+
+impl Received {
+    pub fn is_download(&self) -> bool {
+        self.message["type"] == "download"
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
@@ -29,7 +41,13 @@ pub enum Source {
 }
 
 #[derive(Default)]
-pub struct Inbox(Mutex<Vec<Received>>);
+struct State {
+    next_id: u64,
+    items: Vec<Received>,
+}
+
+#[derive(Default)]
+pub struct Inbox(Mutex<State>);
 
 impl Inbox {
     /// 원본 메시지 한 줄을 처리한다. 확장에 돌려줄 응답과, 기록된 항목을 돌려준다.
@@ -38,17 +56,22 @@ impl Inbox {
             Ok(v @ Value::Object(_)) => v,
             _ => return (json!({ "ok": false, "error": "invalid_message" }), None),
         };
-        let item = Received {
-            received_at_ms: now_ms(),
-            source,
-            message,
+        let item = {
+            let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+            state.next_id += 1;
+            let item = Received {
+                id: state.next_id,
+                received_at_ms: now_ms(),
+                source,
+                message,
+                probe: None,
+                outcome: None,
+            };
+            state.items.push(item.clone());
+            let overflow = state.items.len().saturating_sub(KEEP);
+            state.items.drain(..overflow);
+            item
         };
-        {
-            let mut items = self.0.lock().unwrap_or_else(|e| e.into_inner());
-            items.push(item.clone());
-            let overflow = items.len().saturating_sub(KEEP);
-            items.drain(..overflow);
-        }
         let reply = json!({
             "ok": true,
             "app": "Sorted",
@@ -57,8 +80,28 @@ impl Inbox {
         (reply, Some(item))
     }
 
+    /// 확인 결과를 항목에 붙인다. 항목이 이미 밀려났으면 None.
+    pub fn set_probe(&self, id: u64, probe: Value) -> Option<Received> {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let item = state.items.iter_mut().find(|i| i.id == id)?;
+        item.probe = Some(probe);
+        Some(item.clone())
+    }
+
+    /// 정리 결과를 항목에 붙인다. 항목이 이미 밀려났으면 None.
+    pub fn set_outcome(&self, id: u64, outcome: Value) -> Option<Received> {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let item = state.items.iter_mut().find(|i| i.id == id)?;
+        item.outcome = Some(outcome);
+        Some(item.clone())
+    }
+
     pub fn snapshot(&self) -> Vec<Received> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .items
+            .clone()
     }
 }
 
@@ -78,7 +121,9 @@ mod tests {
         let inbox = Inbox::default();
         let (reply, item) = inbox.handle(br#"{"type":"hello"}"#, Source::Live);
         assert_eq!(reply["ok"], true);
-        assert_eq!(item.unwrap().message["type"], "hello");
+        let item = item.unwrap();
+        assert_eq!(item.message["type"], "hello");
+        assert!(!item.is_download());
         assert_eq!(inbox.snapshot().len(), 1);
     }
 
@@ -105,15 +150,39 @@ mod tests {
     }
 
     #[test]
+    fn ids_are_unique_and_probe_attaches_later() {
+        let inbox = Inbox::default();
+        let (_, a) = inbox.handle(br#"{"type":"download"}"#, Source::Live);
+        let (_, b) = inbox.handle(br#"{"type":"download"}"#, Source::Live);
+        let (a, b) = (a.unwrap(), b.unwrap());
+        assert_ne!(a.id, b.id);
+        assert!(a.is_download());
+        assert!(a.probe.is_none());
+
+        let updated = inbox.set_probe(a.id, json!({ "name": "x" })).unwrap();
+        assert_eq!(updated.probe.unwrap()["name"], "x");
+        assert!(inbox.snapshot()[1].probe.is_none());
+        assert!(inbox.set_probe(999, json!({})).is_none());
+
+        let done = inbox
+            .set_outcome(b.id, json!({ "kind": "organized" }))
+            .unwrap();
+        assert_eq!(done.outcome.unwrap()["kind"], "organized");
+    }
+
+    #[test]
     fn serializes_for_the_frontend() {
         let item = Received {
+            id: 7,
             received_at_ms: 1,
             source: Source::Queued,
             message: json!({}),
+            probe: None,
+            outcome: None,
         };
         assert_eq!(
             serde_json::to_value(item).unwrap(),
-            json!({ "receivedAtMs": 1, "source": "queued", "message": {} })
+            json!({ "id": 7, "receivedAtMs": 1, "source": "queued", "message": {}, "probe": null, "outcome": null })
         );
     }
 }
