@@ -1,26 +1,40 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { MessageLog } from "./MessageLog";
-import { Popover } from "./popover/Popover";
+import { currentView } from "./windows";
+import { Assign } from "./views/Assign";
+import { Cleanup } from "./views/Cleanup";
+import { Compare } from "./views/Compare";
+import { Duplicate } from "./views/Duplicate";
+import { MessageLog } from "./views/MessageLog";
+import { Popover } from "./views/Popover";
+import { Setup } from "./views/Setup";
 
-// 창마다 같은 index.html을 쓰고, 창 이름(label)으로 화면을 고른다.
-// 브라우저에서 화면만 볼 때는 ?view=popover 처럼 주소로 고른다.
-function currentView(): string {
-  if (isTauri()) return getCurrentWindow().label;
-  return new URLSearchParams(location.search).get("view") ?? "popover";
+// 창마다 같은 index.html을 쓰고, ?view=와 ?id=로 화면을 고른다 (windows.ts).
+// 목업에서는 id가 없어도 화면이 뜨도록 예시 id를 쓴다.
+function App() {
+  const { view, id } = currentView();
+  switch (view) {
+    case "main":
+      return <MessageLog />;
+    case "setup":
+      return <Setup />;
+    case "assign":
+      return <Assign id={id ?? "u1"} />;
+    case "duplicate":
+      return <Duplicate id={id ?? "d1"} />;
+    case "compare":
+      return <Compare id={id ?? "6aa284ef1cf74"} />;
+    case "cleanup":
+      return <Cleanup id={id ?? "6aa284ef1cf74"} />;
+    default:
+      return <Popover />;
+  }
 }
 
-const views: Record<string, () => React.JSX.Element> = {
-  popover: Popover,
-  main: MessageLog,
-};
-
-const View = views[currentView()] ?? Popover;
+document.body.dataset.view = currentView().view;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <View />
+    <App />
   </StrictMode>,
 );

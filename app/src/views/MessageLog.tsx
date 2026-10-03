@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { detail, title, type Received } from "./messages";
+import { detail, title, type Received } from "../messages";
 
 /** 개발용 화면: 확장에서 온 메시지를 보여 준다. 메뉴 막대 아이콘의 오른쪽 클릭 메뉴에서 연다. */
 export function MessageLog() {
