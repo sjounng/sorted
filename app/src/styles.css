@@ -1190,3 +1190,312 @@ button.link {
 .trash-error {
   margin-top: 6px;
 }
+
+/* 일정 탭: 달력 + 다가오는 일정 */
+
+.schedule {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(14px, 3vw, 28px);
+  padding: clamp(14px, 3vw, 28px);
+}
+
+@media (max-width: 720px) {
+  .schedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cal,
+.sched-list {
+  border-radius: 4px;
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cal {
+  padding: 12px 12px 14px;
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.cal-head strong {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.cal-nav {
+  padding: 2px 8px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cal-nav:hover {
+  color: var(--fg);
+}
+
+.cal-today {
+  margin-left: auto;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.cal-wd {
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.cal-wd.sun {
+  color: var(--danger);
+}
+
+.cal-wd.sat {
+  color: var(--accent);
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 0 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font-size: 12px;
+}
+
+.cal-day:hover {
+  background: var(--hover);
+}
+
+.cal-day.other {
+  opacity: 0.35;
+}
+
+.cal-day .num {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.cal-day.today .num {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+}
+
+.cal-day.selected {
+  border-color: var(--brand);
+}
+
+.dots {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.dot.done {
+  opacity: 0.35;
+}
+
+.sched-list {
+  min-width: 0;
+  padding: 14px 0 10px;
+}
+
+.sched-head {
+  padding: 0 16px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sched-head h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chip.active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sched-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sched-day {
+  padding: 10px 16px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sched-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dday {
+  flex: none;
+  width: 52px;
+  padding: 2px 0;
+  border-radius: 6px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sched-row.urgent .dday {
+  background: var(--danger);
+  color: #fff;
+}
+
+.sched-row.soon .dday {
+  background: var(--warn);
+  color: #fff;
+}
+
+.sched-row.done .dday {
+  background: none;
+  color: var(--ok);
+}
+
+.sched-row.done .sched-title strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.sched-main {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 9px 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+.sched-main:hover .sched-title strong {
+  text-decoration: underline;
+}
+
+.sched-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sched-title strong {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind-tag {
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.kind-tag.video {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kind-tag.quiz {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.sched-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--course);
+}
+
+.sched-foot {
+  margin: 10px 16px 0;
+  font-size: 11px;
+}
