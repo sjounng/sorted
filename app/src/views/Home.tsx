@@ -6,9 +6,10 @@ import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
 import { CourseCards } from "./CourseCards";
 import { CourseDetail } from "./CourseDetail";
+import { ScheduleView } from "./ScheduleView";
 import { TrashView } from "./TrashView";
 
-type Tab = "courses" | "changes" | "unprocessed" | "trash";
+type Tab = "courses" | "schedule" | "changes" | "unprocessed" | "trash";
 
 /** 메인 창: 과목·최근 변경·처리 못한 파일·휴지통 (FR-13). */
 export function Home() {
@@ -38,6 +39,7 @@ export function Home() {
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "courses", label: "과목" },
+    { id: "schedule", label: "일정" },
     { id: "changes", label: "최근 변경" },
     { id: "unprocessed", label: "처리 못한 파일", count: data.unprocessed.length },
   ];
@@ -82,6 +84,7 @@ export function Home() {
 
       <section className="panel" role="tabpanel" ref={panel}>
         {tab === "trash" && <TrashView />}
+        {tab === "schedule" && <ScheduleView courses={data.courses} />}
         {tab === "courses" &&
           (opened ? (
             <CourseDetail

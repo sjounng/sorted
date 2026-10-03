@@ -9,6 +9,7 @@ import type {
   DuplicateChoice,
   DuplicateNotice,
   Overview,
+  Schedule,
   SetupStatus,
   TrashedCourse,
 } from "./types";
@@ -29,6 +30,11 @@ export interface Backend {
   renameCourse(courseId: string, name: string): Promise<void>;
   /** 과목을 Sorted 휴지통으로 옮긴다. 자료는 그대로 두어 되살릴 수 있다 */
   removeCourse(courseId: string): Promise<void>;
+
+  /** 확장이 LMS에서 읽어 둔 일정 */
+  schedule(): Promise<Schedule>;
+  /** LMS 페이지 등 웹 주소를 기본 브라우저로 연다 */
+  openInBrowser(url: string): Promise<void>;
 
   trash(): Promise<TrashedCourse[]>;
   /** 휴지통의 과목을 되살린다. 같은 이름의 과목이 이미 있으면 거절한다 */

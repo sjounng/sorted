@@ -15,6 +15,9 @@ export const tauriBackend: Backend = {
   renameCourse: (courseId, name) => invoke("rename_course", { courseId, name }),
   removeCourse: (courseId) => invoke("remove_course", { courseId }),
 
+  schedule: () => invoke("schedule"),
+  openInBrowser: (url) => invoke("open_in_browser", { url }),
+
   trash: () => invoke("trash"),
   restoreCourse: (courseId) => invoke("restore_course", { courseId }),
   purgeCourse: (courseId) => invoke("purge_course", { courseId }),
