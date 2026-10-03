@@ -9,6 +9,7 @@ mod inbox;
 mod organizer;
 mod pipeline;
 mod probe;
+mod screen;
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -24,6 +25,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use inbox::{Inbox, Received, Source};
 use organizer::{Organizer, Pending};
 use pipeline::Outcome;
+use screen::{AssignChoice, AssignRequest, Permission, SetupStatus};
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
 const MAIN: &str = "main";
@@ -47,29 +49,98 @@ fn pending_downloads(organizer: State<'_, Organizer>) -> Vec<Pending> {
     organizer.pending()
 }
 
-/// 과목 지정 창에서 고른 과목으로 다시 정리한다 (FR-5)
+// 첫 실행 설정 (FR-15)
+
 #[tauri::command]
-fn assign_course(app: AppHandle, id: u64, course_name: String) -> Option<Outcome> {
-    let outcome = app.state::<Organizer>().assign_course(id, &course_name)?;
-    report(&app, id, &outcome);
-    Some(outcome)
+fn setup_status(app: AppHandle) -> SetupStatus {
+    status(&app)
 }
 
-/// 다운로드 폴더 권한을 허용한 뒤 보류된 것을 다시 정리한다 (FR-15)
+/// 다운로드 폴더를 한 번 읽어 권한 창을 띄우고, 허용되면 권한 때문에 보류된 파일을 다시 정리한다.
+/// 사용자가 권한 창에 답할 때까지 기다릴 수 있어서 화면이 멈추지 않게 따로 돈다 (async).
 #[tauri::command]
-fn retry_permission(app: AppHandle) -> Vec<(u64, Outcome)> {
-    let results = app.state::<Organizer>().retry_permission();
-    for (id, outcome) in &results {
-        report(&app, *id, outcome);
+async fn request_downloads_access(app: AppHandle) -> SetupStatus {
+    let organizer = app.state::<Organizer>();
+    if organizer.check_access(&downloads_dir()) == Permission::Granted {
+        for (id, outcome) in organizer.retry_permission() {
+            report(&app, id, &outcome);
+        }
     }
-    results
+    status(&app)
 }
 
-/// 시스템 설정의 "파일 및 폴더" 화면을 연다 (FR-15)
+/// 시스템 설정의 "파일 및 폴더" 화면을 연다
 #[tauri::command]
-fn open_privacy_settings() -> Result<(), String> {
+fn open_system_settings() -> Result<(), String> {
+    open(&["x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders"])
+}
+
+fn status(app: &AppHandle) -> SetupStatus {
+    let organizer = app.state::<Organizer>();
+    SetupStatus {
+        downloads_access: organizer.downloads_access(),
+        sorted_folder: organizer.root().to_owned(),
+        sorted_folder_created: organizer.root().is_dir(),
+        extension_connected: app.state::<Inbox>().has_received(),
+    }
+}
+
+// 과목 지정 (FR-5)
+
+#[tauri::command]
+fn assign_request(
+    organizer: State<'_, Organizer>,
+    file_id: String,
+) -> Result<AssignRequest, String> {
+    organizer
+        .assign_request(parse_id(&file_id)?)
+        .ok_or_else(|| "과목을 기다리는 파일이 아니에요.".into())
+}
+
+/// 고른 과목으로 정리한다. 정리되거나 이미 있는 파일이면 성공, 그 밖에는 이유를 돌려준다.
+#[tauri::command]
+fn assign_course(app: AppHandle, file_id: String, choice: AssignChoice) -> Result<(), String> {
+    let id = parse_id(&file_id)?;
+    let outcome = app.state::<Organizer>().assign(id, &choice)?;
+    report(&app, id, &outcome);
+    match outcome {
+        Outcome::Organized { .. } | Outcome::Duplicate { .. } => Ok(()),
+        Outcome::Missing { .. } => Err("파일이 다운로드 폴더에서 사라졌어요.".into()),
+        Outcome::NeedsPermission { .. } => Err("다운로드 폴더를 읽을 권한이 없어요.".into()),
+        Outcome::Error { message } => Err(message),
+        other => Err(format!("정리하지 못했어요: {other:?}")),
+    }
+}
+
+#[tauri::command]
+fn skip_assign(app: AppHandle, file_id: String) -> Result<(), String> {
+    if app.state::<Organizer>().skip(parse_id(&file_id)?) {
+        let _ = app.emit("overview-changed", ());
+        Ok(())
+    } else {
+        Err("과목을 기다리는 파일이 아니에요.".into())
+    }
+}
+
+/// 화면은 ID를 문자열로 다룬다 (docs/app-api.md). 보류 목록의 번호로 바꾼다.
+fn parse_id(id: &str) -> Result<u64, String> {
+    id.parse().map_err(|_| format!("잘못된 파일 ID: {id}"))
+}
+
+fn downloads_dir() -> PathBuf {
+    home().join("Downloads")
+}
+
+fn home() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
+}
+
+/// macOS `open`으로 연다 (시스템 설정, Finder 등)
+fn open(args: &[&str]) -> Result<(), String> {
     std::process::Command::new("open")
-        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")
+        .args(args)
         .spawn()
         .map(|_| ())
         .map_err(|e| e.to_string())
@@ -91,9 +162,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             received_messages,
             pending_downloads,
+            setup_status,
+            request_downloads_access,
+            open_system_settings,
+            assign_request,
             assign_course,
-            retry_permission,
-            open_privacy_settings,
+            skip_assign,
             library,
             sorted_root
         ])
@@ -186,10 +260,7 @@ fn sorted_root_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("SORTED_ROOT") {
         return dir.into();
     }
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
-    home.join("Sorted")
+    home().join("Sorted")
 }
 
 /// 다운로드 메시지는 따로 돌린다: 스파이크 확인(probe) → 정리(pipeline). 끝나면 화면에 알린다.
@@ -223,4 +294,5 @@ fn report(app: &AppHandle, id: u64, outcome: &Outcome) {
         "download-processed",
         json!({ "id": id, "outcome": outcome }),
     );
+    let _ = app.emit("overview-changed", ());
 }
