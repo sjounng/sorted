@@ -5,6 +5,8 @@
 //! 창을 닫아도 앱은 메뉴 막대에 남는다. 종료는 메뉴 막대 아이콘의 "종료"로 한다.
 
 mod inbox;
+mod organizer;
+mod pipeline;
 mod probe;
 
 use std::error::Error;
@@ -20,6 +22,8 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 use inbox::{Inbox, Received, Source};
+use organizer::{Organizer, Pending};
+use pipeline::Outcome;
 
 /// 스파이크 #3의 다운로드 기록 위치
 struct ProbeHistory(PathBuf);
@@ -30,10 +34,64 @@ fn received_messages(inbox: State<'_, Inbox>) -> Vec<Received> {
     inbox.snapshot()
 }
 
+// ── 화면용 명령 (docs/app-api.md) ──
+
+/// 사용자의 조치를 기다리는 다운로드 (과목 고르기, 권한 허용)
+#[tauri::command]
+fn pending_downloads(organizer: State<'_, Organizer>) -> Vec<Pending> {
+    organizer.pending()
+}
+
+/// 과목 지정 창에서 고른 과목으로 다시 정리한다 (FR-5)
+#[tauri::command]
+fn assign_course(app: AppHandle, id: u64, course_name: String) -> Option<Outcome> {
+    let outcome = app.state::<Organizer>().assign_course(id, &course_name)?;
+    report(&app, id, &outcome);
+    Some(outcome)
+}
+
+/// 다운로드 폴더 권한을 허용한 뒤 보류된 것을 다시 정리한다 (FR-15)
+#[tauri::command]
+fn retry_permission(app: AppHandle) -> Vec<(u64, Outcome)> {
+    let results = app.state::<Organizer>().retry_permission();
+    for (id, outcome) in &results {
+        report(&app, *id, outcome);
+    }
+    results
+}
+
+/// 시스템 설정의 "파일 및 폴더" 화면을 연다 (FR-15)
+#[tauri::command]
+fn open_privacy_settings() -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn library(organizer: State<'_, Organizer>) -> sorted_core::library::Library {
+    organizer.library()
+}
+
+#[tauri::command]
+fn sorted_root(organizer: State<'_, Organizer>) -> PathBuf {
+    organizer.root().to_owned()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .manage(Inbox::default())
-        .invoke_handler(tauri::generate_handler![received_messages])
+        .invoke_handler(tauri::generate_handler![
+            received_messages,
+            pending_downloads,
+            assign_course,
+            retry_permission,
+            open_privacy_settings,
+            library,
+            sorted_root
+        ])
         .setup(|app| {
             // Dock에 아이콘을 띄우지 않고 메뉴 막대에만 둔다.
             #[cfg(target_os = "macos")]
@@ -87,6 +145,10 @@ fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let paths = Paths::from_env();
     paths.ensure_data_dir()?;
     app.manage(ProbeHistory(paths.data_dir().join("probe-history.jsonl")));
+    app.manage(Organizer::open(
+        sorted_root_dir(),
+        paths.data_dir().join("library.json"),
+    )?);
 
     // 소켓을 먼저 연다. 그래야 보관함을 비우는 사이에 온 메시지가 다시 보관함에 남지 않는다.
     let server = Server::bind(&paths.socket())?;
@@ -115,7 +177,19 @@ fn receive(app: &AppHandle, line: &[u8], source: Source) -> serde_json::Value {
     reply
 }
 
-/// 파일 확인은 오래 걸릴 수 있으니 따로 돌리고, 끝나면 화면에 알린다.
+/// 정리 폴더. 테스트·개발 중에는 SORTED_ROOT로 바꿀 수 있다. 기본은 ~/Sorted
+fn sorted_root_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("SORTED_ROOT") {
+        return dir.into();
+    }
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    home.join("Sorted")
+}
+
+/// 다운로드 메시지는 따로 돌린다: 스파이크 확인(probe) → 정리(pipeline). 끝나면 화면에 알린다.
+/// 확인이 먼저다. 정리가 파일을 옮기므로 순서가 바뀌면 확인할 파일이 없다.
 fn start_probe(app: AppHandle, item: Received) {
     thread::spawn(move || {
         let history = app.state::<ProbeHistory>().0.clone();
@@ -126,5 +200,23 @@ fn start_probe(app: AppHandle, item: Received) {
         if let Some(updated) = app.state::<Inbox>().set_probe(item.id, result) {
             let _ = app.emit("native-message", &updated);
         }
+
+        let outcome = app
+            .state::<Organizer>()
+            .handle(item.id, &item.message, None);
+        report(&app, item.id, &outcome);
     });
+}
+
+/// 정리 결과를 기록하고 화면에 알린다.
+fn report(app: &AppHandle, id: u64, outcome: &Outcome) {
+    let value = serde_json::to_value(outcome)
+        .unwrap_or_else(|e| json!({ "kind": "error", "message": e.to_string() }));
+    if let Some(updated) = app.state::<Inbox>().set_outcome(id, value) {
+        let _ = app.emit("native-message", &updated);
+    }
+    let _ = app.emit(
+        "download-processed",
+        json!({ "id": id, "outcome": outcome }),
+    );
 }
