@@ -246,11 +246,11 @@ function MonthCalendar(props: {
               onClick={() => onSelect(key)}
             >
               <span className="num">{d.getDate()}</span>
-              <span className="dots">
+              <span className="cal-dots">
                 {(open.length ? open : dayItems).slice(0, 3).map((x) => (
                   <span
                     key={x.id}
-                    className={x.done ? "dot done" : "dot"}
+                    className={x.done ? "cal-dot done" : "cal-dot"}
                     style={{ background: colorOf(x) }}
                   />
                 ))}

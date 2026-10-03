@@ -1362,19 +1362,20 @@ button.link {
   border-color: var(--brand);
 }
 
-.dots {
+/* 달력 점. 과목 카드의 새 버전 배지(.icon-btn .dot)와 이름이 겹치지 않게 cal-를 붙인다 */
+.cal-dots {
   display: flex;
   gap: 2px;
   height: 5px;
 }
 
-.dot {
+.cal-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
 }
 
-.dot.done {
+.cal-dot.done {
   opacity: 0.35;
 }
 
