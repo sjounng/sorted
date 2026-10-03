@@ -9,7 +9,7 @@
 //   Q   앱이 꺼져 있어 중계 프로그램이 보관해 둠 (앱이 켜지면 전달됨)
 //   !   중계 프로그램을 찾지 못함 (scripts/install-native-host.sh 실행 필요)
 
-import { lookupCourse, moduleItemIdOf } from "./canvas.js";
+import { lookupCourse, moduleItemIdOf, postOf } from "./canvas.js";
 import { buildDownloadMessage, courseIdOf, isLmsDownload, queryParam } from "./lms.js";
 
 /** scripts/install-native-host.sh 가 등록하는 이름과 같아야 한다. */
@@ -88,13 +88,18 @@ chrome.downloads.onChanged.addListener(async (delta) => {
   await sendToApp(buildDownloadMessage(item, started.tab, started.startedAt, lms));
 });
 
-/** 과목 ID로 LMS에 과목명과 주차를 물어본다 (FR-11, FR-12). 과목 ID를 모르면 null. */
+/** 과목 ID로 LMS에 과목명과 주차를 물어본다 (FR-11, FR-12, FR-17). 과목 ID를 모르면 null. */
 function lookupForDownload(item, tab) {
   const courseId = courseIdOf(tab?.url) ?? courseIdOf(item.referrer);
   if (!courseId) return null;
   const fileName =
     queryParam(item.finalUrl || item.url, "file_name") ?? item.filename.split("/").pop();
-  return lookupCourse(fetchText, courseId, { moduleItemId: moduleItemIdOf(tab?.url), fileName });
+  return lookupCourse(fetchText, courseId, {
+    moduleItemId: moduleItemIdOf(tab?.url),
+    fileName,
+    // 모듈 밖 자료: 공지·과제 페이지에서 받으면 그 게시물. referrer로도 찾아본다
+    post: postOf(tab?.url) ?? postOf(item.referrer),
+  });
 }
 
 /** 사용자의 LMS 로그인 쿠키를 실어 GET한다. host_permissions에 있는 도메인만 가능하다. */
