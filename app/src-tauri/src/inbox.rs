@@ -96,6 +96,11 @@ impl Inbox {
         Some(item.clone())
     }
 
+    /// 확장에서 메시지를 하나라도 받았는가 (앱이 꺼져 있던 동안 보관된 것 포함)
+    pub fn has_received(&self) -> bool {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).next_id > 0
+    }
+
     pub fn snapshot(&self) -> Vec<Received> {
         self.0
             .lock()
