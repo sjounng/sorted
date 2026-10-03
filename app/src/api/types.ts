@@ -46,7 +46,7 @@ export interface CourseDetail {
 
 export type ChangeKind = "organized" | "newVersion" | "duplicate";
 
-/** 메뉴 막대의 "최근 변경" 한 줄 */
+/** 메인 창 "최근 변경" 탭의 한 줄 */
 export interface Change {
   id: string;
   kind: ChangeKind;
@@ -75,7 +75,7 @@ export interface TrashedCourse {
   removedAtMs: number;
 }
 
-/** 메뉴 막대 팝오버 전체 (FR-13) */
+/** 메인 창 전체 (FR-13) */
 export interface Overview {
   sortedFolder: string;
   courses: Course[];

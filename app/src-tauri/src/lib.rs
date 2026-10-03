@@ -1,34 +1,27 @@
-//! Sorted 메뉴 막대 앱.
+//! Sorted 앱.
 //!
 //! 시작하면 유닉스 소켓을 열어 중계 프로그램(native-host)의 메시지를 기다린다.
 //! 앱이 꺼져 있던 동안 보관된 메시지는 시작할 때 한꺼번에 받는다 (FR-16).
-//! 메뉴 막대 아이콘을 왼쪽 클릭하면 팝오버(FR-13)가 열리고, 오른쪽 클릭하면 메뉴가 열린다.
-//! 창을 닫아도 앱은 메뉴 막대에 남는다. 종료는 메뉴의 "종료"로 한다.
+//! Dock에 아이콘이 있는 보통 앱이다. 메인 창을 닫아도 다운로드를 계속 받도록 앱은 뒤에서 돌고,
+//! Dock 아이콘을 누르면 창이 다시 열린다. 종료는 ⌘Q.
 
 mod inbox;
 
 use std::error::Error;
-use std::sync::Mutex;
 use std::thread;
-use std::time::{Duration, Instant};
 
 use sorted_core::ipc::Server;
 use sorted_core::paths::Paths;
 use sorted_core::queue;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
-use tauri_plugin_positioner::{Position, WindowExt};
+use tauri::menu::{Menu, MenuItem, Submenu};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 
 use inbox::{Inbox, Received, Source};
 
-const POPOVER: &str = "popover";
-
-/// 팝오버가 포커스를 잃어 닫힌 시각.
-/// 팝오버가 열린 채로 아이콘을 누르면 "포커스 잃음 → 닫힘 → 클릭 → 다시 열림"이 되므로,
-/// 막 닫힌 직후의 클릭은 닫는 클릭으로 본다.
-#[derive(Default)]
-struct PopoverHiddenAt(Mutex<Option<Instant>>);
+/// 메인 창. 과목·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
+const MAIN: &str = "main";
+/// 개발용 메시지 기록 창. 앱 메뉴의 "개발 → 메시지 기록"에서 연다.
+const LOG: &str = "log";
 
 /// 화면이 처음 열릴 때 지금까지 받은 메시지를 가져간다.
 #[tauri::command]
@@ -37,88 +30,52 @@ fn received_messages(inbox: State<'_, Inbox>) -> Vec<Received> {
 }
 
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_positioner::init())
+    let app = tauri::Builder::default()
         .manage(Inbox::default())
-        .manage(PopoverHiddenAt::default())
         .invoke_handler(tauri::generate_handler![received_messages])
+        .menu(|app| {
+            // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
+            let menu = Menu::default(app)?;
+            let log = MenuItem::with_id(app, LOG, "메시지 기록", true, None::<&str>)?;
+            menu.append(&Submenu::with_items(app, "개발", true, &[&log])?)?;
+            Ok(menu)
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == LOG {
+                show_window(app, LOG);
+            }
+        })
         .setup(|app| {
-            // Dock에 아이콘을 띄우지 않고 메뉴 막대에만 둔다.
-            #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
-            setup_tray(app.handle())?;
             start_listening(app.handle().clone())?;
             Ok(())
         })
-        .on_window_event(|window, event| match event {
-            // 창을 닫으면 숨기기만 한다.
-            WindowEvent::CloseRequested { api, .. } => {
-                let _ = window.hide();
-                api.prevent_close();
-            }
-            // 팝오버는 다른 곳을 누르면 닫힌다.
-            WindowEvent::Focused(false) if window.label() == POPOVER => {
-                let _ = window.hide();
-                *window.state::<PopoverHiddenAt>().0.lock().unwrap() = Some(Instant::now());
-            }
-            _ => {}
-        })
-        .run(tauri::generate_context!())
-        .expect("failed to run Sorted");
-}
-
-fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "메시지 기록 (개발용)", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
-
-    let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Sorted")
-        .menu(&menu)
-        .show_menu_on_left_click(false)
-        .on_tray_icon_event(|tray, event| {
-            // 팝오버를 아이콘 아래에 놓으려면 positioner가 아이콘 위치를 알아야 한다.
-            tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                toggle_popover(tray.app_handle());
+        .on_window_event(|window, event| {
+            // 메인 창과 메시지 기록 창은 닫아도 숨기기만 한다. 대화 창은 그대로 닫힌다.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == MAIN || window.label() == LOG {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
             }
         })
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => show_window(app, "main"),
-            "quit" => app.exit(0),
-            _ => {}
-        });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
-    Ok(())
-}
+        .build(tauri::generate_context!())
+        .expect("failed to build Sorted");
 
-fn toggle_popover(app: &AppHandle) {
-    let Some(window) = app.get_webview_window(POPOVER) else {
-        return;
-    };
-    let hidden_at = app.state::<PopoverHiddenAt>().0.lock().unwrap().take();
-    let just_hidden = hidden_at.is_some_and(|t| t.elapsed() < Duration::from_millis(300));
-    if just_hidden || window.is_visible().unwrap_or(false) {
-        let _ = window.hide();
-        return;
-    }
-    let _ = window.move_window(Position::TrayBottomCenter);
-    let _ = window.show();
-    let _ = window.set_focus();
+    app.run(|app, event| {
+        // Dock 아이콘을 누르면 숨겨 둔 메인 창을 다시 연다.
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = event {
+            show_window(app, MAIN);
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app, event);
+    });
 }
 
 fn show_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }

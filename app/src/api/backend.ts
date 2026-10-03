@@ -19,7 +19,7 @@ import type {
  */
 export interface Backend {
   overview(): Promise<Overview>;
-  /** 메뉴 막대 데이터가 바뀔 때마다 부른다. 돌려받은 함수로 구독을 끊는다 */
+  /** 메인 창 데이터가 바뀔 때마다 부른다. 돌려받은 함수로 구독을 끊는다 */
   onOverviewChanged(callback: () => void): Promise<() => void>;
 
   courseDetail(courseId: string): Promise<CourseDetail>;

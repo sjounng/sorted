@@ -10,7 +10,7 @@ Chrome 확장 ──sendNativeMessage──▶ Chrome ──stdin/stdout──�
                                                                    (앱이 켜질 때 전달, FR-16)
 ```
 
-**왜 중계 프로그램이 따로 있나.** Chrome은 네이티브 메시징 요청마다 매니페스트에 적힌 프로그램을 _새 프로세스로_ 띄운다. 메뉴 막대에 계속 떠 있는 앱에 직접 붙을 수 없으므로, 작은 중계 프로그램이 받아서 앱에 넘긴다. 중계 프로그램은 외부 크레이트 없이 표준 라이브러리만 써서 빨리 뜬다.
+**왜 중계 프로그램이 따로 있나.** Chrome은 네이티브 메시징 요청마다 매니페스트에 적힌 프로그램을 _새 프로세스로_ 띄운다. 계속 떠 있는 앱에 직접 붙을 수 없으므로, 작은 중계 프로그램이 받아서 앱에 넘긴다. 중계 프로그램은 외부 크레이트 없이 표준 라이브러리만 써서 빨리 뜬다.
 
 **왜 localhost 서버가 아니라 유닉스 소켓인가.** 네트워크 포트를 열지 않으므로 웹 페이지나 다른 기기가 접근할 수 없다. 소켓은 본인만 열 수 있는 폴더(`~/Library/Application Support/Sorted`, 0700) 안에 있고, 소켓 파일도 0600이다. Chrome 쪽은 호스트 매니페스트의 `allowed_origins`로 우리 확장만 중계 프로그램을 부를 수 있다.
 
@@ -34,11 +34,11 @@ Chrome 확장 ──sendNativeMessage──▶ Chrome ──stdin/stdout──�
 
 ## 스파이크 확인 순서 (이슈 #1)
 
-1. `cd app && npm install && npm run tauri dev`: 메뉴 막대에 아이콘이 생기고 창이 뜬다.
+1. `cd app && npm install && npm run tauri dev`: Dock에 아이콘이 생기고 창이 뜬다. 메시지는 앱 메뉴 "개발 → 메시지 기록"에서 본다.
 2. `./scripts/install-native-host.sh`
 3. `chrome://extensions` → 개발자 모드 → "압축해제된 확장 프로그램 로드" → `extension/`. ID가 `phgmelpblnighkdkldoamokdbjbmencf`인지 확인한다.
 4. 확장 아이콘 클릭 → 배지 `OK`, 앱 창에 "hello · 확장 아이콘 클릭"이 뜬다.
-5. 앱을 메뉴 막대에서 종료 → 확장 아이콘 클릭 → 배지 `Q`.
+5. 앱을 ⌘Q로 종료 → 확장 아이콘 클릭 → 배지 `Q`.
 6. 앱을 다시 실행 → 창에 "앱이 꺼져 있는 동안 보관됨" 항목이 뜬다.
 7. `./scripts/uninstall-native-host.sh` → 확장 아이콘 클릭 → 배지 `!`.
 
@@ -59,5 +59,5 @@ Chrome 확장 ──sendNativeMessage──▶ Chrome ──stdin/stdout──�
 ## 문제가 생기면
 
 - 배지 `!`: `chrome://extensions`에서 Sorted의 "서비스 워커"를 눌러 콘솔을 본다. `Specified native messaging host not found`면 2단계를 다시, `Access to the specified native messaging host is forbidden`이면 확장 ID와 매니페스트의 `allowed_origins`를 비교한다.
-- 앱이 바로 꺼짐: 다른 Sorted 앱이 이미 떠 있으면 소켓을 열지 못한다. 메뉴 막대에서 다른 Sorted를 종료한다.
+- 앱이 바로 꺼짐: 다른 Sorted 앱이 이미 떠 있으면 소켓을 열지 못한다. 다른 Sorted를 ⌘Q로 종료한다.
 - 중계 프로그램 쪽 기록: `tail -f ~/Library/Application\ Support/Sorted/logs/native-host.log`

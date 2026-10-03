@@ -3,7 +3,7 @@ import { api, type SetupStatus } from "../api";
 import { useLoad } from "../useLoad";
 import { closeSelf } from "../windows";
 
-/** 첫 실행 설정 (FR-15). 메뉴 막대의 "설정"에서도 다시 연다. */
+/** 첫 실행 설정 (FR-15). 메인 창 하단의 "설정"에서도 다시 연다. */
 export function Setup() {
   const loaded = useLoad(api.setupStatus);
   const [updated, setUpdated] = useState<SetupStatus>();

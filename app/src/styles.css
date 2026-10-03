@@ -88,19 +88,19 @@ h1 {
   color: var(--warn);
 }
 
-/* 메뉴 막대 팝오버 */
+/* 메인 창 */
 
-.popover {
+.home {
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
 
-.popover-head {
+.home-head {
   padding: 14px 16px 8px;
 }
 
-.popover-head h1 {
+.home-head h1 {
   font-size: 15px;
 }
 
@@ -266,7 +266,7 @@ h1 {
   color: var(--accent);
 }
 
-.popover-foot {
+.home-foot {
   display: flex;
   justify-content: space-between;
   padding: 8px 12px;

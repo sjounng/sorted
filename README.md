@@ -8,7 +8,7 @@ CSE406 소프트웨어공학 Phase 1 프로젝트.
 
 ```
 extension/        Chrome 확장 (MV3). 다운로드의 출처만 앱에 넘긴다.
-app/              Mac 메뉴 막대 앱 (Tauri)
+app/              Mac 앱 (Tauri)
   src/            앱 화면 (TypeScript)
   src-tauri/      앱 본체 (Rust)
   core/           판정 로직과 확장↔앱 통신 (Rust, 화면과 무관)
@@ -25,7 +25,7 @@ docs/             기획안 사본, 설계 메모
 필요한 것: macOS, Chrome, Rust (`rustup`), Node.js 22 이상.
 
 ```sh
-# 1. 앱 실행 (메뉴 막대에 아이콘이 생긴다)
+# 1. 앱 실행 (Dock에 아이콘이 생기고 창이 뜬다. 창을 닫아도 뒤에서 돌고, 종료는 ⌘Q)
 cd app
 npm install
 npm run tauri dev

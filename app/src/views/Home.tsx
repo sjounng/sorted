@@ -10,8 +10,8 @@ import { TrashView } from "./TrashView";
 
 type Tab = "courses" | "changes" | "unprocessed" | "trash";
 
-/** 메뉴 막대 아이콘을 누르면 열리는 작은 창 (FR-13). */
-export function Popover() {
+/** 메인 창: 과목·최근 변경·처리 못한 파일·휴지통 (FR-13). */
+export function Home() {
   const { data, error, reload } = useLoad(api.overview);
   const [tab, setTab] = useState<Tab>("courses");
   // 과목 카드를 누르면 과목 탭 안에서 그 과목 화면으로 들어간다.
@@ -34,7 +34,7 @@ export function Popover() {
   }, []);
 
   if (error) return <p className="empty warn">{error}</p>;
-  if (!data) return <main className="popover" />;
+  if (!data) return <main className="home" />;
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "courses", label: "과목" },
@@ -43,8 +43,8 @@ export function Popover() {
   ];
 
   return (
-    <main className="popover">
-      <header className="popover-head">
+    <main className="home">
+      <header className="home-head">
         <h1>Sorted</h1>
       </header>
 
@@ -105,7 +105,7 @@ export function Popover() {
         {tab === "unprocessed" && <UnprocessedList data={data} />}
       </section>
 
-      <footer className="popover-foot">
+      <footer className="home-foot">
         <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
           {data.sortedFolder} 열기
         </button>

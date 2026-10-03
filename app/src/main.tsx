@@ -6,7 +6,7 @@ import { Cleanup } from "./views/Cleanup";
 import { Compare } from "./views/Compare";
 import { Duplicate } from "./views/Duplicate";
 import { MessageLog } from "./views/MessageLog";
-import { Popover } from "./views/Popover";
+import { Home } from "./views/Home";
 import { Setup } from "./views/Setup";
 
 // 창마다 같은 index.html을 쓰고, ?view=와 ?id=로 화면을 고른다 (windows.ts).
@@ -14,7 +14,7 @@ import { Setup } from "./views/Setup";
 function App() {
   const { view, id } = currentView();
   switch (view) {
-    case "main":
+    case "log":
       return <MessageLog />;
     case "setup":
       return <Setup />;
@@ -27,7 +27,7 @@ function App() {
     case "cleanup":
       return <Cleanup id={id ?? "6aa284ef1cf74"} />;
     default:
-      return <Popover />;
+      return <Home />;
   }
 }
 

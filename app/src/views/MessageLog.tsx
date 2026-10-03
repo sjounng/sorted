@@ -3,7 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { detail, title, type Received } from "../messages";
 
-/** 개발용 화면: 확장에서 온 메시지를 보여 준다. 메뉴 막대 아이콘의 오른쪽 클릭 메뉴에서 연다. */
+/** 개발용 화면: 확장에서 온 메시지를 보여 준다. 앱 메뉴의 "개발 → 메시지 기록"에서 연다. */
 export function MessageLog() {
   const [items, setItems] = useState<Received[]>([]);
   const [error, setError] = useState<string>();
