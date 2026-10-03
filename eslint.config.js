@@ -15,7 +15,7 @@ export default tseslint.config(
   },
   {
     // Tauri 앱 화면
-    files: ["app/src/**/*.ts"],
+    files: ["app/src/**/*.{ts,tsx}"],
     extends: [tseslint.configs.recommended],
     languageOptions: { globals: globals.browser },
   },

@@ -5,18 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/src/styles.css" />
     <title>Sorted</title>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
-    <main>
-      <header>
-        <h1>Sorted</h1>
-        <p class="hint">
-          임시 화면: 확장에서 온 메시지를 보여 준다. 실제 화면은 이후 이슈에서 만든다.
-        </p>
-      </header>
-      <p id="status" class="status">아직 받은 메시지가 없습니다. 확장 아이콘을 눌러 보세요.</p>
-      <ol id="messages" class="messages"></ol>
-    </main>
+    <div id="root"></div>
   </body>
 </html>
