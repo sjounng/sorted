@@ -95,7 +95,9 @@ cd app && npm run tauri build -- --bundles app && open target/release/bundle/mac
    `assign_request`/`assign_course`/`skip_assign`. 3단계: `overview`(+ `overview-changed`), `course_detail`, 과목 추가·이름 바꾸기·휴지통,
    `open_file`/`reveal_in_finder`, `duplicate_notice`/`resolve_duplicate`(FR-7). "앱 내부에서 새로 필요한 것" 표(학기, 최근 변경 기록 등)도 같이.
 2. FR-14 파일 추적 (xattr로 과목 ID·content_id 새기기, 옮긴 파일 따라가기), FR-16 실제 다운로드로 보관 확인.
-3. FR-19 일정 (#30): 확장이 Canvas 플래너·주차학습에서 마감을 읽어 `schedule` 메시지로. 영상(주차학습)이 어디서 읽히는지 먼저 확인.
+3. FR-19 일정 (#30): 과제·퀴즈는 확장이 Canvas 플래너 API 조회(LMS 열려 있을 때, 한 시간에 한 번까지),
+   주차학습 영상은 사용자가 연 페이지의 응답을 읽음(MV3 content script `world: "MAIN"`). 쿠키·토큰은 다루지 않음.
+   주차학습 요청 경로는 예원이 확인 중. 확인 내용(인증 방식)은 비공개 문서로만 공유받음 → 저장소에 넣지 않는다.
 4. 기본 정리 폴더 `~/Sorted`가 이 Mac에서 저장소와 같은 문제 정리 (저장소 옮기기 또는 기본 경로 바꾸기). 시연 전 필수.
 5. probe(스파이크 #3 확인 코드)는 화면이 새 명령으로 옮겨 가면 제거 (메시지 기록 창은 예원과 상의).
 6. README에 아키텍처 Mermaid 그림 넣기 (교수님 시연용, `docs/plan.md`에서 빠진 그림도).
