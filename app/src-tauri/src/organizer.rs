@@ -10,7 +10,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sorted_core::library::Library;
+use sorted_core::filetag::{self, Tag};
+use sorted_core::library::{Document, Library, Version};
 
 use crate::pipeline::{self, Download, Outcome, Settings};
 use crate::screen::{
@@ -79,7 +80,7 @@ impl Organizer {
         };
         let history_file = library_file.with_file_name("history.json");
         let history = load_history(&history_file);
-        Ok(Self {
+        let organizer = Self {
             settings: Settings { root },
             library_file,
             library: Mutex::new(library),
@@ -88,7 +89,38 @@ impl Organizer {
             history_file,
             history: Mutex::new(history),
             failures: Mutex::new(Vec::new()),
-        })
+        };
+        // 이 기능(FR-14) 전에 정리된 파일에도 속성을 붙인다
+        organizer.tag_untagged();
+        Ok(organizer)
+    }
+
+    /// 정리 폴더에 있는 파일 중 속성이 없거나 다른 것에 속성을 붙인다. 붙인 수를 돌려준다.
+    pub fn tag_untagged(&self) -> usize {
+        let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let mut count = 0;
+        for doc in &lib.documents {
+            for version in &doc.versions {
+                let tag = tag_of(&lib, doc, version);
+                if version.path.is_file() && filetag::read(&version.path).as_ref() != Some(&tag) {
+                    match filetag::write(&version.path, &tag) {
+                        Ok(()) => count += 1,
+                        Err(e) => eprintln!("속성을 붙이지 못함 {}: {e}", version.path.display()),
+                    }
+                }
+            }
+        }
+        count
+    }
+
+    /// 방금 정리한 파일에 속성을 붙인다 (FR-14). 실패해도 정리는 그대로 둔다.
+    fn tag_file(&self, path: &Path) {
+        let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((doc, version)) = lib.version_at(path) {
+            if let Err(e) = filetag::write(path, &tag_of(&lib, doc, version)) {
+                eprintln!("속성을 붙이지 못함 {}: {e}", path.display());
+            }
+        }
     }
 
     pub fn root(&self) -> &Path {
@@ -155,6 +187,7 @@ impl Organizer {
         failures.retain(|f| f.id != id.to_string());
         match outcome {
             Outcome::Organized { path, version, .. } => {
+                self.tag_file(path);
                 let kind = if *version > 1 {
                     ChangeKind::NewVersion
                 } else {
@@ -356,6 +389,20 @@ impl Organizer {
             .iter()
             .find(|p| p.id == id && matches!(p.outcome, Outcome::NeedsCourse { .. }))
             .cloned()
+    }
+}
+
+/// 목록의 문서·버전으로 파일에 새길 속성을 만든다
+fn tag_of(lib: &Library, doc: &Document, version: &Version) -> Tag {
+    Tag {
+        course: lib
+            .courses
+            .iter()
+            .find(|c| c.name == doc.course)
+            .map(|c| c.id())
+            .unwrap_or_default(),
+        doc: doc.key.id(),
+        v: version.number,
     }
 }
 
@@ -638,5 +685,32 @@ mod tests {
         let detail = reopened.course_detail(&o.courses[0].id).unwrap();
         assert_eq!(detail.weeks[0].week, "1주차");
         assert_eq!(detail.weeks[0].files.len(), 3);
+    }
+
+    #[test]
+    fn organized_files_get_a_tag_and_old_files_are_backfilled() {
+        let (dir, org) = setup("tag");
+        let a = dir.join("Downloads/a.pdf");
+        fs::write(&a, "%PDF-1.7 a").unwrap();
+        let lms = json!({ "courseName": "운영체제", "week": { "name": "1주차" } });
+        let out = org.handle(
+            1,
+            &json!({ "filename": a, "contentId": "abc", "lms": lms }),
+            None,
+        );
+        let Outcome::Organized { path, .. } = out else {
+            panic!("{out:?}")
+        };
+        let tag = filetag::read(&path).unwrap();
+        assert_eq!(tag.doc, "cid-abc");
+        assert_eq!(tag.v, 1);
+        assert!(tag.course.starts_with("local-"));
+
+        // 속성이 없는 예전 파일: 다시 열면 붙는다
+        xattr::remove(&path, filetag::ATTR).unwrap();
+        assert!(filetag::read(&path).is_none());
+        let reopened = Organizer::open(dir.join("Sorted"), dir.join("library.json")).unwrap();
+        assert_eq!(filetag::read(&path), Some(tag));
+        assert_eq!(reopened.tag_untagged(), 0);
     }
 }

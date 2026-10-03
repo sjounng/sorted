@@ -20,3 +20,6 @@ serde_json = "1"
 sorted-core = { path = "../core" }
 # 스파이크 #3: PDF 첫 페이지 글자 읽기
 pdf-extract = "0.12"
+
+[dev-dependencies]
+xattr = "1"
