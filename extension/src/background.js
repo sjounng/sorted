@@ -1,14 +1,16 @@
 // Sorted 확장의 서비스 워커.
 //
 // 1. 앱 연결 확인: 설치·Chrome 시작·아이콘 클릭 때 hello를 보낸다.
-// 2. LMS 다운로드 감지: 다운로드가 끝나면 출처 정보를 앱에 보낸다 (스파이크 #3, FR-1의 출발점).
+// 2. LMS 다운로드 감지: 다운로드가 끝나면 출처 정보와 LMS의 과목명·주차를 앱에 보낸다
+//    (스파이크 #3, FR-1·FR-11·FR-12의 출발점).
 //
 // 결과는 아이콘 배지로 보여 준다.
 //   OK  앱이 받음
 //   Q   앱이 꺼져 있어 중계 프로그램이 보관해 둠 (앱이 켜지면 전달됨)
 //   !   중계 프로그램을 찾지 못함 (scripts/install-native-host.sh 실행 필요)
 
-import { buildDownloadMessage, isLmsDownload } from "./lms.js";
+import { lookupCourse, moduleItemIdOf } from "./canvas.js";
+import { buildDownloadMessage, courseIdOf, isLmsDownload, queryParam } from "./lms.js";
 
 /** scripts/install-native-host.sh 가 등록하는 이름과 같아야 한다. */
 const HOST = "dev.sorted.host";
@@ -82,5 +84,22 @@ chrome.downloads.onChanged.addListener(async (delta) => {
 
   const [item] = await chrome.downloads.search({ id: delta.id });
   if (!item) return;
-  await sendToApp(buildDownloadMessage(item, started.tab, started.startedAt));
+  const lms = await lookupForDownload(item, started.tab);
+  await sendToApp(buildDownloadMessage(item, started.tab, started.startedAt, lms));
 });
+
+/** 과목 ID로 LMS에 과목명과 주차를 물어본다 (FR-11, FR-12). 과목 ID를 모르면 null. */
+function lookupForDownload(item, tab) {
+  const courseId = courseIdOf(tab?.url) ?? courseIdOf(item.referrer);
+  if (!courseId) return null;
+  const fileName =
+    queryParam(item.finalUrl || item.url, "file_name") ?? item.filename.split("/").pop();
+  return lookupCourse(fetchText, courseId, { moduleItemId: moduleItemIdOf(tab?.url), fileName });
+}
+
+/** 사용자의 LMS 로그인 쿠키를 실어 GET한다. host_permissions에 있는 도메인만 가능하다. */
+async function fetchText(url) {
+  const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}

@@ -92,6 +92,8 @@ describe("buildDownloadMessage", () => {
         title: "소프트웨어공학",
       },
       startedAt: "2026-10-03T00:00:00.000Z",
+      moduleItemId: null,
+      lms: null,
     });
   });
 
@@ -100,6 +102,17 @@ describe("buildDownloadMessage", () => {
     expect(text).not.toContain("2099000000");
     expect(text).not.toContain("user_id");
     expect(text).not.toContain("?");
+  });
+
+  it("passes the module item id and the LMS lookup through", () => {
+    const tab = {
+      url: "https://learning.hanyang.ac.kr/courses/210208/modules/items/8582053",
+      title: "x",
+    };
+    const lms = { courseName: "소프트웨어공학", courseCode: "HY11171", week: null, error: null };
+    const msg = buildDownloadMessage(item, tab, "", lms);
+    expect(msg.moduleItemId).toBe("8582053");
+    expect(msg.lms).toBe(lms);
   });
 
   it("works without tab information", () => {

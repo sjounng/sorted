@@ -1,3 +1,5 @@
+import { moduleItemIdOf } from "./canvas.js";
+
 // LMS 다운로드에서 필요한 정보만 뽑아내는 순수 함수들. Chrome API를 쓰지 않아 테스트하기 쉽다.
 //
 // 개인정보: LMS URL의 쿼리에는 학번(user_id)이 들어 있을 수 있다.
@@ -62,8 +64,9 @@ export function courseIdOf(url) {
  * @param item  chrome.downloads.DownloadItem (다운로드 완료 시점)
  * @param tab   다운로드가 시작될 때의 활성 탭 { url, title } 또는 null
  * @param startedAt 다운로드가 시작된 시각 (ISO 문자열)
+ * @param lms   canvas.js lookupCourse의 결과 (과목명·주차) 또는 null
  */
-export function buildDownloadMessage(item, tab, startedAt) {
+export function buildDownloadMessage(item, tab, startedAt, lms = null) {
   const sourceUrl = item.finalUrl || item.url;
   return {
     type: "download",
@@ -80,6 +83,8 @@ export function buildDownloadMessage(item, tab, startedAt) {
       url: courseIdOf(sourceUrl),
     },
     tab: tab ? { url: withoutQuery(tab.url), title: tab.title ?? null } : null,
+    moduleItemId: moduleItemIdOf(tab?.url),
+    lms,
     startedAt,
     completedAt: new Date().toISOString(),
   };

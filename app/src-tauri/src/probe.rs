@@ -6,7 +6,7 @@
 //! | 2    | 같은 이름의 파일을 전에 받았을 때와 content_id가 같은가 |
 //! | 3    | 같은 이름의 파일을 전에 받았을 때와 SHA-256이 같은가    |
 //! | 4    | 앱이 다운로드 폴더의 파일을 읽을 수 있는가              |
-//! | 5    | 탭 제목, PDF 첫 페이지 글자                            |
+//! | 5    | LMS에서 알아낸 과목명·주차 (확장이 조회), PDF 첫 페이지 |
 //!
 //! 가정 2·3은 날을 바꿔 다시 받아야 비교되므로, 받을 때마다 기록(`probe-history.jsonl`)을 남긴다.
 //! 기록에는 파일 이름, content_id, 해시, 과목 ID만 둔다. 전체 경로(사용자 이름 포함)와 URL은 남기지 않는다.
@@ -35,6 +35,9 @@ struct DownloadMessage {
     file_name_param: Option<String>,
     course_id: CourseIds,
     tab: Option<Tab>,
+    module_item_id: Option<String>,
+    /// 확장이 LMS에 물어본 과목명·주차 (extension/src/canvas.js)
+    lms: Option<Value>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -61,6 +64,10 @@ pub struct Probe {
     pub content_id: Option<String>,
     pub course_id: CourseIds,
     pub tab_title: Option<String>,
+    /// 다운로드 때 보던 자료 뷰어의 모듈 항목 번호
+    pub module_item_id: Option<String>,
+    /// LMS에서 알아낸 과목명·주차 (가정 5)
+    pub lms: Option<Value>,
     pub file: FileCheck,
     pub first_page: FirstPage,
     /// 같은 이름으로 전에 받은 기록. 처음 받는 파일이면 None
@@ -183,6 +190,8 @@ pub fn run(message: &Value, history: &Path) -> Result<Probe, String> {
         content_id: msg.content_id,
         course_id: msg.course_id,
         tab_title: msg.tab.and_then(|t| t.title),
+        module_item_id: msg.module_item_id,
+        lms: msg.lms,
         file,
         first_page,
         previous,
@@ -274,7 +283,10 @@ mod tests {
             "contentId": content_id,
             "fileNameParam": "Lec03.pdf",
             "courseId": { "referrer": null, "tab": "210208", "url": null },
-            "tab": { "url": "https://learning.hanyang.ac.kr/courses/210208", "title": "소프트웨어공학" }
+            "tab": { "url": "https://learning.hanyang.ac.kr/courses/210208", "title": "소프트웨어공학" },
+            "moduleItemId": "8582053",
+            "lms": { "courseName": "소프트웨어공학", "courseCode": "HY11171",
+                     "week": { "name": "1주차", "position": 1, "matchedBy": "item" }, "error": null }
         })
     }
 
@@ -289,6 +301,8 @@ mod tests {
         assert_eq!(p.file.is_pdf, Some(false));
         assert_eq!(p.course_id.tab.as_deref(), Some("210208"));
         assert_eq!(p.tab_title.as_deref(), Some("소프트웨어공학"));
+        assert_eq!(p.lms.unwrap()["week"]["name"], "1주차");
+        assert_eq!(p.module_item_id.as_deref(), Some("8582053"));
         assert!(p.previous.is_none());
         assert!(p.first_page.text.is_none());
     }

@@ -12,6 +12,8 @@ export interface Probe {
   contentId: string | null;
   courseId: { referrer: string | null; tab: string | null; url: string | null };
   tabTitle: string | null;
+  moduleItemId: string | null;
+  lms: Lms | null;
   file: {
     readable: boolean;
     error: string | null;
@@ -26,6 +28,14 @@ export interface Probe {
     contentIdSame: boolean;
     sha256Same: boolean | null;
   } | null;
+}
+
+/** 확장이 LMS(Canvas)에 물어본 과목명·주차 (extension/src/canvas.js) */
+export interface Lms {
+  courseName: string | null;
+  courseCode: string | null;
+  week: { name: string; position: number; matchedBy: "item" | "title" } | null;
+  error: string | null;
 }
 
 /** 목록 한 줄에 쓸 제목. 예: "hello · 확장 아이콘 클릭", "다운로드 · Lec03.pdf" */
@@ -114,13 +124,30 @@ export function assumptions(probe: Received["probe"], timeZone?: string): Row[] 
       : (file.error ?? "알 수 없는 오류"),
   });
 
-  const seen = [
-    probe.tabTitle ? `탭 제목: ${probe.tabTitle}` : "탭 제목 없음",
-    firstPage.text
-      ? `첫 페이지: ${firstPage.text}`
-      : `첫 페이지 못 읽음 (${firstPage.error ?? "?"})`,
-  ];
-  rows.push({ label: "5. 과목명·주차 읽기", status: "look", detail: seen.join("\n") });
+  const page = firstPage.text
+    ? `첫 페이지: ${firstPage.text}`
+    : `첫 페이지 못 읽음 (${firstPage.error ?? "?"})`;
+  const lms = probe.lms;
+  if (lms?.courseName && lms.week) {
+    const by = lms.week.matchedBy === "item" ? "모듈 항목 번호로" : "자료 제목으로";
+    rows.push({
+      label: "5. 과목명·주차 (LMS)",
+      status: "pass",
+      detail: `${lms.courseName} · ${lms.week.name} (${by} 찾음)\n${page}`,
+    });
+  } else if (lms?.courseName) {
+    rows.push({
+      label: "5. 과목명·주차 (LMS)",
+      status: "fail",
+      detail: `${lms.courseName} · 주차를 못 찾음\n${page}`,
+    });
+  } else {
+    rows.push({
+      label: "5. 과목명·주차 (LMS)",
+      status: "fail",
+      detail: `LMS 조회 실패 (${lms?.error ?? "과목 ID 없음"})\n${page}`,
+    });
+  }
 
   return rows;
 }

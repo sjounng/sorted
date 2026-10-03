@@ -17,7 +17,14 @@ const probe = (over: Partial<Probe> = {}): Probe => ({
   name: "Lec03.pdf",
   contentId: "c1",
   courseId: { referrer: null, tab: "210208", url: null },
-  tabTitle: "소프트웨어공학",
+  tabTitle: "cse406-lec-00-v3",
+  moduleItemId: null,
+  lms: {
+    courseName: "소프트웨어공학",
+    courseCode: "HY11171",
+    week: { name: "1주차", position: 1, matchedBy: "title" },
+    error: null,
+  },
   file: { readable: true, error: null, size: 2048, isPdf: true, sha256: "ab".repeat(32) },
   firstPage: { text: "Lecture 3 Requirements", error: null },
   previous: null,
@@ -58,15 +65,18 @@ describe("assumptions", () => {
     expect(assumptions(null)).toEqual([]);
   });
 
-  it("first download: 1·4 pass, 2·3 wait for a re-download, 5 needs a look", () => {
-    expect(status(probe())).toEqual(["pass", "later", "later", "pass", "look"]);
+  it("first download: 1·4·5 pass, 2·3 wait for a re-download", () => {
+    expect(status(probe())).toEqual(["pass", "later", "later", "pass", "pass"]);
+    expect(assumptions(probe(), TZ)[4].detail).toBe(
+      "소프트웨어공학 · 1주차 (자료 제목으로 찾음)\n첫 페이지: Lecture 3 Requirements",
+    );
   });
 
   it("re-download with the same id and bytes passes 2 and 3", () => {
     const p = probe({
       previous: { recordedAtMs: AT, contentId: "c1", contentIdSame: true, sha256Same: true },
     });
-    expect(status(p)).toEqual(["pass", "pass", "pass", "pass", "look"]);
+    expect(status(p)).toEqual(["pass", "pass", "pass", "pass", "pass"]);
     expect(assumptions(p, TZ)[1].detail).toBe("지난번(10/01 14:03) c1 → 이번 c1");
   });
 
@@ -97,6 +107,20 @@ describe("assumptions", () => {
     const row = assumptions(p, TZ)[3];
     expect(row.status).toBe("fail");
     expect(row.detail).toContain("PermissionDenied");
+  });
+
+  it("fails 5 when the week or the whole lookup is missing", () => {
+    const noWeek = probe({
+      lms: { courseName: "소프트웨어공학", courseCode: null, week: null, error: null },
+    });
+    expect(assumptions(noWeek, TZ)[4]).toMatchObject({ status: "fail" });
+    expect(assumptions(noWeek, TZ)[4].detail).toContain("주차를 못 찾음");
+
+    const failed = probe({
+      lms: { courseName: null, courseCode: null, week: null, error: "HTTP 401" },
+    });
+    expect(assumptions(failed, TZ)[4].detail).toContain("HTTP 401");
+    expect(assumptions(probe({ lms: null }), TZ)[4].detail).toContain("과목 ID 없음");
   });
 
   it("reports a probe error as one failed row", () => {
