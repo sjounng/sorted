@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-# 외부 크레이트 없이 표준 라이브러리만 쓴다.
-# native-host가 이 크레이트에 의존하므로, 가볍게 유지해야 다운로드마다 빨리 뜬다.
+# 의존성은 최소로 둔다. native-host가 이 크레이트에 의존하므로 다운로드마다 빨리 떠야 한다.
+# (native-host가 쓰지 않는 모듈의 의존성은 링크 단계에서 빠진다.)
 [dependencies]
+sha2 = "0.11"
