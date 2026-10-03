@@ -38,7 +38,7 @@ export interface WeekGroup {
   files: CourseFile[];
 }
 
-/** 과목 하나의 자료 전체. 주차는 최근 주차가 먼저 온다 */
+/** 과목 하나의 자료 전체. 주차는 LMS 순서대로 1주차부터 */
 export interface CourseDetail {
   course: Course;
   weeks: WeekGroup[];

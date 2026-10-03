@@ -136,7 +136,7 @@ function details(): CourseDetail[] {
         };
       }),
     }));
-    return { course, weeks: weeks.reverse() };
+    return { course, weeks };
   });
 }
 

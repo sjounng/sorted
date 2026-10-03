@@ -25,6 +25,7 @@ export function CourseDetail(props: {
       {data && (
         <>
           <header className="course-head">
+            <span className="course-cover" />
             <div className="course-titles">
               <strong className="card-title">{data.course.name}</strong>
               <span className="card-sub">{data.course.lmsTitle}</span>
@@ -32,7 +33,9 @@ export function CourseDetail(props: {
                 {data.course.term} · 파일 {data.course.fileCount}개
               </span>
             </div>
-            <button onClick={() => api.revealInFinder(folder)}>폴더 열기</button>
+            <button className="course-folder" onClick={() => api.revealInFinder(folder)}>
+              폴더 열기
+            </button>
           </header>
 
           {data.weeks.map((w) => (
