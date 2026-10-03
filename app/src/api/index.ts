@@ -11,3 +11,4 @@ export * from "./types";
  * 끝나면 기본값을 tauri로 뒤집는다.
  */
 export const api: Backend = import.meta.env.VITE_BACKEND === "tauri" ? tauriBackend : mockBackend;
+export { courseNameProblem } from "./validate";

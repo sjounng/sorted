@@ -28,7 +28,7 @@ export function CourseDetail(props: {
             <span className="course-cover" />
             <div className="course-titles">
               <strong className="card-title">{data.course.name}</strong>
-              <span className="card-sub">{data.course.lmsTitle}</span>
+              <span className="card-sub">{data.course.lmsTitle ?? "직접 추가한 과목"}</span>
               <span className="muted">
                 {data.course.term} · 파일 {data.course.fileCount}개
               </span>
@@ -38,6 +38,11 @@ export function CourseDetail(props: {
             </button>
           </header>
 
+          {data.weeks.length === 0 && (
+            <p className="empty muted">
+              아직 자료가 없어요. 이 과목 폴더에 PDF를 넣거나, LMS에서 받으면 여기에 모여요.
+            </p>
+          )}
           {data.weeks.map((w) => (
             <section key={w.week} className="week">
               <h2>

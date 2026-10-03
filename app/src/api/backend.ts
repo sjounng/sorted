@@ -1,5 +1,6 @@
 import type {
   AssignChoice,
+  Course,
   CourseDetail,
   AssignRequest,
   CleanupChoice,
@@ -21,6 +22,12 @@ export interface Backend {
   onOverviewChanged(callback: () => void): Promise<() => void>;
 
   courseDetail(courseId: string): Promise<CourseDetail>;
+  /** 과목을 직접 추가한다. 정리 폴더에 같은 이름의 폴더가 생긴다 */
+  addCourse(name: string): Promise<Course>;
+  /** 과목명(=폴더 이름)을 바꾼다. 과목 ID와 자료는 그대로다 */
+  renameCourse(courseId: string, name: string): Promise<void>;
+  /** 과목을 목록에서 지운다. 과목 폴더는 휴지통으로 간다 */
+  removeCourse(courseId: string): Promise<void>;
   /** PDF를 기본 앱(미리보기 등)으로 연다 */
   openFile(path: string): Promise<void>;
 

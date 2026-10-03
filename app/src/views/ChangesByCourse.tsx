@@ -19,8 +19,8 @@ export function ChangesByCourse(props: {
   const groups = data.courses
     .map((course) => ({
       course,
-      color: courseColor(data.courses, course.name),
-      changes: data.changes.filter((c) => c.courseName === course.name),
+      color: courseColor(data.courses, course.id),
+      changes: data.changes.filter((c) => c.courseId === course.id),
     }))
     .filter((g) => g.changes.length > 0);
 

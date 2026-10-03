@@ -11,6 +11,9 @@ export const tauriBackend: Backend = {
   onOverviewChanged: (callback) => listen("overview-changed", () => callback()),
 
   courseDetail: (courseId) => invoke("course_detail", { courseId }),
+  addCourse: (name) => invoke("add_course", { name }),
+  renameCourse: (courseId, name) => invoke("rename_course", { courseId, name }),
+  removeCourse: (courseId) => invoke("remove_course", { courseId }),
   openFile: (path) => invoke("open_file", { path }),
 
   setupStatus: () => invoke("setup_status"),

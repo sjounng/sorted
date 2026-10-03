@@ -2,17 +2,17 @@
 // Rust 쪽 구조체는 #[serde(rename_all = "camelCase")]로 이 모양에 맞춘다.
 
 export interface Course {
-  /** LMS 과목 ID (courses/<ID>) */
+  /** LMS 과목 ID (courses/<ID>). 사용자가 직접 추가한 과목은 앱이 정한 ID */
   id: string;
-  /** 폴더 이름으로 쓰는 과목명. 예: "소프트웨어공학" */
+  /** 폴더 이름으로 쓰는 과목명. 사용자가 바꿀 수 있다. 예: "소프트웨어공학" */
   name: string;
-  /** LMS 탭 제목에서 읽은 원래 이름. 예: "202620HY11171_소프트웨어공학" */
-  lmsTitle: string;
+  /** LMS 탭 제목에서 읽은 원래 이름. 직접 추가한 과목은 없다. 예: "202620HY11171_소프트웨어공학" */
+  lmsTitle?: string;
   /** 예: "2026년 2학기" */
   term: string;
   /** 과목 폴더 안의 PDF 수 */
   fileCount: number;
-  /** 가장 최근에 받은 자료의 주차. 예: "5주차" */
+  /** 가장 최근에 받은 자료의 주차. 예: "5주차". 자료가 없으면 빈 문자열 */
   latestWeek: string;
 }
 
@@ -51,6 +51,7 @@ export interface Change {
   id: string;
   kind: ChangeKind;
   documentId: string;
+  courseId: string;
   courseName: string;
   fileName: string;
   /** kind가 newVersion일 때 바뀐 장 수 */

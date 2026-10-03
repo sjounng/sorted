@@ -900,3 +900,150 @@ button.link {
   font-size: 18px;
   line-height: 1;
 }
+
+/* 과목 카드: ⋮ 메뉴, 이름 바꾸기, 삭제 확인, + 과목 추가 */
+
+.card {
+  position: relative;
+}
+
+.kebab {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  padding: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #fff;
+}
+
+.kebab:hover,
+.kebab[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.menu {
+  position: absolute;
+  z-index: 3;
+  top: 44px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.menu button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  text-align: left;
+}
+
+.menu button:hover {
+  background: var(--hover);
+}
+
+.danger-text {
+  color: var(--danger) !important;
+}
+
+.card-confirm {
+  padding: 12px 20px 16px;
+}
+
+.card-confirm p {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.card-confirm .muted {
+  font-size: 12px;
+}
+
+.card-confirm .actions,
+.name-form .actions {
+  padding-top: 10px;
+}
+
+.name-form {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 16px;
+}
+
+.name-form .text {
+  margin: 0;
+}
+
+.name-form .text[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field-hint,
+.field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.field-error {
+  color: var(--danger);
+}
+
+.add-card {
+  min-height: 200px;
+  border: 2px dashed var(--line);
+  background: none;
+  box-shadow: none;
+}
+
+.add-card:hover {
+  border-color: var(--brand);
+  box-shadow: none;
+}
+
+.add-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.add-card:hover .add-main {
+  color: var(--brand);
+}
+
+.plus {
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.add-card.adding {
+  border-style: solid;
+  border-color: var(--brand);
+  background: var(--bg);
+}
+
+.add-card.adding .card-body {
+  padding-top: 20px;
+}
+
+.add-title {
+  margin-bottom: 8px;
+  font-size: 15px;
+}

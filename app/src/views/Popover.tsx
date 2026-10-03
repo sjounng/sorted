@@ -23,7 +23,9 @@ export function Popover() {
   }, [opened]);
 
   useEffect(() => {
-    const off = api.onOverviewChanged(reload);
+    // 구독마다 새 함수를 넘긴다. 같은 함수를 넘기면 StrictMode의 구독→해제→재구독에서
+    // 늦게 도착한 해제가 재구독까지 지워 버린다.
+    const off = api.onOverviewChanged(() => reload());
     return () => {
       off.then((stop) => stop());
     };

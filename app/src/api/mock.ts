@@ -1,4 +1,5 @@
 import type { Backend } from "./backend";
+import { courseNameProblem } from "./validate";
 import type {
   Change,
   CleanupRequest,
@@ -149,7 +150,7 @@ function fakeSize(name: string): number {
 }
 
 const library = details();
-const courses: Course[] = library.map((d) => d.course);
+const courses = (): Course[] => library.map((d) => d.course);
 
 /** 최근 이틀 안에 받은 자료는 "최근 변경"에 나온다. 과목 화면의 목록과 항상 맞는다. */
 function recentChanges(): Change[] {
@@ -161,6 +162,7 @@ function recentChanges(): Change[] {
           id: `c-${f.id}`,
           kind: f.version > 1 ? "newVersion" : "organized",
           documentId: f.documentId,
+          courseId: d.course.id,
           courseName: d.course.name,
           fileName: f.fileName,
           changedPages: f.version > 1 ? 4 : undefined,
@@ -172,6 +174,7 @@ function recentChanges(): Change[] {
     id: "c-dup",
     kind: "duplicate",
     documentId: "5f0e33a91c7b2",
+    courseId: "11184",
     courseName: "확률과통계",
     fileName: "05_조건부확률.pdf",
     atMs: now - DAY - 3 * HOUR,
@@ -179,9 +182,9 @@ function recentChanges(): Change[] {
   return [...recent, duplicate].sort((a, b) => b.atMs - a.atMs);
 }
 
-const overview: Overview = {
+// courses는 overview()를 부를 때 library에서 새로 만든다.
+const overview: Omit<Overview, "courses"> = {
   sortedFolder: SORTED,
-  courses,
   changes: recentChanges(),
   unprocessed: [
     { id: "u1", fileName: "original.pdf", reason: "unknownCourse", atMs: now - 30 * MINUTE },
@@ -195,6 +198,18 @@ let setup: SetupStatus = {
   sortedFolderCreated: false,
   extensionConnected: true,
 };
+
+function findCourse(courseId: string): CourseDetail {
+  const found = library.find((d) => d.course.id === courseId);
+  if (!found) throw new Error(`과목을 찾을 수 없어요: ${courseId}`);
+  return found;
+}
+
+/** 실제 앱도 같은 규칙으로 막는다: 폴더 이름이 되므로 비거나 겹치거나 '/'가 들어가면 안 된다 */
+function checkName(name: string, exceptId?: string) {
+  const problem = courseNameProblem(name, courses(), exceptId);
+  if (problem) throw new Error(problem);
+}
 
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
@@ -218,18 +233,49 @@ const cleanup: CleanupRequest = {
 };
 
 export const mockBackend: Backend = {
-  overview: () => wait(structuredClone(overview)),
+  overview: () => wait(structuredClone({ ...overview, courses: courses() })),
   onOverviewChanged: async (callback) => {
     listeners.add(callback);
     return () => listeners.delete(callback);
   },
 
-  courseDetail: async (courseId) => {
-    const found = library.find((d) => d.course.id === courseId);
-    if (!found) throw new Error(`과목을 찾을 수 없어요: ${courseId}`);
-    return wait(structuredClone(found));
-  },
+  courseDetail: async (courseId) => wait(structuredClone(findCourse(courseId))),
   openFile: async (path) => log("파일 열기", path),
+
+  addCourse: async (name) => {
+    checkName(name);
+    const course: Course = {
+      id: `local-${Date.now()}`,
+      name: name.trim(),
+      term: TERM,
+      fileCount: 0,
+      latestWeek: "",
+    };
+    library.push({ course, weeks: [] });
+    log("과목 추가", course);
+    changed();
+    return wait(structuredClone(course));
+  },
+  renameCourse: async (courseId, name) => {
+    const found = findCourse(courseId);
+    checkName(name, courseId);
+    const from = found.course.name;
+    const to = name.trim();
+    found.course.name = to;
+    for (const w of found.weeks) {
+      for (const f of w.files) f.path = f.path.replace(`${SORTED}/${from}/`, `${SORTED}/${to}/`);
+    }
+    for (const c of overview.changes) if (c.courseId === courseId) c.courseName = to;
+    log("과목명 변경", from, "→", to);
+    changed();
+  },
+  removeCourse: async (courseId) => {
+    const found = findCourse(courseId);
+    library.splice(library.indexOf(found), 1);
+    overview.changes = overview.changes.filter((c) => c.courseId !== courseId);
+    log("과목 삭제 (폴더는 휴지통으로)", found.course.name);
+    changed();
+  },
 
   setupStatus: () => wait({ ...setup }),
   requestDownloadsAccess: async () => {
@@ -245,7 +291,7 @@ export const mockBackend: Backend = {
       fileName: overview.unprocessed.find((u) => u.id === fileId)?.fileName ?? "original.pdf",
       tabTitle: "202620HY11190_생활법률",
       atMs: now - 30 * MINUTE,
-      courses,
+      courses: courses(),
     }),
   assignCourse: async (fileId, choice) => {
     log("과목 지정", fileId, choice);
