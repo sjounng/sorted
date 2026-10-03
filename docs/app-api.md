@@ -23,7 +23,7 @@
 
 | 이벤트               | 실어 보내는 것                     | 언제                                                         | 상태   |
 | -------------------- | ---------------------------------- | ------------------------------------------------------------ | ------ |
-| `overview-changed`   | 없음                               | 메인 창 데이터(`Overview`)가 바뀔 때마다. 화면은 다시 부른다 | 새로   |
+| `overview-changed`   | 없음                               | 메인 창 데이터(`Overview`)가 바뀔 때마다. 화면은 다시 부른다 | 있음   |
 | `download-processed` | `{ id: number; outcome: Outcome }` | 다운로드 하나의 정리가 끝날 때마다                           | 있음   |
 | `native-message`     | 확장에서 온 메시지 원본            | 메시지를 받을 때마다. 정리 결과도 `outcome`으로 다시 온다    | 개발용 |
 
@@ -62,11 +62,13 @@
 
 ### 첫 실행 설정 (FR-15)
 
-| 명령                       | 인자 | 돌려주는 것   | 뜻                                                                   | 단계 | 상태                                   |
-| -------------------------- | ---- | ------------- | -------------------------------------------------------------------- | ---- | -------------------------------------- |
-| `setup_status`             | 없음 | `SetupStatus` | 권한·정리 폴더·확장 연결 상태                                        | 2    | 새로                                   |
-| `request_downloads_access` | 없음 | `SetupStatus` | 다운로드 폴더를 한 번 읽어 권한 창을 띄우고, 보류된 파일을 다시 처리 | 2    | 바꿈 (`retry_permission`)              |
-| `open_system_settings`     | 없음 | 없음          | 시스템 설정 → 개인정보 보호 → 파일 및 폴더                           | 2    | 바꿈 (`open_privacy_settings`, 이름만) |
+| 명령                       | 인자 | 돌려주는 것   | 뜻                                                                   | 단계 | 상태 |
+| -------------------------- | ---- | ------------- | -------------------------------------------------------------------- | ---- | ---- |
+| `setup_status`             | 없음 | `SetupStatus` | 권한·정리 폴더·확장 연결 상태                                        | 2    | 있음 |
+| `request_downloads_access` | 없음 | `SetupStatus` | 다운로드 폴더를 한 번 읽어 권한 창을 띄우고, 보류된 파일을 다시 처리 | 2    | 있음 |
+| `open_system_settings`     | 없음 | 없음          | 시스템 설정 → 개인정보 보호 → 파일 및 폴더                           | 2    | 있음 |
+
+`downloadsAccess`: macOS는 권한 창을 띄우지 않고 상태만 물어볼 방법이 없다. 그래서 앱이 **마지막으로 다운로드 폴더를 실제로 읽었을 때**의 결과다. 앱을 켠 뒤 아직 읽어 본 적이 없으면 `unknown`이고, `request_downloads_access`를 부르면 확인된다 (처음이면 권한 창이 뜨고 답할 때까지 기다린다). `extensionConnected`는 이번 실행에서 확장 메시지를 하나라도 받았는지다 (앱이 꺼져 있던 동안 보관된 것 포함).
 
 ### 파일 열기
 
@@ -79,11 +81,14 @@
 
 | 명령             | 인자                                       | 돌려주는 것     | 뜻                                      | 단계 | 상태 |
 | ---------------- | ------------------------------------------ | --------------- | --------------------------------------- | ---- | ---- |
-| `assign_request` | `{ fileId: string }`                       | `AssignRequest` | 과목 지정 창에 보여 줄 것               | 2    | 새로 |
-| `assign_course`  | `{ fileId: string; choice: AssignChoice }` | 없음            | 과목을 정해 정리. 이후 같은 과목은 기억 | 2    | 바꿈 |
-| `skip_assign`    | `{ fileId: string }`                       | 없음            | 정하지 않고 다운로드 폴더에 그대로 둠   | 2    | 새로 |
+| `assign_request` | `{ fileId: string }`                       | `AssignRequest` | 과목 지정 창에 보여 줄 것               | 2    | 있음 |
+| `assign_course`  | `{ fileId: string; choice: AssignChoice }` | 없음            | 과목을 정해 정리. 이후 같은 과목은 기억 | 2    | 있음 |
+| `skip_assign`    | `{ fileId: string }`                       | 없음            | 정하지 않고 다운로드 폴더에 그대로 둠   | 2    | 있음 |
 
-`assign_course` 지금 모양: `{ id: number, courseName: string }` → `Outcome | null`. `fileId`는 지금의 보류 번호(`id`)를 문자열로 쓰면 된다.
+- `fileId`는 보류 목록의 번호를 문자열로 쓴 것이다 (`overview.unprocessed[].id`와 같음).
+- `assign_course`: 정리되거나(`organized`) 이미 있는 파일(`duplicate`)이면 성공. 파일이 사라졌거나 권한이 없으면 이유를 담아 거절한다. 새 과목명은 화면(`validate.ts`)과 같은 규칙으로 한 번 더 검사한다.
+- `skip_assign`: 보류 목록에서만 빼고 파일은 다운로드 폴더에 그대로 둔다.
+- 명령이 실패하면 `invoke`가 한국어 이유 문자열로 거절된다 (화면에 그대로 보여 줘도 된다).
 
 ### 중복 (FR-7)
 
@@ -104,14 +109,12 @@
 
 PR #20이 머지되고 화면이 새 명령으로 옮겨 가면 지운다.
 
-| 지금 있는 명령          | 옮겨 갈 곳                                           |
-| ----------------------- | ---------------------------------------------------- |
-| `pending_downloads`     | `overview`의 `unprocessed`                           |
-| `library`               | `overview`(과목·최근 변경), `course_detail`(자료)    |
-| `sorted_root`           | `overview.sortedFolder`, `setup_status.sortedFolder` |
-| `retry_permission`      | `request_downloads_access`                           |
-| `open_privacy_settings` | `open_system_settings`                               |
-| `received_messages`     | 그대로 둠 (개발용, 메시지 기록 창)                   |
+| 지금 있는 명령      | 옮겨 갈 곳                                           |
+| ------------------- | ---------------------------------------------------- |
+| `pending_downloads` | `overview`의 `unprocessed`                           |
+| `library`           | `overview`(과목·최근 변경), `course_detail`(자료)    |
+| `sorted_root`       | `overview.sortedFolder`, `setup_status.sortedFolder` |
+| `received_messages` | 그대로 둠 (개발용, 메시지 기록 창)                   |
 
 ## `Outcome`
 
@@ -147,13 +150,13 @@ interface Overview {
 }
 
 interface Course {
-  /** LMS 과목 ID (courses/<ID>). 사용자가 직접 추가한 과목은 앱이 정한 ID */
+  /** LMS 과목 ID (courses/<ID>). 사용자가 직접 추가한 과목은 `local-` + 과목명 해시 12자리 */
   id: string;
   /** 폴더 이름으로 쓰는 과목명. 사용자가 바꿀 수 있다. 예: "소프트웨어공학" */
   name: string;
-  /** LMS의 원래 과목 이름. 직접 추가한 과목은 없다. 예: "202620HY11171_소프트웨어공학" */
+  /** LMS의 원래 과목 이름. 직접 추가한 과목은 없다. 예: "202620HY11171_소프트웨어공학" (아직 비어 옴) */
   lmsTitle?: string;
-  /** 예: "2026년 2학기" */
+  /** 예: "2026년 2학기" (아직 확장이 보내지 않아 "") */
   term: string;
   /** 과목 폴더 안의 PDF 수 */
   fileCount: number;
