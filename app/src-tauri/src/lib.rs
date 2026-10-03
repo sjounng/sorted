@@ -69,10 +69,9 @@ pub fn run() {
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let dashboard = MenuItem::with_id(app, "dashboard", "대시보드 열기", true, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "메시지 기록 (개발용)", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&dashboard, &show, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("Sorted")
@@ -91,7 +90,6 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
         })
         .on_menu_event(|app, event| match event.id.as_ref() {
-            "dashboard" => show_window(app, "dashboard"),
             "show" => show_window(app, "main"),
             "quit" => app.exit(0),
             _ => {}

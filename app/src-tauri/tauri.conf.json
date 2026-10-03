@@ -23,16 +23,6 @@
         "visible": false
       },
       {
-        "label": "dashboard",
-        "title": "Sorted 대시보드",
-        "url": "index.html?view=dashboard",
-        "width": 1100,
-        "height": 760,
-        "minWidth": 420,
-        "minHeight": 400,
-        "visible": false
-      },
-      {
         "label": "main",
         "title": "Sorted 메시지 기록",
         "width": 480,

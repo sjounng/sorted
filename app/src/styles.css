@@ -545,39 +545,14 @@ button.link {
   background: var(--warn-soft);
 }
 
-/* 대시보드: 과목 카드 그리드 */
-
-.dashboard {
-  min-height: 100vh;
-  box-sizing: border-box;
-  padding: 24px 32px 40px;
-  background: var(--panel);
-}
-
-.dashboard-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 16px;
-  margin-bottom: 28px;
-  border-bottom: 1px solid var(--line);
-}
-
-.dashboard-head h1 {
-  font-size: 22px;
-}
-
-.dashboard-head .muted {
-  font-size: 13px;
-}
+/* 과목 탭: LMS 대시보드 같은 과목 카드 */
 
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 32px;
+  gap: clamp(14px, 3vw, 32px);
   margin: 0;
-  padding: 0;
+  padding: clamp(14px, 3vw, 28px);
   list-style: none;
 }
 
@@ -613,7 +588,7 @@ button.link {
 
 .card-cover {
   display: block;
-  height: 140px;
+  height: clamp(56px, 12vw, 140px);
   background: var(--course);
 }
 

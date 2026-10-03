@@ -3,6 +3,7 @@ import { api, type Change, type Overview, type UnprocessedReason } from "../api"
 import { ago } from "../format";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
+import { CourseCards } from "./CourseCards";
 
 type Tab = "courses" | "changes" | "unprocessed";
 
@@ -50,7 +51,7 @@ export function Popover() {
       </nav>
 
       <section className="panel" role="tabpanel">
-        {tab === "courses" && <CourseList data={data} />}
+        {tab === "courses" && <CourseCards data={data} />}
         {tab === "changes" && <ChangeList data={data} />}
         {tab === "unprocessed" && <UnprocessedList data={data} />}
       </section>
@@ -59,37 +60,11 @@ export function Popover() {
         <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
           {data.sortedFolder} 열기
         </button>
-        <button className="link" onClick={() => openView("dashboard")}>
-          대시보드
-        </button>
         <button className="link" onClick={() => openView("setup")}>
           설정
         </button>
       </footer>
     </main>
-  );
-}
-
-function CourseList({ data }: { data: Overview }) {
-  if (data.courses.length === 0) {
-    return <Empty text="아직 정리한 강의자료가 없어요. LMS에서 평소처럼 받아 보세요." />;
-  }
-  return (
-    <ul className="rows">
-      {data.courses.map((c) => (
-        <li key={c.id}>
-          <button
-            className="row"
-            onClick={() => api.revealInFinder(`${data.sortedFolder}/${c.name}`)}
-          >
-            <strong>{c.name}</strong>
-            <span className="muted">
-              파일 {c.fileCount}개 · 최근 {c.latestWeek}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 

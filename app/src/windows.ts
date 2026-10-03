@@ -5,12 +5,10 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 // 화면 하나 = 창 하나. 모든 창이 같은 index.html을 쓰고 ?view=로 화면을 고른다.
 // 브라우저(목업 확인용)에서는 새 탭으로 연다.
 
-export type View =
-  "popover" | "dashboard" | "main" | "setup" | "assign" | "duplicate" | "compare" | "cleanup";
+export type View = "popover" | "main" | "setup" | "assign" | "duplicate" | "compare" | "cleanup";
 
 const SIZES: Record<View, { title: string; width: number; height: number }> = {
   popover: { title: "Sorted", width: 340, height: 440 },
-  dashboard: { title: "Sorted 대시보드", width: 1100, height: 760 },
   main: { title: "Sorted 메시지 기록", width: 480, height: 600 },
   setup: { title: "Sorted 시작하기", width: 460, height: 520 },
   assign: { title: "과목 지정", width: 420, height: 480 },

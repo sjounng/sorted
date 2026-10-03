@@ -4,7 +4,6 @@ import { currentView } from "./windows";
 import { Assign } from "./views/Assign";
 import { Cleanup } from "./views/Cleanup";
 import { Compare } from "./views/Compare";
-import { Dashboard } from "./views/Dashboard";
 import { Duplicate } from "./views/Duplicate";
 import { MessageLog } from "./views/MessageLog";
 import { Popover } from "./views/Popover";
@@ -15,8 +14,6 @@ import { Setup } from "./views/Setup";
 function App() {
   const { view, id } = currentView();
   switch (view) {
-    case "dashboard":
-      return <Dashboard />;
     case "main":
       return <MessageLog />;
     case "setup":
