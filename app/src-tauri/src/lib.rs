@@ -12,7 +12,8 @@ mod probe;
 mod screen;
 
 use std::error::Error;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::thread;
 
 use serde_json::json;
@@ -23,9 +24,9 @@ use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 
 use inbox::{Inbox, Received, Source};
-use organizer::{Organizer, Pending};
+use organizer::Organizer;
 use pipeline::Outcome;
-use screen::{AssignChoice, AssignRequest, Permission, SetupStatus};
+use screen::{AssignChoice, AssignRequest, CourseDetail, Overview, Permission, SetupStatus};
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
 const MAIN: &str = "main";
@@ -43,10 +44,51 @@ fn received_messages(inbox: State<'_, Inbox>) -> Vec<Received> {
 
 // ── 화면용 명령 (docs/app-api.md) ──
 
-/// 사용자의 조치를 기다리는 다운로드 (과목 고르기, 권한 허용)
+// 메인 창 (FR-13)
+
 #[tauri::command]
-fn pending_downloads(organizer: State<'_, Organizer>) -> Vec<Pending> {
-    organizer.pending()
+fn overview(organizer: State<'_, Organizer>) -> Overview {
+    organizer.overview()
+}
+
+#[tauri::command]
+fn course_detail(
+    organizer: State<'_, Organizer>,
+    course_id: String,
+) -> Result<CourseDetail, String> {
+    organizer
+        .course_detail(&course_id)
+        .ok_or_else(|| "없는 과목이에요.".into())
+}
+
+// 파일 열기
+
+/// PDF를 기본 앱(미리보기 등)으로 연다. 정리 폴더 안의 것만.
+#[tauri::command]
+fn open_file(organizer: State<'_, Organizer>, path: PathBuf) -> Result<(), String> {
+    let path = inside(organizer.root(), &path)?;
+    open([path.as_os_str()])
+}
+
+/// Finder에서 그 파일·폴더를 선택해 보여 준다. 정리 폴더 안의 것만.
+#[tauri::command]
+fn reveal_in_finder(organizer: State<'_, Organizer>, path: PathBuf) -> Result<(), String> {
+    let path = inside(organizer.root(), &path)?;
+    open([OsStr::new("-R"), path.as_os_str()])
+}
+
+/// `path`가 정리 폴더 안(정리 폴더 자신 포함)에 있으면 실제 경로를 돌려준다.
+/// 화면이 넘긴 경로로 아무 파일이나 열지 않게 막는다.
+fn inside(root: &Path, path: &Path) -> Result<PathBuf, String> {
+    let root = root.canonicalize().map_err(|e| e.to_string())?;
+    let path = path
+        .canonicalize()
+        .map_err(|_| "파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.".to_string())?;
+    if path.starts_with(&root) {
+        Ok(path)
+    } else {
+        Err("정리 폴더 밖의 파일은 열지 않아요.".into())
+    }
 }
 
 // 첫 실행 설정 (FR-15)
@@ -72,7 +114,7 @@ async fn request_downloads_access(app: AppHandle) -> SetupStatus {
 /// 시스템 설정의 "파일 및 폴더" 화면을 연다
 #[tauri::command]
 fn open_system_settings() -> Result<(), String> {
-    open(&["x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders"])
+    open(["x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders"])
 }
 
 fn status(app: &AppHandle) -> SetupStatus {
@@ -138,7 +180,7 @@ fn home() -> PathBuf {
 }
 
 /// macOS `open`으로 연다 (시스템 설정, Finder 등)
-fn open(args: &[&str]) -> Result<(), String> {
+fn open<S: AsRef<OsStr>>(args: impl IntoIterator<Item = S>) -> Result<(), String> {
     std::process::Command::new("open")
         .args(args)
         .spawn()
@@ -146,30 +188,21 @@ fn open(args: &[&str]) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn library(organizer: State<'_, Organizer>) -> sorted_core::library::Library {
-    organizer.library()
-}
-
-#[tauri::command]
-fn sorted_root(organizer: State<'_, Organizer>) -> PathBuf {
-    organizer.root().to_owned()
-}
-
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(Inbox::default())
         .invoke_handler(tauri::generate_handler![
             received_messages,
-            pending_downloads,
+            overview,
+            course_detail,
             setup_status,
             request_downloads_access,
             open_system_settings,
             assign_request,
             assign_course,
             skip_assign,
-            library,
-            sorted_root
+            open_file,
+            reveal_in_finder
         ])
         .menu(|app| {
             // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
@@ -295,4 +328,26 @@ fn report(app: &AppHandle, id: u64, outcome: &Outcome) {
         json!({ "id": id, "outcome": outcome }),
     );
     let _ = app.emit("overview-changed", ());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn only_paths_inside_the_sorted_folder() {
+        let dir = std::env::temp_dir().join(format!("sorted-inside-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("Sorted/OS/1주차")).unwrap();
+        fs::write(dir.join("Sorted/OS/1주차/a.pdf"), "x").unwrap();
+        fs::write(dir.join("outside.pdf"), "x").unwrap();
+        let root = dir.join("Sorted");
+
+        assert!(inside(&root, &root).is_ok());
+        assert!(inside(&root, &root.join("OS/1주차/a.pdf")).is_ok());
+        assert!(inside(&root, &root.join("OS/../../outside.pdf")).is_err());
+        assert!(inside(&root, &dir.join("outside.pdf")).is_err());
+        assert!(inside(&root, &root.join("OS/없음.pdf")).is_err());
+    }
 }
