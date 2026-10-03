@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
-import { ago, clockKo, dateKo, dDay, daysLeft } from "../format";
+import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
 import { useLoad } from "../useLoad";
 import { MonthCalendar, firstOfMonth } from "./ScheduleView";
 import { SearchBox } from "./SearchBox";
@@ -9,16 +9,16 @@ import { SearchBox } from "./SearchBox";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
 const KIND_LABEL: Record<ScheduleItem["kind"], string> = {
-  assignment: "과제",
-  quiz: "퀴즈",
-  video: "영상",
-  event: "일정",
+  assignment: "Assignment",
+  quiz: "Quiz",
+  video: "Video",
+  event: "Event",
 };
 
 const CHANGE_LABEL: Record<Change["kind"], string> = {
-  organized: "정리됨",
-  newVersion: "새 버전",
-  duplicate: "이미 받은 파일",
+  organized: "Organized",
+  newVersion: "New version",
+  duplicate: "Already downloaded",
 };
 
 /**
@@ -73,14 +73,14 @@ export function Dashboard(props: {
           <h1>{name ? `Hello, ${name}!` : "Hello!"}</h1>
           {!name && (
             <button className="link name-cta" onClick={onEditName}>
-              이름을 정하면 “Hello, 이름!”으로 불러 드려요 ›
+              Set your name for a proper hello ›
             </button>
           )}
           <p className="muted">
-            {dateKo(now)} ·{" "}
+            {dateLabel(now)} ·{" "}
             {soon.length > 0
-              ? `3일 안에 마감이 ${soon.length}개 있어요.`
-              : "3일 안에 마감이 없어요."}
+              ? `${soon.length} ${soon.length === 1 ? "deadline" : "deadlines"} in the next 3 days.`
+              : "No deadlines in the next 3 days."}
           </p>
         </div>
         <SearchBox data={data} onOpenCourse={onOpenCourse} />
@@ -88,9 +88,9 @@ export function Dashboard(props: {
 
       <div className="dash-main">
         <section className="widget">
-          <WidgetHead title="다가오는 마감" more="전체 일정" onMore={() => onOpenSchedule()} />
+          <WidgetHead title="Upcoming deadlines" more="See all" onMore={() => onOpenSchedule()} />
           {upcoming.length === 0 ? (
-            <p className="widget-empty muted">다가오는 마감이 없어요.</p>
+            <p className="widget-empty muted">No upcoming deadlines.</p>
           ) : (
             <ul className="up-list">
               {upcoming.map((item) => {
@@ -102,7 +102,7 @@ export function Dashboard(props: {
                       className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
                       style={{ "--course": color } as React.CSSProperties}
                       onClick={() => api.openInBrowser(item.url)}
-                      title="LMS에서 열기"
+                      title="Open in LMS"
                     >
                       <span className="up-date">
                         <strong>{new Date(item.dueAtMs).getDate()}</strong>
@@ -111,7 +111,7 @@ export function Dashboard(props: {
                       <span className="up-text">
                         <strong>{item.title}</strong>
                         <span className="muted">
-                          {KIND_LABEL[item.kind]} · {name} · {clockKo(item.dueAtMs)}
+                          {KIND_LABEL[item.kind]} · {name} · {clock(item.dueAtMs)}
                         </span>
                       </span>
                     </button>
@@ -123,9 +123,9 @@ export function Dashboard(props: {
         </section>
 
         <section className="widget">
-          <WidgetHead title="최근 변경" more="더 보기" onMore={onOpenChanges} />
+          <WidgetHead title="Recent changes" more="See more" onMore={onOpenChanges} />
           {data.changes.length === 0 ? (
-            <p className="widget-empty muted">최근 변경이 없어요.</p>
+            <p className="widget-empty muted">No recent changes.</p>
           ) : (
             <ul className="mini-rows">
               {data.changes.slice(0, 4).map((c) => {
@@ -155,7 +155,7 @@ export function Dashboard(props: {
         </section>
 
         <section className="widget widget-wide">
-          <WidgetHead title="내 일정" more="일정 탭에서 보기" onMore={() => onOpenSchedule()} />
+          <WidgetHead title="My schedule" more="Open schedule" onMore={() => onOpenSchedule()} />
           <div className="dash-cal">
             <MonthCalendar
               month={month}
@@ -169,23 +169,30 @@ export function Dashboard(props: {
       </div>
 
       <aside className="dash-stats">
-        <Ring title="영상 시청" value={videos} color="var(--ring-pink)" note="일주일 안 마감까지" />
         <Ring
-          title="과제·퀴즈 제출"
+          title="Videos watched"
+          value={videos}
+          color="var(--ring-pink)"
+          note="due within a week"
+        />
+        <Ring
+          title="Work submitted"
           value={homework}
           color="var(--ring-teal)"
-          note="일주일 안 마감까지"
+          note="due within a week"
         />
         <div className="stat-card">
-          <span className="stat-title">정리한 자료</span>
+          <span className="stat-title">Files sorted</span>
           <strong className="stat-big">{files}</strong>
-          <span className="stat-note">{data.courses.length}과목</span>
+          <span className="stat-note">
+            {data.courses.length} {data.courses.length === 1 ? "class" : "classes"}
+          </span>
         </div>
         {data.unprocessed.length > 0 && (
           <button className="stat-card stat-warn" onClick={onOpenUnprocessed}>
-            <span className="stat-title">처리 못한 파일</span>
+            <span className="stat-title">Unsorted files</span>
             <strong className="stat-big">{data.unprocessed.length}</strong>
-            <span className="stat-note">눌러서 확인 ›</span>
+            <span className="stat-note">Review ›</span>
           </button>
         )}
       </aside>
@@ -234,7 +241,7 @@ function Ring(props: {
         </text>
       </svg>
       <span className="stat-note">
-        {value ? `${value.done}/${value.total} · ${note}` : "아직 일정이 없어요"}
+        {value ? `${value.done}/${value.total} · ${note}` : "Nothing scheduled yet"}
       </span>
     </div>
   );

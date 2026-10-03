@@ -102,8 +102,8 @@ function CourseCard(props: {
               initial={course.name}
               courses={courses}
               exceptId={course.id}
-              submitLabel="저장"
-              hint="정리 폴더 안의 과목 폴더 이름도 같이 바뀌어요."
+              submitLabel="Save"
+              hint="The class folder in Sorted is renamed too."
               serverError={error}
               onSubmit={rename}
               onCancel={() => {
@@ -114,12 +114,12 @@ function CourseCard(props: {
           </div>
         </div>
       ) : (
-        <button className="card-main" onClick={onOpen} aria-label={`${course.name} 자료 보기`}>
+        <button className="card-main" onClick={onOpen} aria-label={`Open ${course.name}`}>
           <span className="card-cover" />
           <span className="card-body">
             <strong className="card-title">{course.name}</strong>
             <span className="card-sub" title={course.lmsTitle}>
-              {lmsCode(course) ?? "직접 추가한 과목"}
+              {lmsCode(course) ?? "Added manually"}
             </span>
             <span className="card-term">{course.term}</span>
           </span>
@@ -129,7 +129,7 @@ function CourseCard(props: {
       {mode !== "rename" && (
         <button
           className="kebab"
-          aria-label={`${course.name} 메뉴`}
+          aria-label={`${course.name} menu`}
           aria-expanded={mode === "menu"}
           onClick={() => setMode(mode === "menu" ? "view" : "menu")}
         >
@@ -139,10 +139,10 @@ function CourseCard(props: {
       {mode === "menu" && (
         <div className="menu" role="menu">
           <button role="menuitem" onClick={() => setMode("rename")}>
-            이름 바꾸기
+            Rename
           </button>
           <button role="menuitem" className="danger-text" onClick={() => setMode("confirmDelete")}>
-            삭제
+            Delete
           </button>
         </div>
       )}
@@ -150,36 +150,36 @@ function CourseCard(props: {
       {mode === "confirmDelete" ? (
         <div className="card-confirm">
           <p>
-            <strong>{course.name}</strong>을(를) 지울까요?
+            Delete <strong>{course.name}</strong>?
             <br />
             <span className="muted">
               {course.fileCount > 0
-                ? `자료 ${course.fileCount}개와 함께 휴지통으로 옮겨요. 휴지통에서 되살릴 수 있어요.`
-                : "휴지통으로 옮겨요. 휴지통에서 되살릴 수 있어요."}
+                ? `It moves to Trash with its ${course.fileCount} files. You can restore it from Trash.`
+                : "It moves to Trash. You can restore it from Trash."}
             </span>
           </p>
           {error && <p className="warn">{error}</p>}
           <div className="actions">
-            <button onClick={() => setMode("view")}>취소</button>
+            <button onClick={() => setMode("view")}>Cancel</button>
             <button className="danger" onClick={remove}>
-              휴지통으로
+              Move to Trash
             </button>
           </div>
         </div>
       ) : (
         <div className="card-icons">
-          <span className="icon-stat" title="정리한 파일">
+          <span className="icon-stat" title="Files sorted">
             <FileIcon />
             {course.fileCount}
           </span>
-          <span className="icon-stat" title="가장 최근 자료">
+          <span className="icon-stat" title="Latest week">
             <CalendarIcon />
-            {course.latestWeek || "자료 없음"}
+            {course.latestWeek || "No files"}
           </span>
           {latest && (
             <button
               className="icon-btn"
-              title={`새 버전: ${latest.fileName}`}
+              title={`New version: ${latest.fileName}`}
               onClick={() => openView("compare", latest.documentId)}
             >
               <RefreshIcon />
@@ -214,7 +214,7 @@ function AddCard({ courses }: { courses: Course[] }) {
           <span className="plus" aria-hidden>
             +
           </span>
-          과목 추가
+          Add class
         </button>
       </li>
     );
@@ -223,12 +223,12 @@ function AddCard({ courses }: { courses: Course[] }) {
   return (
     <li className="card add-card adding">
       <div className="card-body">
-        <strong className="add-title">새 과목</strong>
+        <strong className="add-title">New class</strong>
         <NameForm
           initial=""
           courses={courses}
-          submitLabel="추가"
-          hint="정리 폴더에 같은 이름의 과목 폴더가 생겨요."
+          submitLabel="Add"
+          hint="A folder with this name is created in Sorted."
           serverError={error}
           onSubmit={add}
           onCancel={() => {
@@ -272,7 +272,7 @@ function NameForm(props: {
       <input
         className="text"
         autoFocus
-        placeholder="과목명"
+        placeholder="Class name"
         value={name}
         aria-invalid={Boolean(shown)}
         onChange={(e) => {
@@ -285,7 +285,7 @@ function NameForm(props: {
       <p className={shown ? "field-error" : "field-hint muted"}>{shown || props.hint}</p>
       <div className="actions">
         <button type="button" onClick={props.onCancel}>
-          취소
+          Cancel
         </button>
         <button type="submit" className="primary" disabled={Boolean(problem) || saving}>
           {props.submitLabel}

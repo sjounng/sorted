@@ -15,19 +15,20 @@ export function Duplicate({ id }: { id: string }) {
 
   return (
     <main className="dialog">
-      <h1>이미 받은 파일이에요</h1>
+      <h1>You already have this file</h1>
       <p className="file">
         <strong>{data.fileName}</strong>
       </p>
       <p className="muted">
-        {data.courseName} · {data.week}에 {ago(data.existingSavedAtMs)} 저장한 파일과 내용이 같아요.
+        Same content as the file saved {ago(data.existingSavedAtMs)} in {data.courseName} ·{" "}
+        {data.week}.
       </p>
-      <p className="muted hint">[기존 파일 열기]를 누르면 방금 받은 복사본은 휴지통으로 가요.</p>
+      <p className="muted hint">“Open existing file” moves the new copy to the Trash.</p>
 
       <div className="actions">
-        <button onClick={() => choose("keepBoth")}>둘 다 보관</button>
+        <button onClick={() => choose("keepBoth")}>Keep Both</button>
         <button className="primary" onClick={() => choose("openExisting")}>
-          기존 파일 열기
+          Open Existing File
         </button>
       </div>
     </main>

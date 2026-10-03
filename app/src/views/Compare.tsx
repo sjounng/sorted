@@ -4,9 +4,9 @@ import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 
 const KIND_LABEL: Record<PageChangeKind, string> = {
-  modified: "수정",
-  added: "추가",
-  removed: "삭제",
+  modified: "Edited",
+  added: "Added",
+  removed: "Removed",
 };
 
 const anchor = (c: PageChange, i: number) =>
@@ -42,11 +42,11 @@ export function Compare({ id }: { id: string }) {
         <div>
           <h1>{data.fileName}</h1>
           <span className="muted">
-            {data.courseName} · v{data.oldVersion} → v{data.newVersion} · {data.changes.length}곳
-            변경
+            {data.courseName} · v{data.oldVersion} → v{data.newVersion} · {data.changes.length}{" "}
+            {data.changes.length === 1 ? "change" : "changes"}
           </span>
         </div>
-        <button onClick={() => openView("cleanup", data.documentId)}>이전 버전 정리…</button>
+        <button onClick={() => openView("cleanup", data.documentId)}>Clean up old version…</button>
       </header>
 
       <div className="compare-body">
@@ -60,7 +60,7 @@ export function Compare({ id }: { id: string }) {
                 >
                   <span className={`kind ${c.kind}`}>{KIND_LABEL[c.kind]}</span>
                   <span className="where">
-                    {c.kind === "removed" ? `이전 ${c.oldPage}장` : `${c.page}장`}
+                    {c.kind === "removed" ? `Old p. ${c.oldPage}` : `p. ${c.page}`}
                   </span>
                   <span className="summary">{c.summary}</span>
                 </button>
@@ -89,7 +89,7 @@ export function Compare({ id }: { id: string }) {
                   ].join(" ")}
                 >
                   <div className="frame">
-                    <img src={p.imageUrl} alt={`${p.page}장`} loading="lazy" />
+                    <img src={p.imageUrl} alt={`Page ${p.page}`} loading="lazy" />
                     {here.flatMap(({ c, i }) =>
                       c.regions.map((r, k) => (
                         <span
@@ -106,7 +106,7 @@ export function Compare({ id }: { id: string }) {
                     )}
                   </div>
                   <figcaption>
-                    {p.page}장
+                    Page {p.page}
                     {here.map(({ c, i }) => (
                       <span key={i} className={`kind ${c.kind}`}>
                         {KIND_LABEL[c.kind]}
@@ -129,7 +129,7 @@ export function Compare({ id }: { id: string }) {
 function Removed({ id, change, active }: { id: string; change: PageChange; active: boolean }) {
   return (
     <div id={id} className={active ? "gone active" : "gone"}>
-      <span className="kind removed">삭제</span> {change.summary}
+      <span className="kind removed">Removed</span> {change.summary}
     </div>
   );
 }

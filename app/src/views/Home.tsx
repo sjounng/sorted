@@ -106,16 +106,16 @@ export function Home() {
         ) : (
           <button
             className="profile"
-            title="이름 바꾸기"
-            aria-label={name ? `${name}, 이름 바꾸기` : "이름 정하기"}
+            title="Change name"
+            aria-label={name ? `${name}, change name` : "Set your name"}
             onClick={() => setEditingName(true)}
           >
             <span className="avatar" aria-hidden>
               {initial(name)}
             </span>
             <span className="profile-name">
-              {name || "이름 정하기"}
-              <small>{name ? "이름 바꾸기" : "Hello에 쓸 이름"}</small>
+              {name || "Set your name"}
+              <small>{name ? "Change name" : "for your greeting"}</small>
             </span>
           </button>
         )}
@@ -208,15 +208,15 @@ function NameEditor(props: { initial: string; onDone: (name?: string) => void })
         className="text"
         autoFocus
         maxLength={20}
-        placeholder="이름"
-        aria-label="Hello에 쓸 이름"
+        placeholder="Your name"
+        aria-label="Name for your greeting"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && props.onDone()}
         onBlur={() => props.onDone(value)}
         onFocus={(e) => e.target.select()}
       />
-      <p className="field-hint muted">Enter로 저장 · Esc로 취소</p>
+      <p className="field-hint muted">Enter to save · Esc to cancel</p>
     </form>
   );
 }
@@ -250,17 +250,17 @@ function NavButton(props: {
 }
 
 const REASON: Record<UnprocessedReason, string> = {
-  unknownCourse: "과목을 알아내지 못했어요",
-  notPdf: "PDF가 아니에요",
-  loginExpired: "LMS 로그인이 만료된 것 같아요",
-  moveFailed: "옮기지 못했어요. 잠시 뒤 다시 시도해요",
+  unknownCourse: "Couldn’t tell which class",
+  notPdf: "Not a PDF",
+  loginExpired: "LMS login seems to have expired",
+  moveFailed: "Couldn’t move it. Will retry soon",
 };
 
 function UnprocessedList({ data }: { data: Overview }) {
-  if (data.unprocessed.length === 0) return <Empty text="처리하지 못한 파일이 없어요." />;
+  if (data.unprocessed.length === 0) return <Empty text="No unsorted files." />;
   return (
     <>
-      <p className="note muted">아래 파일은 다운로드 폴더에 그대로 두었어요.</p>
+      <p className="note muted">These files are still in your Downloads folder.</p>
       <ul className="rows">
         {data.unprocessed.map((u) => (
           <li key={u.id}>
@@ -272,7 +272,7 @@ function UnprocessedList({ data }: { data: Overview }) {
               <strong>{u.fileName}</strong>
               <span className="muted">
                 <span className="warn">{REASON[u.reason]}</span> · {ago(u.atMs)}
-                {u.reason === "unknownCourse" && <span className="accent"> · 과목 고르기</span>}
+                {u.reason === "unknownCourse" && <span className="accent"> · Choose a class</span>}
               </span>
             </button>
           </li>

@@ -22,52 +22,52 @@ export function Setup() {
 
   return (
     <main className="dialog">
-      <h1>Sorted 시작하기</h1>
-      <p className="muted">한 번만 설정하면, 그다음부터는 LMS에서 평소처럼 받기만 하면 돼요.</p>
+      <h1>Welcome to Sorted</h1>
+      <p className="muted">Set this up once. After that, just download from the LMS as usual.</p>
 
       <ol className="steps">
         <Step
           done={access === "granted"}
           failed={access === "denied"}
-          title="다운로드 폴더 접근 허용"
+          title="Allow access to Downloads"
           detail={
             access === "denied"
-              ? "접근이 거부됐어요. 시스템 설정에서 Sorted를 허용해 주세요."
-              : "받은 파일을 읽고 정리 폴더로 옮기는 데 필요해요."
+              ? "Access was denied. Allow Sorted in System Settings."
+              : "Needed to read new downloads and move them into your Sorted folder."
           }
         >
           {access === "unknown" && (
             <button className="primary" disabled={asking} onClick={ask}>
-              {asking ? "요청 중…" : "허용하기"}
+              {asking ? "Requesting…" : "Allow"}
             </button>
           )}
-          {access === "denied" && <button onClick={api.openSystemSettings}>설정 열기</button>}
+          {access === "denied" && <button onClick={api.openSystemSettings}>Open Settings</button>}
         </Step>
 
         <Step
           done={status.sortedFolderCreated}
-          title="정리 폴더 만들기"
+          title="Create your Sorted folder"
           detail={
             status.sortedFolderCreated
-              ? `${status.sortedFolder}에 과목별로 정리해요.`
-              : `${status.sortedFolder}를 만들어요. 접근을 허용하면 자동으로 만들어져요.`
+              ? `Files are sorted by class in ${status.sortedFolder}.`
+              : `${status.sortedFolder} is created automatically once access is allowed.`
           }
         />
 
         <Step
           done={status.extensionConnected}
-          title="Chrome 확장 연결"
+          title="Connect the Chrome extension"
           detail={
             status.extensionConnected
-              ? "확장과 연결됐어요."
-              : "Chrome에 Sorted 확장을 설치하고 한 번 실행해 주세요."
+              ? "Connected to the extension."
+              : "Install the Sorted extension in Chrome and open it once."
           }
         />
       </ol>
 
       <div className="actions">
         <button className="primary" disabled={!ready} onClick={closeSelf}>
-          {ready ? "완료" : "설정을 마쳐 주세요"}
+          {ready ? "Done" : "Finish the steps above"}
         </button>
       </div>
     </main>
