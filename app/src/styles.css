@@ -1732,12 +1732,17 @@ button.link {
   grid-area: head;
 }
 
+/* 인사: 우아한 이탤릭 세리프 (macOS 기본 글꼴. 한글 이름은 명조로 이어진다) */
 .dash-head h1 {
   color: var(--fg);
-  font-size: clamp(24px, 3.4vw, 36px);
+  font-family: "Hoefler Text", "Baskerville", "AppleMyungjo", Georgia, serif;
+  font-size: clamp(34px, 4.6vw, 50px);
+  font-style: italic;
   font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  /* 한글 글꼴엔 이탤릭이 없어 브라우저가 억지로 기울이면 뭉개진다. 한글은 바로 세운 명조로 둔다 */
+  font-synthesis: none;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
 .dash-head p {
