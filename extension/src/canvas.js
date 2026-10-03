@@ -1,9 +1,7 @@
-// 한양대 LMS(Canvas)에서 과목명과 주차를 알아낸다 (FR-11, FR-12, FR-17).
+// 한양대 LMS(Canvas)에서 과목명과 주차를 알아낸다 (FR-11, FR-12).
 //
-//   GET /api/v1/courses/<과목 ID>?include[]=term           → 과목명, 학기 시작일
+//   GET /api/v1/courses/<과목 ID>                          → 과목명
 //   GET /api/v1/courses/<과목 ID>/modules?include[]=items  → 주차(모듈)와 그 안의 자료
-//   GET /api/v1/courses/<과목 ID>/discussion_topics/<번호> → 공지·토론 게시일 (모듈 밖 자료)
-//   GET /api/v1/courses/<과목 ID>/assignments/<번호>       → 과제 게시일 (모듈 밖 자료)
 //
 // 응답에는 사용자 번호, 수강 정보 같은 값도 들어 있다. 여기서는 과목명과 주차만 꺼내고
 // 나머지는 어디에도 넘기거나 저장하지 않는다.
@@ -27,37 +25,6 @@ export function splitCourseName(raw) {
 /** URL 경로의 `modules/items/<숫자>`. 자료 뷰어 탭에서 지금 보는 모듈 항목 번호 */
 export function moduleItemIdOf(url) {
   return /modules\/items\/(\d+)/.exec(url ?? "")?.[1] ?? null;
-}
-
-/**
- * 탭 주소가 공지·토론·과제 게시물이면 그 종류와 번호. 모듈 밖 자료를 받은 곳이다 (FR-17).
- * Canvas는 공지도 discussion_topics로 다룬다.
- * @returns {{ kind: "discussion_topics" | "assignments", id: string } | null}
- */
-export function postOf(url) {
-  const m = /\/courses\/\d+\/(discussion_topics|announcements|assignments)\/(\d+)/.exec(url ?? "");
-  if (!m) return null;
-  return { kind: m[1] === "assignments" ? "assignments" : "discussion_topics", id: m[2] };
-}
-
-/** 게시물이 학생에게 보이기 시작한 시각. 예약 게시·열림 시각이 있으면 그것을 쓴다. */
-export function postedAtOf(post, kind) {
-  if (!post) return null;
-  if (kind === "assignments") return post.unlock_at ?? post.created_at ?? null;
-  return post.posted_at ?? post.delayed_post_at ?? post.created_at ?? null;
-}
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * 학기 시작일과 게시일의 차이로 주차를 계산한다. 시작일 당일~6일 뒤가 1주차.
- * 둘 중 하나라도 모르거나 학기 시작 전이면 null (→ 앱이 미분류에 둔다).
- */
-export function weekFromDate(startAt, postedAt) {
-  const diff = Date.parse(postedAt) - Date.parse(startAt);
-  if (!Number.isFinite(diff) || diff < 0) return null;
-  const n = Math.floor(diff / WEEK_MS) + 1;
-  return { name: `${n}주차`, position: n, matchedBy: "postDate" };
 }
 
 /** 이름 비교용: 확장자와 대소문자, 앞뒤 공백을 무시한다. */
@@ -89,14 +56,12 @@ export function findWeek(modules, { moduleItemId, fileName }) {
 
 /**
  * 과목명과 주차를 조회한다. 실패해도 예외를 던지지 않고 error에 이유를 담는다.
- * 주차는 모듈에서 먼저 찾고, 모듈에 없으면 받은 게시물의 게시일로 계산한다 (FR-17).
  * @param fetchText (url) => Promise<string>  쿠키를 실어 GET하고 본문을 돌려주는 함수
- * @param hint { moduleItemId, fileName, post }  post는 postOf(탭 주소)
  */
 export async function lookupCourse(fetchText, courseId, hint) {
   try {
     const base = `${LMS_ORIGIN}/api/v1/courses/${encodeURIComponent(courseId)}`;
-    const course = parseCanvasJson(await fetchText(`${base}?include[]=term`));
+    const course = parseCanvasJson(await fetchText(base));
     const modules = parseCanvasJson(
       await fetchText(`${base}/modules?include[]=items&per_page=100`),
     );
@@ -107,22 +72,8 @@ export async function lookupCourse(fetchText, courseId, hint) {
       }
     }
     const { name, code } = splitCourseName(course.name);
-    const week =
-      findWeek(modules, hint) ??
-      (await weekFromPost(fetchText, base, course.start_at ?? course.term?.start_at, hint?.post));
-    return { courseName: name, courseCode: code, week, error: null };
+    return { courseName: name, courseCode: code, week: findWeek(modules, hint), error: null };
   } catch (err) {
     return { courseName: null, courseCode: null, week: null, error: String(err?.message ?? err) };
-  }
-}
-
-/** 게시물의 게시일로 주차를 계산한다. 조회가 실패하면 과목명은 살리고 주차만 null. */
-async function weekFromPost(fetchText, base, startAt, post) {
-  if (!post || !startAt) return null;
-  try {
-    const p = parseCanvasJson(await fetchText(`${base}/${post.kind}/${post.id}`));
-    return weekFromDate(startAt, postedAtOf(p, post.kind));
-  } catch {
-    return null;
   }
 }
