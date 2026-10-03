@@ -5,6 +5,7 @@ import {
   moduleItemIdOf,
   parseCanvasJson,
   splitCourseName,
+  weekName,
 } from "./canvas.js";
 
 // 실제 응답 모양을 줄여 만든 가짜 데이터 (사용자·수강 정보 없음)
@@ -68,6 +69,26 @@ describe("moduleItemIdOf", () => {
   });
 });
 
+describe("weekName", () => {
+  it("reads the week number however the module is named", () => {
+    expect(weekName("2주차")).toBe("2주차");
+    expect(weekName("1주차/Unit-1")).toBe("1주차");
+    expect(weekName(" 3 주차 (9/15~9/19) ")).toBe("3주차");
+    expect(weekName("4주")).toBe("4주차");
+    expect(weekName("Week 5")).toBe("5주차");
+    expect(weekName("week-06")).toBe("6주차");
+    expect(weekName("[Week01]")).toBe("1주차");
+    expect(weekName("[Week12] 테스트 계획")).toBe("12주차");
+  });
+
+  it("keeps the module name when there is no week number", () => {
+    expect(weekName("Unit-1")).toBe("Unit-1");
+    expect(weekName("중간고사")).toBe("중간고사");
+    expect(weekName("2주년 특강")).toBe("2주년 특강");
+    expect(weekName(undefined)).toBe("");
+  });
+});
+
 describe("findWeek", () => {
   it("prefers the module item id", () => {
     expect(findWeek(MODULES, { moduleItemId: "8582056", fileName: "cse406-lec-00-v3" })).toEqual({
@@ -82,6 +103,15 @@ describe("findWeek", () => {
       name: "1주차",
       position: 1,
       matchedBy: "title",
+    });
+  });
+
+  it("normalizes the module name to N주차", () => {
+    const modules = [{ name: "7주차/Unit-7", position: 7, items: [{ id: 1, title: "uml" }] }];
+    expect(findWeek(modules, { moduleItemId: "1", fileName: null })).toEqual({
+      name: "7주차",
+      position: 7,
+      matchedBy: "item",
     });
   });
 

@@ -1,4 +1,4 @@
-// 한양대 LMS(Canvas)에서 과목명과 주차를 알아낸다 (FR-11, FR-12).
+// 한양대 LMS(Canvas)에서 과목명과 주차를 알아낸다 (FR-11, FR-12, FR-17).
 //
 //   GET /api/v1/courses/<과목 ID>                          → 과목명
 //   GET /api/v1/courses/<과목 ID>/modules?include[]=items  → 주차(모듈)와 그 안의 자료
@@ -27,6 +27,16 @@ export function moduleItemIdOf(url) {
   return /modules\/items\/(\d+)/.exec(url ?? "")?.[1] ?? null;
 }
 
+/**
+ * 모듈 이름에서 주차를 읽어 `N주차`로 맞춘다. 교수님마다 이름 짓는 방식이 달라서다.
+ * "1주차/Unit-1" → "1주차", "Week 3" → "3주차". 숫자를 못 읽으면 모듈 이름 그대로.
+ */
+export function weekName(moduleName) {
+  const raw = (moduleName ?? "").trim();
+  const m = /(\d+)\s*주(?:차)?(?![가-힣])/.exec(raw) ?? /\bweek\s*-?\s*(\d+)/i.exec(raw);
+  return m ? `${Number(m[1])}주차` : raw;
+}
+
 /** 이름 비교용: 확장자와 대소문자, 앞뒤 공백을 무시한다. */
 function plain(name) {
   return (name ?? "")
@@ -41,7 +51,7 @@ function plain(name) {
  * @returns {{ name: string, position: number, matchedBy: "item" | "title" } | null}
  */
 export function findWeek(modules, { moduleItemId, fileName }) {
-  const week = (m, matchedBy) => ({ name: m.name, position: m.position, matchedBy });
+  const week = (m, matchedBy) => ({ name: weekName(m.name), position: m.position, matchedBy });
   if (moduleItemId) {
     const m = modules.find((m) => (m.items ?? []).some((i) => String(i.id) === moduleItemId));
     if (m) return week(m, "item");
