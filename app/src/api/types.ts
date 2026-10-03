@@ -2,8 +2,14 @@
 // Rust 쪽 구조체는 #[serde(rename_all = "camelCase")]로 이 모양에 맞춘다.
 
 export interface Course {
+  /** LMS 과목 ID (courses/<ID>) */
   id: string;
+  /** 폴더 이름으로 쓰는 과목명. 예: "소프트웨어공학" */
   name: string;
+  /** LMS 탭 제목에서 읽은 원래 이름. 예: "202620HY11171_소프트웨어공학" */
+  lmsTitle: string;
+  /** 예: "2026년 2학기" */
+  term: string;
   /** 과목 폴더 안의 PDF 수 */
   fileCount: number;
   /** 가장 최근에 받은 자료의 주차. 예: "5주차" */

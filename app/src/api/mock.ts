@@ -22,10 +22,23 @@ const SORTED = "~/Sorted";
 const wait = <T>(value: T, ms = 150) => new Promise<T>((r) => setTimeout(() => r(value), ms));
 const log = (...args: unknown[]) => console.info("[mock]", ...args);
 
+const TERM = "2026년 2학기";
+const course = (id: string, name: string, fileCount: number, latestWeek: string): Course => ({
+  id,
+  name,
+  lmsTitle: `202620HY${id}_${name}`,
+  term: TERM,
+  fileCount,
+  latestWeek,
+});
+
 const courses: Course[] = [
-  { id: "210208", name: "소프트웨어공학", fileCount: 12, latestWeek: "5주차" },
-  { id: "210311", name: "운영체제", fileCount: 9, latestWeek: "5주차" },
-  { id: "209876", name: "컴퓨터네트워크", fileCount: 7, latestWeek: "4주차" },
+  course("11171", "소프트웨어공학", 12, "5주차"),
+  course("11174", "테크노경영학(스타트업종합설계)", 8, "5주차"),
+  course("11182", "시스템감리론", 6, "4주차"),
+  course("11184", "확률과통계", 10, "5주차"),
+  course("11190", "생활법률", 5, "4주차"),
+  course("11201", "사랑의실천2(스마트커뮤니케이션)", 3, "3주차"),
 ];
 
 const now = Date.now();
@@ -47,16 +60,16 @@ const overview: Overview = {
       id: "c2",
       kind: "organized",
       documentId: "7bc1190a2de01",
-      courseName: "운영체제",
-      fileName: "05_Scheduling.pdf",
+      courseName: "시스템감리론",
+      fileName: "04_감리절차.pdf",
       atMs: now - 2 * HOUR,
     },
     {
       id: "c3",
       kind: "duplicate",
       documentId: "5f0e33a91c7b2",
-      courseName: "컴퓨터네트워크",
-      fileName: "04_TransportLayer.pdf",
+      courseName: "확률과통계",
+      fileName: "05_조건부확률.pdf",
       atMs: now - DAY - 3 * HOUR,
     },
   ],
@@ -78,10 +91,10 @@ const changed = () => listeners.forEach((l) => l());
 
 const duplicate: DuplicateNotice = {
   id: "d1",
-  fileName: "04_TransportLayer.pdf",
-  courseName: "컴퓨터네트워크",
-  week: "4주차",
-  existingPath: `${SORTED}/컴퓨터네트워크/4주차/04_TransportLayer.pdf`,
+  fileName: "05_조건부확률.pdf",
+  courseName: "확률과통계",
+  week: "5주차",
+  existingPath: `${SORTED}/확률과통계/5주차/05_조건부확률.pdf`,
   existingSavedAtMs: now - 6 * DAY,
 };
 
@@ -113,7 +126,7 @@ export const mockBackend: Backend = {
     wait({
       fileId,
       fileName: overview.unprocessed.find((u) => u.id === fileId)?.fileName ?? "original.pdf",
-      tabTitle: "[CSE406] 소프트웨어공학 - 5주차 강의자료",
+      tabTitle: "202620HY11190_생활법률",
       atMs: now - 30 * MINUTE,
       courses,
     }),

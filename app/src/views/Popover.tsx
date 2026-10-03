@@ -59,6 +59,9 @@ export function Popover() {
         <button className="link" onClick={() => api.revealInFinder(data.sortedFolder)}>
           {data.sortedFolder} 열기
         </button>
+        <button className="link" onClick={() => openView("dashboard")}>
+          대시보드
+        </button>
         <button className="link" onClick={() => openView("setup")}>
           설정
         </button>

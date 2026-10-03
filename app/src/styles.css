@@ -544,3 +544,151 @@ button.link {
 .gone.active {
   background: var(--warn-soft);
 }
+
+/* 대시보드: 과목 카드 그리드 */
+
+.dashboard {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px 32px 40px;
+  background: var(--panel);
+}
+
+.dashboard-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dashboard-head h1 {
+  font-size: 22px;
+}
+
+.dashboard-head .muted {
+  font-size: 13px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s;
+}
+
+.card:hover {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.16),
+    0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-main {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.card-cover {
+  display: block;
+  height: 140px;
+  background: var(--course);
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 16px 20px 0;
+}
+
+.card-body > span,
+.card-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-title {
+  color: var(--course);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.card-sub {
+  color: var(--fg);
+  font-size: 15px;
+}
+
+.card-term {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-icons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 34px;
+  padding: 12px 20px 16px;
+  color: var(--muted);
+}
+
+.icon-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.icon-btn {
+  position: relative;
+  display: flex;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.icon-btn:hover {
+  color: var(--course);
+}
+
+.icon-btn .dot {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: #1d3f7a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
