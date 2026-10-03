@@ -134,7 +134,7 @@ h1 {
   background: var(--sidebar);
 }
 
-/* 로고: "Sorted"의 t만 자두색 (레퍼런스 Smartech의 t처럼) */
+/* 로고: "Sorted" 글자 */
 .brand-logo {
   display: flex;
   align-items: center;
@@ -144,11 +144,6 @@ h1 {
   font-size: 26px;
   font-weight: 500;
   letter-spacing: -0.01em;
-}
-
-.brand-accent {
-  color: var(--brand-deep);
-  font-weight: 800;
 }
 
 .brand-mark {

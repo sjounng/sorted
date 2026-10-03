@@ -91,7 +91,7 @@ export function Home() {
             S
           </span>
           <span className="brand-text" aria-hidden>
-            Sor<span className="brand-accent">t</span>ed
+            Sorted
           </span>
         </div>
 
