@@ -224,6 +224,11 @@ pub fn normalize_name(path: &Path) -> String {
     format!("{stem}{ext}")
 }
 
+/// 첫 페이지 글자, 못 읽으면 None (과목 판정의 마지막 단서, FR-5)
+pub fn first_page_text_opt(path: &Path) -> Option<String> {
+    first_page_text(path).ok().filter(|t| !t.is_empty())
+}
+
 /// PDF 첫 페이지의 글자. 손상된 PDF에서 라이브러리가 패닉해도 앱은 죽지 않게 한다.
 fn first_page_text(path: &Path) -> Result<String, String> {
     let bytes = fs::read(path).map_err(|e| e.to_string())?;

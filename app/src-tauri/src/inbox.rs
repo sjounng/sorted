@@ -23,6 +23,8 @@ pub struct Received {
     pub message: Value,
     /// 다운로드 메시지의 파일 확인 결과. 아직 확인 중이거나 다운로드가 아니면 null
     pub probe: Option<Value>,
+    /// 다운로드 메시지의 정리 결과 (pipeline::Outcome). 아직이거나 다운로드가 아니면 null
+    pub outcome: Option<Value>,
 }
 
 impl Received {
@@ -63,6 +65,7 @@ impl Inbox {
                 source,
                 message,
                 probe: None,
+                outcome: None,
             };
             state.items.push(item.clone());
             let overflow = state.items.len().saturating_sub(KEEP);
@@ -82,6 +85,14 @@ impl Inbox {
         let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
         let item = state.items.iter_mut().find(|i| i.id == id)?;
         item.probe = Some(probe);
+        Some(item.clone())
+    }
+
+    /// 정리 결과를 항목에 붙인다. 항목이 이미 밀려났으면 None.
+    pub fn set_outcome(&self, id: u64, outcome: Value) -> Option<Received> {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let item = state.items.iter_mut().find(|i| i.id == id)?;
+        item.outcome = Some(outcome);
         Some(item.clone())
     }
 
@@ -152,6 +163,11 @@ mod tests {
         assert_eq!(updated.probe.unwrap()["name"], "x");
         assert!(inbox.snapshot()[1].probe.is_none());
         assert!(inbox.set_probe(999, json!({})).is_none());
+
+        let done = inbox
+            .set_outcome(b.id, json!({ "kind": "organized" }))
+            .unwrap();
+        assert_eq!(done.outcome.unwrap()["kind"], "organized");
     }
 
     #[test]
@@ -162,10 +178,11 @@ mod tests {
             source: Source::Queued,
             message: json!({}),
             probe: None,
+            outcome: None,
         };
         assert_eq!(
             serde_json::to_value(item).unwrap(),
-            json!({ "id": 7, "receivedAtMs": 1, "source": "queued", "message": {}, "probe": null })
+            json!({ "id": 7, "receivedAtMs": 1, "source": "queued", "message": {}, "probe": null, "outcome": null })
         );
     }
 }
