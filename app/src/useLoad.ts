@@ -9,7 +9,12 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
   useEffect(() => {
     let alive = true;
     load()
-      .then((d) => alive && setData(d))
+      .then((d) => {
+        if (!alive) return;
+        setData(d);
+        // 앞서 실패했어도 이번에 성공하면 오류를 지운다. 안 지우면 화면이 오류 문구에 머문다.
+        setError(undefined);
+      })
       .catch((e) => alive && setError(String(e)));
     return () => {
       alive = false;
