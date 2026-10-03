@@ -4,6 +4,7 @@ import { courseColor } from "../courseColor";
 import { ago, clockKo, dateKo, dDay, daysLeft } from "../format";
 import { useLoad } from "../useLoad";
 import { MonthCalendar, firstOfMonth } from "./ScheduleView";
+import { SearchBox } from "./SearchBox";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -68,16 +69,21 @@ export function Dashboard(props: {
   return (
     <div className="dash">
       <header className="dash-head">
-        <h1>{name ? `Hello, ${name}!` : "Hello!"}</h1>
-        {!name && (
-          <button className="link name-cta" onClick={onEditName}>
-            이름을 정하면 “Hello, 이름!”으로 불러 드려요 ›
-          </button>
-        )}
-        <p className="muted">
-          {dateKo(now)} ·{" "}
-          {soon.length > 0 ? `3일 안에 마감이 ${soon.length}개 있어요.` : "3일 안에 마감이 없어요."}
-        </p>
+        <div className="dash-greet">
+          <h1>{name ? `Hello, ${name}!` : "Hello!"}</h1>
+          {!name && (
+            <button className="link name-cta" onClick={onEditName}>
+              이름을 정하면 “Hello, 이름!”으로 불러 드려요 ›
+            </button>
+          )}
+          <p className="muted">
+            {dateKo(now)} ·{" "}
+            {soon.length > 0
+              ? `3일 안에 마감이 ${soon.length}개 있어요.`
+              : "3일 안에 마감이 없어요."}
+          </p>
+        </div>
+        <SearchBox data={data} onOpenCourse={onOpenCourse} />
       </header>
 
       <div className="dash-main">

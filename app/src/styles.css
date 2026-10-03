@@ -1729,7 +1729,16 @@ button.link {
 }
 
 .dash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
   grid-area: head;
+}
+
+.dash-greet {
+  min-width: 0;
 }
 
 /* 인사: 우아한 이탤릭 세리프 (macOS 기본 글꼴. 한글 이름은 명조로 이어진다) */
@@ -2011,4 +2020,128 @@ button.link {
   padding: 0;
   color: var(--brand);
   font-size: 12px;
+}
+
+/* 검색: 레퍼런스의 둥근 검색창. 결과는 아래로 펼친다 */
+.search-box {
+  position: relative;
+  flex: 0 1 360px;
+  min-width: 220px;
+  margin-top: 6px;
+}
+
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.search-input:focus-within {
+  border-color: var(--brand);
+  background: var(--bg);
+}
+
+.search-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.search-input input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.search-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  max-height: min(420px, 60vh);
+  padding: 8px;
+  overflow-y: auto;
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: 0 14px 40px rgba(74, 46, 68, 0.2);
+}
+
+.sr-group {
+  margin: 6px 10px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sr-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+}
+
+.sr-item.active {
+  background: var(--hover);
+}
+
+.sr-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sr-text strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-pdf {
+  flex: none;
+  padding: 2px 5px;
+  border: 1.5px solid var(--course);
+  border-radius: 6px;
+  color: var(--course);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.sr-empty {
+  margin: 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .search-box {
+    flex-basis: 100%;
+    margin-top: 0;
+  }
 }
