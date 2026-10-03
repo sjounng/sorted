@@ -5,10 +5,13 @@
 //! 창을 닫아도 앱은 메뉴 막대에 남는다. 종료는 메뉴 막대 아이콘의 "종료"로 한다.
 
 mod inbox;
+mod probe;
 
 use std::error::Error;
+use std::path::PathBuf;
 use std::thread;
 
+use serde_json::json;
 use sorted_core::ipc::Server;
 use sorted_core::paths::Paths;
 use sorted_core::queue;
@@ -17,6 +20,9 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 use inbox::{Inbox, Received, Source};
+
+/// 스파이크 #3의 다운로드 기록 위치
+struct ProbeHistory(PathBuf);
 
 /// 화면이 처음 열릴 때 지금까지 받은 메시지를 가져간다.
 #[tauri::command]
@@ -80,6 +86,7 @@ fn show_main_window(app: &AppHandle) {
 fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let paths = Paths::from_env();
     paths.ensure_data_dir()?;
+    app.manage(ProbeHistory(paths.data_dir().join("probe-history.jsonl")));
 
     // 소켓을 먼저 연다. 그래야 보관함을 비우는 사이에 온 메시지가 다시 보관함에 남지 않는다.
     let server = Server::bind(&paths.socket())?;
@@ -101,6 +108,23 @@ fn receive(app: &AppHandle, line: &[u8], source: Source) -> serde_json::Value {
     let (reply, item) = app.state::<Inbox>().handle(line, source);
     if let Some(item) = item {
         let _ = app.emit("native-message", &item);
+        if item.is_download() {
+            start_probe(app.clone(), item);
+        }
     }
     reply
+}
+
+/// 파일 확인은 오래 걸릴 수 있으니 따로 돌리고, 끝나면 화면에 알린다.
+fn start_probe(app: AppHandle, item: Received) {
+    thread::spawn(move || {
+        let history = app.state::<ProbeHistory>().0.clone();
+        let result = match probe::run(&item.message, &history) {
+            Ok(p) => serde_json::to_value(p).unwrap_or_else(|e| json!({ "error": e.to_string() })),
+            Err(e) => json!({ "error": e }),
+        };
+        if let Some(updated) = app.state::<Inbox>().set_probe(item.id, result) {
+            let _ = app.emit("native-message", &updated);
+        }
+    });
 }

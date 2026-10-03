@@ -6,6 +6,8 @@
   --line: #e5e5ea;
   --accent: #0a84ff;
   --warn: #b25000;
+  --pass: #1a7f37;
+  --fail: #cf222e;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -18,6 +20,8 @@
     --muted: #a1a1a6;
     --line: #38383a;
     --warn: #ff9f0a;
+    --pass: #3fb950;
+    --fail: #ff7b72;
   }
 }
 
@@ -61,4 +65,50 @@ h1 {
 
 .messages li.queued span {
   color: var(--warn);
+}
+
+.pending {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.checks {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.checks dt {
+  font-weight: 600;
+}
+
+.checks dd {
+  margin: 0;
+}
+
+.checks .why {
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.badge {
+  justify-self: start;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.badge.pass {
+  color: var(--pass);
+}
+
+.badge.fail {
+  color: var(--fail);
+}
+
+.badge.later,
+.badge.look {
+  color: var(--muted);
 }
