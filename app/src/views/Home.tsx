@@ -11,6 +11,7 @@ import {
   TrashIcon,
   UnprocessedIcon,
 } from "../icons";
+import { initial, useDisplayName } from "../profile";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
@@ -38,6 +39,8 @@ export function Home() {
   // 대시보드 달력에서 고른 날로 일정 탭을 연다.
   const [scheduleDay, setScheduleDay] = useState<number>();
   const panel = useRef<HTMLElement>(null);
+  const [name, setName] = useDisplayName();
+  const [editingName, setEditingName] = useState(false);
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
   useEffect(() => {
@@ -83,12 +86,39 @@ export function Home() {
   return (
     <main className="home">
       <nav className="side-nav" aria-label="Menu">
-        <div className="brand-logo">
+        <div className="brand-logo" aria-label="Sorted">
           <span className="brand-mark" aria-hidden>
             S
           </span>
-          <span className="nav-label">Sorted</span>
+          <span className="brand-text" aria-hidden>
+            Sor<span className="brand-accent">t</span>ed
+          </span>
         </div>
+
+        {editingName ? (
+          <NameEditor
+            initial={name}
+            onDone={(next) => {
+              if (next !== undefined) setName(next);
+              setEditingName(false);
+            }}
+          />
+        ) : (
+          <button
+            className="profile"
+            title="이름 바꾸기"
+            aria-label={name ? `${name}, 이름 바꾸기` : "이름 정하기"}
+            onClick={() => setEditingName(true)}
+          >
+            <span className="avatar" aria-hidden>
+              {initial(name)}
+            </span>
+            <span className="profile-name">
+              {name || "이름 정하기"}
+              <small>{name ? "이름 바꾸기" : "Hello에 쓸 이름"}</small>
+            </span>
+          </button>
+        )}
 
         <ul className="nav-list" role="tablist" aria-orientation="vertical">
           {main.map((item) => (
@@ -126,6 +156,8 @@ export function Home() {
         {tab === "dashboard" && (
           <Dashboard
             data={data}
+            name={name}
+            onEditName={() => setEditingName(true)}
             onOpenSchedule={(day) => {
               go("schedule");
               setScheduleDay(day);
@@ -158,6 +190,34 @@ export function Home() {
         {tab === "trash" && <TrashView />}
       </section>
     </main>
+  );
+}
+
+/** 사이드바의 이름 입력: Enter 저장, Esc 취소 */
+function NameEditor(props: { initial: string; onDone: (name?: string) => void }) {
+  const [value, setValue] = useState(props.initial);
+  return (
+    <form
+      className="profile-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        props.onDone(value);
+      }}
+    >
+      <input
+        className="text"
+        autoFocus
+        maxLength={20}
+        placeholder="이름"
+        aria-label="Hello에 쓸 이름"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && props.onDone()}
+        onBlur={() => props.onDone(value)}
+        onFocus={(e) => e.target.select()}
+      />
+      <p className="field-hint muted">Enter로 저장 · Esc로 취소</p>
+    </form>
   );
 }
 

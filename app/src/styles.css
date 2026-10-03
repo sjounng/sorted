@@ -1,23 +1,31 @@
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1d1d1f;
-  --muted: #6e6e73;
-  --line: #e5e5ea;
-  --hover: #f2f2f7;
-  --accent: #0a84ff;
-  /* LMS 남색. 선택한 탭과 카드의 새 버전 배지에 쓴다 */
-  --brand: #1d3f7a;
-  --accent-soft: rgba(10, 132, 255, 0.16);
-  --warn: #b25000;
-  --warn-soft: rgba(178, 80, 0, 0.1);
-  --danger: #d70015;
-  --added: #248a3d;
-  --added-soft: rgba(36, 138, 61, 0.14);
-  --panel: #f5f5f7;
-  --ok: #248a3d;
-  --pass: #1a7f37;
-  --fail: #cf222e;
+  /* 레퍼런스(Smartech 대시보드) 팔레트: 연보라 테두리, 크림 바탕, 더스티 핑크 위젯, 자두색 강조 */
+  --frame: linear-gradient(160deg, #d9c6d1 0%, #b79db2 100%);
+  --canvas: #f4ede7; /* 오른쪽 화면 바탕, 선택한 메뉴 알약 */
+  --sidebar: #ece2e1;
+  --bg: #fbf7f3; /* 카드·목록·입력 칸 */
+  --panel: #e5d6db; /* 위젯 상자 */
+  --fg: #4a3e48;
+  --muted: #8c7d89;
+  --line: #ddcdd3;
+  --hover: #efe5e6;
+  --accent: #7d5a77;
+  --brand: #7d5a77; /* 자두색: 선택, 배지, 달성률 카드 */
+  --brand-deep: #6b4b66;
+  --accent-soft: rgba(125, 90, 119, 0.14);
+  --warn: #c0723c;
+  --warn-soft: rgba(192, 114, 60, 0.12);
+  --danger: #c2445f;
+  --added: #5f9b7c;
+  --added-soft: rgba(95, 155, 124, 0.16);
+  --ok: #5f9b7c;
+  --pass: #3f8a5f;
+  --fail: #c2445f;
+  /* 달성률 고리 색 */
+  --ring-pink: #e5607f;
+  --ring-teal: #7fb5b7;
+  --ring-yellow: #f2c14e;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -25,30 +33,41 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1c1c1e;
-    --fg: #f5f5f7;
-    --muted: #a1a1a6;
-    --line: #38383a;
-    --hover: #2c2c2e;
-    --brand: #3a67b5;
-    --warn: #ff9f0a;
-    --warn-soft: rgba(255, 159, 10, 0.12);
-    --danger: #ff453a;
-    --ok: #30d158;
-    --added: #30d158;
-    --added-soft: rgba(48, 209, 88, 0.16);
-    --panel: #161618;
-    --pass: #3fb950;
-    --fail: #ff7b72;
+    --frame: linear-gradient(160deg, #3a2c37 0%, #241b22 100%);
+    --canvas: #2b2329;
+    --sidebar: #241d22;
+    --bg: #352c33;
+    --panel: #3d3139;
+    --fg: #f2e9ef;
+    --muted: #b8a7b3;
+    --line: #4d3f49;
+    --hover: #40343d;
+    --accent: #d2a6c8;
+    --brand: #9b7393;
+    --brand-deep: #b48aac;
+    --accent-soft: rgba(210, 166, 200, 0.16);
+    --warn: #e6995f;
+    --warn-soft: rgba(230, 153, 95, 0.14);
+    --danger: #f07a90;
+    --added: #8cc7a6;
+    --added-soft: rgba(140, 199, 166, 0.16);
+    --ok: #8cc7a6;
+    --pass: #8cc7a6;
+    --fail: #f07a90;
   }
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--canvas);
   color: var(--fg);
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* 메인 창은 레퍼런스처럼 연보라 테두리 위에 둥근 앱 카드를 띄운다 */
+body[data-view="main"] {
+  background: var(--frame);
 }
 
 h1 {
@@ -96,46 +115,120 @@ h1 {
 
 .home {
   display: flex;
-  height: 100vh;
+  box-sizing: border-box;
+  height: calc(100vh - 28px);
+  margin: 14px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--canvas);
+  box-shadow: 0 10px 40px rgba(74, 46, 68, 0.18);
 }
 
 .side-nav {
   display: flex;
   flex: none;
   flex-direction: column;
-  width: 210px;
-  padding: 20px 0 16px 14px;
+  width: 220px;
+  padding: 26px 0 18px 18px;
   box-sizing: border-box;
-  background: var(--panel);
-  border-right: 1px solid var(--line);
+  background: var(--sidebar);
 }
 
+/* 로고: "Sorted"의 t만 자두색 (레퍼런스 Smartech의 t처럼) */
 .brand-logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 28px 6px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin: 0 0 24px 8px;
+  color: var(--fg);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.brand-accent {
+  color: var(--brand-deep);
+  font-weight: 800;
 }
 
 .brand-mark {
-  display: grid;
+  display: none;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 11px;
   background: var(--brand);
   color: #fff;
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* 프로필: 이니셜 원 + 이름. 누르면 이름을 바꾼다 */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% - 18px);
+  margin: 0 0 28px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  text-align: left;
+}
+
+.profile:hover {
+  background: var(--hover);
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 3px solid var(--canvas);
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--ring-teal), var(--brand));
+  box-shadow: 0 2px 8px rgba(74, 46, 68, 0.2);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.profile-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.profile-name small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.profile-form {
+  margin: 0 18px 24px 0;
+}
+
+.profile-form .text {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.profile-form .field-hint {
+  margin-top: 4px;
 }
 
 .nav-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -145,38 +238,39 @@ h1 {
   margin-top: auto;
 }
 
-/* 선택한 메뉴는 오른쪽 화면과 이어진 흰 알약 (레퍼런스처럼) */
+/* 선택한 메뉴는 오른쪽 화면과 이어진 크림색 알약 (레퍼런스처럼) */
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border: 0;
-  border-radius: 12px 0 0 12px;
+  border-radius: 18px 0 0 18px;
   background: none;
-  color: var(--muted);
+  color: var(--fg);
   font-size: 14px;
   text-align: left;
+  opacity: 0.85;
   transition:
     background 0.15s,
-    color 0.15s;
+    opacity 0.15s;
 }
 
 .nav-item svg {
   flex: none;
+  color: var(--brand-deep);
 }
 
 .nav-item:hover:not(.active) {
   background: var(--hover);
-  color: var(--fg);
+  opacity: 1;
 }
 
 .nav-item.active {
-  margin-right: -1px;
-  background: var(--bg);
-  color: var(--brand);
-  font-weight: 700;
+  background: var(--canvas);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .nav-label {
@@ -189,11 +283,11 @@ h1 {
 
 .nav-count {
   min-width: 20px;
-  margin-right: 4px;
+  margin-right: 6px;
   padding: 0 6px;
   box-sizing: border-box;
   border-radius: 10px;
-  background: var(--warn);
+  background: var(--ring-pink);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -206,23 +300,47 @@ h1 {
   color: var(--muted);
 }
 
-@media (prefers-color-scheme: dark) {
-  .nav-item.active {
-    color: #fff;
-  }
-}
-
-/* 좁은 창: 아이콘만 남기고 접는다 (이름은 마우스를 올리면) */
+/* 좁은 창: 테두리 없이 꽉 채우고, 사이드바는 아이콘만 (이름은 마우스를 올리면) */
 @media (max-width: 640px) {
+  .home {
+    height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   .side-nav {
-    width: 60px;
-    padding: 16px 0 12px 8px;
+    width: 64px;
+    padding: 16px 0 12px 10px;
   }
 
   .brand-logo {
-    margin: 0 0 20px 6px;
+    margin: 0 0 16px 4px;
   }
 
+  .brand-text {
+    display: none;
+  }
+
+  .brand-mark {
+    display: grid;
+  }
+
+  .profile {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 0;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    border-width: 2px;
+  }
+
+  .profile-name,
+  .profile-form,
   .nav-label {
     display: none;
   }
@@ -230,7 +348,7 @@ h1 {
   .nav-item {
     position: relative;
     justify-content: center;
-    padding: 10px 0;
+    padding: 11px 0;
   }
 
   .nav-count {
@@ -660,11 +778,11 @@ button.link {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
   transition: box-shadow 0.15s;
 }
 
@@ -803,11 +921,11 @@ button.link {
   gap: 12px;
   overflow: hidden;
   margin-top: 4px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .course-cover {
@@ -843,11 +961,11 @@ button.link {
 .week {
   overflow: hidden;
   margin-top: 16px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .week h2 {
@@ -1140,11 +1258,11 @@ button.link {
   gap: 12px;
   padding: 14px 16px;
   margin-top: clamp(14px, 3vw, 28px);
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .trash-head strong {
@@ -1172,11 +1290,11 @@ button.link {
 .trash-list {
   overflow: hidden;
   margin-top: 16px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .trash-row {
@@ -1305,11 +1423,11 @@ button.link {
 
 .cal,
 .sched-list {
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .cal {
@@ -1597,17 +1715,17 @@ button.link {
   font-size: 11px;
 }
 
-/* Dashboard */
+/* Dashboard (레퍼런스: 큰 대문자 인사, 더스티 핑크 위젯, 테두리 알약, 자두색 달성률 카드) */
 
 .dash {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 230px;
   grid-template-areas:
     "head head"
     "main stats";
   align-items: start;
-  gap: 20px 24px;
-  padding: clamp(16px, 3vw, 32px);
+  gap: 26px 26px;
+  padding: clamp(18px, 3.2vw, 40px);
 }
 
 .dash-head {
@@ -1615,12 +1733,15 @@ button.link {
 }
 
 .dash-head h1 {
-  font-size: 26px;
-  letter-spacing: -0.02em;
+  color: var(--fg);
+  font-size: clamp(24px, 3.4vw, 36px);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .dash-head p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
 }
 
@@ -1628,14 +1749,14 @@ button.link {
   display: grid;
   grid-area: main;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
+  gap: 22px;
   min-width: 0;
 }
 
 .widget {
   min-width: 0;
-  padding: 16px 16px 14px;
-  border-radius: 18px;
+  padding: 20px 20px 18px;
+  border-radius: 28px;
   background: var(--panel);
 }
 
@@ -1648,25 +1769,34 @@ button.link {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 12px;
+  margin: 0 4px 14px;
 }
 
 .widget-head h2 {
   margin: 0;
-  font-size: 15px;
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.widget-head .link {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.75;
 }
 
 .widget-empty {
-  margin: 12px 0;
+  margin: 12px 4px;
   font-size: 13px;
 }
 
-/* 다가오는 마감: 날짜 원 + 알약 */
+/* 다가오는 마감: 레퍼런스의 "18 | Robotics lesson" 알약 */
 .up-list,
 .mini-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1675,17 +1805,17 @@ button.link {
 .up-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 0 14px 0 0;
-  border: 0;
+  padding: 0 16px 0 0;
+  border: 1.5px solid var(--line);
   border-radius: 999px;
   background: var(--bg);
   text-align: left;
 }
 
 .up-item:hover {
-  box-shadow: 0 0 0 2px var(--course);
+  border-color: var(--course);
 }
 
 .up-date {
@@ -1694,17 +1824,20 @@ button.link {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  border: 2px solid var(--course);
+  width: 54px;
+  height: 54px;
+  margin: -1.5px 0 -1.5px -1.5px;
+  border: 1.5px solid var(--course);
   border-radius: 50%;
   box-sizing: border-box;
-  background: var(--bg);
+  background: var(--canvas);
+  color: var(--fg);
   line-height: 1.1;
 }
 
 .up-date strong {
-  font-size: 17px;
+  font-size: 19px;
+  font-weight: 500;
 }
 
 .up-date small {
@@ -1731,8 +1864,9 @@ button.link {
 .up-text strong,
 .mini-text strong {
   overflow: hidden;
+  color: var(--fg);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1749,33 +1883,37 @@ button.link {
 .mini-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 9px 12px;
-  border: 0;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
   background: var(--bg);
   text-align: left;
 }
 
 .mini-row:hover {
-  box-shadow: 0 0 0 2px var(--course);
+  border-color: var(--course);
 }
 
-/* 대시보드 안의 달력은 바탕 카드 없이 */
+/* 대시보드 안의 달력: 크림색 둥근 카드 */
 .dash-cal .cal {
   max-width: 420px;
   margin: 0 auto;
+  border-radius: 24px;
   box-shadow: none;
-  border-radius: 14px;
 }
 
-/* 오른쪽 달성률 카드 */
+/* 오른쪽 달성률: 테두리 상자 안에 자두색 카드 */
 .dash-stats {
   display: flex;
   grid-area: stats;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  padding: 18px;
+  border: 2px solid var(--line);
+  border-radius: 30px;
+  background: var(--panel);
 }
 
 .stat-card {
@@ -1783,9 +1921,9 @@ button.link {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 16px 12px;
+  padding: 18px 12px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 24px;
   background: var(--brand);
   color: #fff;
   text-align: center;
@@ -1793,36 +1931,37 @@ button.link {
 
 .stat-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   opacity: 0.9;
 }
 
 .stat-ring {
-  width: 104px;
-  height: 104px;
+  width: 108px;
+  height: 108px;
 }
 
 .ring-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.18);
-  stroke-width: 8;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 7;
 }
 
 .ring-value {
   fill: none;
   stroke-linecap: round;
-  stroke-width: 8;
+  stroke-width: 7;
   transition: stroke-dasharray 0.4s;
 }
 
 .ring-text {
   fill: #fff;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 500;
 }
 
 .stat-big {
-  font-size: 30px;
+  font-size: 32px;
+  font-weight: 500;
   line-height: 1.1;
 }
 
@@ -1832,7 +1971,7 @@ button.link {
 }
 
 .stat-warn {
-  background: var(--warn);
+  background: var(--ring-pink);
   cursor: pointer;
 }
 
@@ -1847,11 +1986,24 @@ button.link {
 
   .dash-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .stat-card {
+    padding: 14px 8px;
   }
 
   .stat-ring {
     width: 84px;
     height: 84px;
   }
+}
+
+.name-cta {
+  margin-top: 4px;
+  padding: 0;
+  color: var(--brand);
+  font-size: 12px;
 }

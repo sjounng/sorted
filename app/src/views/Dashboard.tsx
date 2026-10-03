@@ -26,12 +26,16 @@ const CHANGE_LABEL: Record<Change["kind"], string> = {
  */
 export function Dashboard(props: {
   data: Overview;
+  /** 사용자가 정한 이름. 없으면 "Hello!" */
+  name: string;
+  onEditName: () => void;
   onOpenSchedule: (day?: number) => void;
   onOpenChanges: () => void;
   onOpenUnprocessed: () => void;
   onOpenCourse: (course: Course, color: string) => void;
 }) {
-  const { data, onOpenSchedule, onOpenChanges, onOpenUnprocessed, onOpenCourse } = props;
+  const { data, name, onEditName, onOpenSchedule, onOpenChanges, onOpenUnprocessed, onOpenCourse } =
+    props;
   const schedule = useLoad(api.schedule);
   const [month, setMonth] = useState(() => firstOfMonth(Date.now()));
 
@@ -64,7 +68,12 @@ export function Dashboard(props: {
   return (
     <div className="dash">
       <header className="dash-head">
-        <h1>안녕하세요!</h1>
+        <h1>{name ? `Hello, ${name}!` : "Hello!"}</h1>
+        {!name && (
+          <button className="link name-cta" onClick={onEditName}>
+            이름을 정하면 “Hello, 이름!”으로 불러 드려요 ›
+          </button>
+        )}
         <p className="muted">
           {dateKo(now)} ·{" "}
           {soon.length > 0 ? `3일 안에 마감이 ${soon.length}개 있어요.` : "3일 안에 마감이 없어요."}
@@ -154,8 +163,13 @@ export function Dashboard(props: {
       </div>
 
       <aside className="dash-stats">
-        <Ring title="영상 시청" value={videos} color="#e0638f" note="일주일 안 마감까지" />
-        <Ring title="과제·퀴즈 제출" value={homework} color="#4a9eb7" note="일주일 안 마감까지" />
+        <Ring title="영상 시청" value={videos} color="var(--ring-pink)" note="일주일 안 마감까지" />
+        <Ring
+          title="과제·퀴즈 제출"
+          value={homework}
+          color="var(--ring-teal)"
+          note="일주일 안 마감까지"
+        />
         <div className="stat-card">
           <span className="stat-title">정리한 자료</span>
           <strong className="stat-big">{files}</strong>
@@ -205,7 +219,7 @@ function Ring(props: {
           cy="44"
           r={r}
           className="ring-value"
-          stroke={color}
+          style={{ stroke: color }}
           strokeDasharray={`${(pct / 100) * c} ${c}`}
           transform="rotate(-90 44 44)"
         />
