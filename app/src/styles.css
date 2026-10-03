@@ -6,6 +6,8 @@
   --line: #e5e5ea;
   --hover: #f2f2f7;
   --accent: #0a84ff;
+  /* LMS 남색. 선택한 탭과 카드의 새 버전 배지에 쓴다 */
+  --brand: #1d3f7a;
   --accent-soft: rgba(10, 132, 255, 0.16);
   --warn: #b25000;
   --warn-soft: rgba(178, 80, 0, 0.1);
@@ -26,6 +28,7 @@
     --muted: #a1a1a6;
     --line: #38383a;
     --hover: #2c2c2e;
+    --brand: #3a67b5;
     --warn: #ff9f0a;
     --warn-soft: rgba(255, 159, 10, 0.12);
     --danger: #ff453a;
@@ -101,36 +104,54 @@ h1 {
   font-size: 15px;
 }
 
+/* 탭: 대시보드 카드처럼 그림자로 본문과 나누고, 선택한 탭은 남색 알약 */
 .tabs {
+  position: relative;
+  z-index: 2;
   display: flex;
-  gap: 4px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--line);
+  gap: 6px;
+  padding: 2px 12px 12px;
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 6px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
   color: var(--muted);
   font: inherit;
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.tab:hover:not(.active) {
+  background: var(--hover);
+  color: var(--fg);
 }
 
 .tab.active {
-  border-bottom-color: var(--accent);
-  color: var(--fg);
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
   font-weight: 600;
 }
 
 .badge {
   min-width: 18px;
   padding: 0 5px;
+  box-sizing: border-box;
   border-radius: 9px;
   background: var(--warn);
   color: #fff;
@@ -138,6 +159,11 @@ h1 {
   font-weight: 600;
   line-height: 18px;
   text-align: center;
+}
+
+.tab.active .badge {
+  background: #fff;
+  color: var(--brand);
 }
 
 .panel {
@@ -660,7 +686,7 @@ button.link {
   padding: 0 4px;
   box-sizing: border-box;
   border-radius: 9px;
-  background: #1d3f7a;
+  background: var(--brand);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
