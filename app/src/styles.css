@@ -16,6 +16,8 @@
   --added-soft: rgba(36, 138, 61, 0.14);
   --panel: #f5f5f7;
   --ok: #248a3d;
+  --pass: #1a7f37;
+  --fail: #cf222e;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -36,6 +38,8 @@
     --added: #30d158;
     --added-soft: rgba(48, 209, 88, 0.16);
     --panel: #161618;
+    --pass: #3fb950;
+    --fail: #ff7b72;
   }
 }
 
@@ -1189,6 +1193,55 @@ button.link {
 
 .trash-error {
   margin-top: 6px;
+}
+
+/* 메시지 기록: 다운로드마다 스파이크 #3 가정 확인 결과 */
+
+.pending {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.checks {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.checks dt {
+  font-weight: 600;
+}
+
+.checks dd {
+  margin: 0;
+}
+
+.checks .why {
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+/* 탭의 .badge와 겹치지 않게 이름을 따로 둔다 */
+.check-badge {
+  justify-self: start;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.check-badge.pass {
+  color: var(--pass);
+}
+
+.check-badge.fail {
+  color: var(--fail);
+}
+
+.check-badge.later,
+.check-badge.look {
+  color: var(--muted);
 }
 
 /* 일정 탭: 달력 + 다가오는 일정 */
