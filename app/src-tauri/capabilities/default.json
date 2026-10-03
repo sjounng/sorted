@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "메인 창에 필요한 최소 권한",
-  "windows": ["main"],
-  "permissions": ["core:default"]
+  "description": "앱 창들에 필요한 최소 권한. 대화 창은 화면에서 \"<화면>-<id>\" 이름으로 만든다 (src/windows.ts).",
+  "windows": ["main", "log", "setup", "assign-*", "duplicate-*", "compare-*", "cleanup-*"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-close"
+  ]
 }

@@ -1,8 +1,9 @@
-//! Sorted 메뉴 막대 앱.
+//! Sorted 앱.
 //!
 //! 시작하면 유닉스 소켓을 열어 중계 프로그램(native-host)의 메시지를 기다린다.
 //! 앱이 꺼져 있던 동안 보관된 메시지는 시작할 때 한꺼번에 받는다 (FR-16).
-//! 창을 닫아도 앱은 메뉴 막대에 남는다. 종료는 메뉴 막대 아이콘의 "종료"로 한다.
+//! Dock에 아이콘이 있는 보통 앱이다. 메인 창을 닫아도 다운로드를 계속 받도록 앱은 뒤에서 돌고,
+//! Dock 아이콘을 누르면 창이 다시 열린다. 종료는 ⌘Q.
 
 mod inbox;
 mod organizer;
@@ -17,13 +18,17 @@ use serde_json::json;
 use sorted_core::ipc::Server;
 use sorted_core::paths::Paths;
 use sorted_core::queue;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri::menu::{Menu, MenuItem, Submenu};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 
 use inbox::{Inbox, Received, Source};
 use organizer::{Organizer, Pending};
 use pipeline::Outcome;
+
+/// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
+const MAIN: &str = "main";
+/// 개발용 메시지 기록 창. 앱 메뉴의 "개발 → 메시지 기록"에서 연다.
+const LOG: &str = "log";
 
 /// 스파이크 #3의 다운로드 기록 위치
 struct ProbeHistory(PathBuf);
@@ -81,7 +86,7 @@ fn sorted_root(organizer: State<'_, Organizer>) -> PathBuf {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(Inbox::default())
         .invoke_handler(tauri::generate_handler![
             received_messages,
@@ -92,50 +97,49 @@ pub fn run() {
             library,
             sorted_root
         ])
+        .menu(|app| {
+            // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
+            let menu = Menu::default(app)?;
+            let log = MenuItem::with_id(app, LOG, "메시지 기록", true, None::<&str>)?;
+            menu.append(&Submenu::with_items(app, "개발", true, &[&log])?)?;
+            Ok(menu)
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == LOG {
+                show_window(app, LOG);
+            }
+        })
         .setup(|app| {
-            // Dock에 아이콘을 띄우지 않고 메뉴 막대에만 둔다.
-            #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
-            setup_tray(app.handle())?;
             start_listening(app.handle().clone())?;
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 창을 닫으면 숨기기만 한다.
+            // 메인 창과 메시지 기록 창은 닫아도 숨기기만 한다. 대화 창은 그대로 닫힌다.
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+                if window.label() == MAIN || window.label() == LOG {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("failed to run Sorted");
+        .build(tauri::generate_context!())
+        .expect("failed to build Sorted");
+
+    app.run(|app, event| {
+        // Dock 아이콘을 누르면 숨겨 둔 메인 창을 다시 연다.
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = event {
+            show_window(app, MAIN);
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app, event);
+    });
 }
 
-fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Sorted 열기", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
-
-    let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Sorted")
-        .menu(&menu)
-        .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => show_main_window(app),
-            "quit" => app.exit(0),
-            _ => {}
-        });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
-    Ok(())
-}
-
-fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+fn show_window(app: &AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }

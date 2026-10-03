@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 // Tauri 개발 서버 설정 (Tauri 공식 템플릿 기준)
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
+  plugins: [react()],
   clearScreen: false,
   test: {
     // 앱 화면과 확장의 순수 함수 테스트를 함께 돌린다.
