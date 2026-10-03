@@ -6,6 +6,7 @@
 - 바꿀 때는 이 문서, `types.ts`·`backend.ts`, `app/src-tauri/src/lib.rs`를 같은 PR에서 고친다.
 - Rust 구조체는 `#[serde(rename_all = "camelCase")]`로 아래 모양에 맞춘다. 인자는 Tauri가 camelCase → snake_case로 바꿔 준다 (`fileId` → `file_id`).
 - 경로는 모두 절대 경로, 시각은 Unix 밀리초(`…AtMs`)다.
+- `id`·`documentId`·`fileId` 같은 ID는 항상 영문·숫자·`_`·`-`만 쓴다. 화면이 대화 창 이름(`<화면>-<id>`)으로 쓰기 때문이다. 파일명으로 식별하는 문서도 앱 내부가 해시 등으로 바꿔 준다.
 
 앱은 Dock에 뜨는 보통 앱이다. 메인 창을 닫아도 뒤에서 돌며 다운로드를 받고, Dock 아이콘을 누르면 다시 열린다. 종료는 ⌘Q.
 
