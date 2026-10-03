@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use sorted_core::course::{self, Hints, Resolution};
 use sorted_core::fingerprint;
 use sorted_core::judge::{self, Decision};
-use sorted_core::library::{Document, Library, Version};
+use sorted_core::library::{DocKey, Document, Library, Version};
 use sorted_core::organize;
 
 // ── 확장이 보내는 다운로드 메시지 (extension/src/lms.js의 buildDownloadMessage) ──
@@ -64,6 +64,9 @@ pub enum Outcome {
         week: String,
         /// 1이면 처음, 2 이상이면 새 버전
         version: u32,
+        /// 정리 폴더에서 사라졌던 버전과 같은 내용이라 그 자리에 다시 정리함 (FR-14)
+        #[serde(skip_serializing_if = "is_false")]
+        restored: bool,
     },
     /// 같은 내용을 이미 가지고 있음. 받은 파일은 다운로드 폴더에 그대로 둠 (FR-7)
     #[serde(rename_all = "camelCase")]
@@ -177,26 +180,24 @@ pub fn process(
         &file_name,
     );
     let decision = judge::decide(library, &key, &fp.sha256);
-    let version = match decision {
+    let (version, restored) = match decision {
         Decision::Duplicate { existing } => {
             return Outcome::Duplicate {
                 existing,
                 downloaded: path,
             }
         }
-        Decision::New => 1,
-        Decision::NewVersion { number } => number,
+        Decision::New => (1, false),
+        Decision::NewVersion { number } => (number, false),
+        Decision::Restore { number } => (number, true),
     };
 
-    // 5. 옮기기. 주차는 LMS → 같은 문서의 이전 주차 → 미분류
-    let week = dl
-        .lms
-        .as_ref()
-        .and_then(|l| l.week.as_ref())
-        .map(|w| w.name.clone())
-        .filter(|w| !w.trim().is_empty())
-        .or_else(|| library.document(&key).map(|d| d.week.clone()))
-        .unwrap_or_else(|| organize::UNSORTED_WEEK.to_owned());
+    // 5. 옮기기. 다시 정리하는 버전은 그 문서가 있던 과목·주차로 (사용자가 옮겼던 곳일 수 있다).
+    //    그 밖에는 주차를 LMS → 같은 문서의 이전 주차 → 미분류 순서로 정한다.
+    let (course_name, week) = match library.document(&key).filter(|_| restored) {
+        Some(doc) => (doc.course.clone(), doc.week.clone()),
+        None => (course_name, choose_week(dl, library, &key)),
+    };
     let dest = organize::destination(
         &settings.root,
         &course_name,
@@ -218,8 +219,15 @@ pub fn process(
         size: fp.size,
         path: placed.clone(),
         added_at_ms: now_ms(),
+        missing: false,
     };
     match library.document_mut(&key) {
+        Some(doc) if restored => {
+            if let Some(v) = doc.versions.iter_mut().find(|v| v.number == version) {
+                v.path = placed.clone();
+                v.missing = false;
+            }
+        }
         Some(doc) => doc.versions.push(record),
         None => library.documents.push(Document {
             key,
@@ -235,7 +243,23 @@ pub fn process(
         course: course_name,
         week,
         version,
+        restored,
     }
+}
+
+/// 주차: LMS → 같은 문서의 이전 주차 → 미분류
+fn choose_week(dl: &Download, library: &Library, key: &DocKey) -> String {
+    dl.lms
+        .as_ref()
+        .and_then(|l| l.week.as_ref())
+        .map(|w| w.name.clone())
+        .filter(|w| !w.trim().is_empty())
+        .or_else(|| library.document(key).map(|d| d.week.clone()))
+        .unwrap_or_else(|| organize::UNSORTED_WEEK.to_owned())
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 /// 앞부분이 HTML처럼 보이는가. LMS 세션이 끝나면 PDF 대신 로그인 페이지가 받아진다.
@@ -327,7 +351,8 @@ mod tests {
                 path: expected.clone(),
                 course: "소프트웨어공학".into(),
                 week: "1주차".into(),
-                version: 1
+                version: 1,
+                restored: false
             }
         );
         assert!(expected.exists() && !file.exists());
@@ -365,7 +390,8 @@ mod tests {
                 path: expected.clone(),
                 course: "소프트웨어공학".into(),
                 week: "1주차".into(),
-                version: 2
+                version: 2,
+                restored: false
             }
         );
         // 기존 파일은 그대로

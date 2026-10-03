@@ -7,7 +7,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -22,6 +22,8 @@ use crate::screen::{
 
 /// history.json에 남기는 최근 변경 수
 const KEEP_CHANGES: usize = 200;
+/// 사라진 파일(missing)이 있을 때 정리 폴더를 다시 훑는 간격. 사용자가 다시 넣으면 이만큼 안에 보인다
+const RESCAN_MISSING: Duration = Duration::from_secs(10);
 /// 기억하는 "처리하지 못한 파일" 수
 const KEEP_FAILURES: usize = 50;
 
@@ -59,6 +61,8 @@ pub struct Organizer {
     history: Mutex<History>,
     /// PDF가 아님·로그인 만료·옮기기 실패. 과목을 기다리는 파일은 보류 목록에 있다
     failures: Mutex<Vec<Unprocessed>>,
+    /// 마지막으로 정리 폴더를 훑은 때. 앱을 켠 뒤 처음이면 None
+    last_scan: Mutex<Option<Instant>>,
 }
 
 impl Organizer {
@@ -90,6 +94,7 @@ impl Organizer {
             history_file,
             history: Mutex::new(history),
             failures: Mutex::new(Vec::new()),
+            last_scan: Mutex::new(None),
         };
         // 이 기능(FR-14) 전에 정리된 파일에도 속성을 붙인다
         organizer.tag_untagged();
@@ -116,17 +121,22 @@ impl Organizer {
 
     /// 목록의 경로에 없는 파일을 정리 폴더에서 속성으로 찾아 경로를 고친다 (FR-14).
     /// 찾은 파일이 문서의 최신 버전이고 `<과목>/<주차>/` 안에 있으면 목록의 과목·주차도 그 폴더를 따른다.
-    /// 경로가 모두 맞으면 정리 폴더를 훑지 않는다. 무엇이든 고쳤으면 true.
+    /// 못 찾으면 `missing`으로 표시해 화면에서 숨기고(해시는 남김), 나중에 다시 넣으면 찾아 되살린다.
+    ///
+    /// 훑는 때: 있어야 할 파일이 없을 때, 또는 missing이 있고 마지막으로 훑은 지 10초가 지났을 때.
+    /// 그 밖에는 훑지 않는다. 무엇이든 고쳤으면 true.
     pub fn locate(&self) -> bool {
         let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
-        let all_there = lib
-            .documents
-            .iter()
-            .flat_map(|d| &d.versions)
-            .all(|v| v.path.is_file());
-        if all_there {
+        let versions = || lib.documents.iter().flat_map(|d| &d.versions);
+        let lost = versions().any(|v| !v.missing && !v.path.is_file());
+        let has_missing = versions().any(|v| v.missing);
+        let mut last_scan = self.last_scan.lock().unwrap_or_else(|e| e.into_inner());
+        let due = has_missing && last_scan.is_none_or(|t| t.elapsed() >= RESCAN_MISSING);
+        if !lost && !due {
             return false;
         }
+        *last_scan = Some(Instant::now());
+        drop(last_scan);
 
         let found = scan_tags(self.root());
         let mut changed = false;
@@ -136,12 +146,22 @@ impl Organizer {
             let latest = doc.versions.iter().map(|v| v.number).max();
             for version in &mut doc.versions {
                 if version.path.is_file() {
+                    // 사라졌던 자리에 그대로 다시 넣은 경우
+                    if version.missing {
+                        version.missing = false;
+                        changed = true;
+                    }
                     continue;
                 }
                 let Some(path) = found.get(&(doc_id.clone(), version.number)) else {
+                    if !version.missing {
+                        version.missing = true;
+                        changed = true;
+                    }
                     continue;
                 };
                 version.path = path.clone();
+                version.missing = false;
                 changed = true;
                 if Some(version.number) != latest {
                     continue;
@@ -244,9 +264,15 @@ impl Organizer {
         let mut failures = self.failures.lock().unwrap_or_else(|e| e.into_inner());
         failures.retain(|f| f.id != id.to_string());
         match outcome {
-            Outcome::Organized { path, version, .. } => {
+            Outcome::Organized {
+                path,
+                version,
+                restored,
+                ..
+            } => {
                 self.tag_file(path);
-                let kind = if *version > 1 {
+                // 사라졌던 버전을 다시 정리한 것은 새 버전이 아니다
+                let kind = if *version > 1 && !restored {
                     ChangeKind::NewVersion
                 } else {
                     ChangeKind::Organized
@@ -896,8 +922,81 @@ mod tests {
         let mine = dir.join("Sorted/운영체제/1주차/내 메모.pdf");
         fs::write(&mine, "%PDF-1.7 mine").unwrap();
         fs::remove_file(&path).unwrap();
-        assert!(!org.locate(), "속성이 없는 파일은 우리 문서로 보지 않는다");
+        assert!(org.locate(), "지운 파일은 missing이 된다");
+        assert!(
+            the_doc(&org).versions[0].missing,
+            "속성이 없는 파일은 우리 문서로 보지 않는다"
+        );
         assert!(mine.exists());
         assert!(filetag::read(&mine).is_none());
+    }
+
+    #[test]
+    fn moved_outside_is_hidden_then_found_again_when_put_back() {
+        let (dir, org, path) = organized("missing");
+        let outside = dir.join("밖.pdf");
+        fs::rename(&path, &outside).unwrap();
+
+        assert!(org.locate());
+        assert!(the_doc(&org).versions[0].missing);
+        let o = org.overview();
+        assert_eq!(o.courses[0].file_count, 0);
+        assert!(org
+            .course_detail(&o.courses[0].id)
+            .unwrap()
+            .weeks
+            .is_empty());
+        assert!(!org.locate(), "10초 안에는 다시 훑지 않는다");
+
+        // 정리 폴더 안 다른 곳에 다시 넣으면 다음 훑기에서 찾는다
+        fs::create_dir_all(dir.join("Sorted/운영체제/5주차")).unwrap();
+        let back = dir.join("Sorted/운영체제/5주차/돌아옴.pdf");
+        fs::rename(&outside, &back).unwrap();
+        *org.last_scan.lock().unwrap() = None;
+        assert!(org.locate());
+        let doc = the_doc(&org);
+        assert!(!doc.versions[0].missing);
+        assert_eq!(
+            (doc.versions[0].path.clone(), doc.week.as_str()),
+            (back, "5주차")
+        );
+    }
+
+    #[test]
+    fn downloading_a_missing_file_again_puts_it_back() {
+        let (dir, org, path) = organized("restore");
+        fs::remove_file(&path).unwrap();
+        org.locate();
+
+        let again = dir.join("Downloads/a.pdf");
+        fs::write(&again, "%PDF-1.7 a").unwrap();
+        let lms = json!({ "courseName": "운영체제", "week": { "name": "9주차" } });
+        let out = org.handle(
+            2,
+            &json!({ "filename": again, "contentId": "abc", "lms": lms }),
+            None,
+        );
+        let Outcome::Organized {
+            path: placed,
+            version,
+            restored,
+            week,
+            ..
+        } = out
+        else {
+            panic!("{out:?}")
+        };
+        assert!(restored);
+        assert_eq!(
+            (version, week.as_str()),
+            (1, "1주차"),
+            "문서가 있던 주차로, 같은 버전 번호로"
+        );
+        assert_eq!(placed, path);
+        let doc = the_doc(&org);
+        assert_eq!(doc.versions.len(), 1);
+        assert!(!doc.versions[0].missing);
+        assert_eq!(filetag::read(&placed).unwrap().v, 1);
+        assert_eq!(org.overview().changes[0].kind, ChangeKind::Organized);
     }
 }

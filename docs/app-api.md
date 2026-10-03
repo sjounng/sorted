@@ -118,6 +118,8 @@
 - `unprocessed`: 과목을 기다리는 파일(`unknownCourse`)과 PDF가 아님·로그인 만료·옮기기 실패. 앱이 켜져 있는 동안만 기억한다 (보류 목록과 같음).
 - `trashCount`: 휴지통이 아직 없어 0.
 - `course_detail`: 주차는 `N주차`를 숫자 순서로, 숫자 없는 이름은 그 뒤 가나다순, `미분류`는 맨 끝. 같은 주차 안에서는 받은 순서. 문서의 버전마다 파일 하나다.
+- 옮긴 파일 (FR-14): 앱이 정리한 파일에는 속성(xattr `dev.sorted.doc`)이 붙는다. 사용자가 정리 폴더 안에서 옮기거나 이름을 바꾸면 앱이 따라가고, 다른 `<과목>/<주차>/` 폴더로 옮겼으면 목록의 과목·주차도 그 폴더를 따른다. 정리 폴더 밖으로 옮기거나 지운 파일은 `overview`·`course_detail`에서 빠진다 (해시는 남김). 다시 넣으면 10초 안에 다시 보인다.
+- `restored: true`: 사라졌던 버전과 같은 내용을 다시 받아 그 문서가 있던 과목·주차에 다시 정리했다. 최근 변경에는 `organized`로 남는다 (새 버전 아님). 평소에는 이 필드가 없다.
 - 문서 ID: `cid-<content_id>`, `item-<모듈 항목 번호>`, 파일명으로 식별한 문서는 `name-<해시>`. 파일 ID는 `<문서 ID>-v<버전>`.
 
 ## `Outcome`
@@ -125,16 +127,16 @@
 다운로드 하나를 정리한 결과. `download-processed` 이벤트로 온다. `kind`로 구분한다.
 화면은 이것을 직접 보여 주기보다 `overview`의 `changes`·`unprocessed`로 본다.
 
-| `kind`            | 필드                                | 뜻                                                 | `overview`에서                                                    |
-| ----------------- | ----------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| `organized`       | `path`, `course`, `week`, `version` | `~/Sorted/<course>/<week>/`로 옮김                 | `changes`: `version`이 1이면 `organized`, 2 이상이면 `newVersion` |
-| `duplicate`       | `existing`, `downloaded`            | 같은 내용을 이미 가짐. 받은 파일은 그대로 둠       | `changes`: `duplicate` → 중복 창 (FR-7)                           |
-| `needsCourse`     | `path`                              | 과목을 정하지 못함. 보류 목록에 들어감             | `unprocessed`: `unknownCourse` → 과목 지정 창 (FR-5)              |
-| `needsPermission` | `path`                              | 다운로드 폴더를 읽을 권한 없음. 보류 목록에 들어감 | `setup_status.downloadsAccess`가 `denied` (FR-15)                 |
-| `loginExpired`    | `path`                              | PDF 대신 웹 페이지가 받아짐                        | `unprocessed`: `loginExpired` (FR-2)                              |
-| `notPdf`          | `path`                              | PDF가 아님. 손대지 않음                            | `unprocessed`: `notPdf`                                           |
-| `missing`         | `path`                              | 처리 전에 파일이 사라짐                            | 보여 주지 않음                                                    |
-| `error`           | `message`                           | 그 밖의 실패 (옮기기 실패 등)                      | `unprocessed`: `moveFailed`                                       |
+| `kind`            | 필드                                             | 뜻                                                 | `overview`에서                                                    |
+| ----------------- | ------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `organized`       | `path`, `course`, `week`, `version`, `restored`? | `~/Sorted/<course>/<week>/`로 옮김                 | `changes`: `version`이 1이면 `organized`, 2 이상이면 `newVersion` |
+| `duplicate`       | `existing`, `downloaded`                         | 같은 내용을 이미 가짐. 받은 파일은 그대로 둠       | `changes`: `duplicate` → 중복 창 (FR-7)                           |
+| `needsCourse`     | `path`                                           | 과목을 정하지 못함. 보류 목록에 들어감             | `unprocessed`: `unknownCourse` → 과목 지정 창 (FR-5)              |
+| `needsPermission` | `path`                                           | 다운로드 폴더를 읽을 권한 없음. 보류 목록에 들어감 | `setup_status.downloadsAccess`가 `denied` (FR-15)                 |
+| `loginExpired`    | `path`                                           | PDF 대신 웹 페이지가 받아짐                        | `unprocessed`: `loginExpired` (FR-2)                              |
+| `notPdf`          | `path`                                           | PDF가 아님. 손대지 않음                            | `unprocessed`: `notPdf`                                           |
+| `missing`         | `path`                                           | 처리 전에 파일이 사라짐                            | 보여 주지 않음                                                    |
+| `error`           | `message`                                        | 그 밖의 실패 (옮기기 실패 등)                      | `unprocessed`: `moveFailed`                                       |
 
 ## 데이터 모양
 
