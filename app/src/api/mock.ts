@@ -1,4 +1,5 @@
 import type { Backend } from "./backend";
+import { mockSchedule } from "./mockSchedule";
 import { courseNameProblem } from "./validate";
 import type {
   Change,
@@ -294,6 +295,9 @@ export const mockBackend: Backend = {
     log("과목을 Sorted 휴지통으로", found.course.name);
     changed();
   },
+
+  schedule: async () => wait(mockSchedule()),
+  openInBrowser: async (url) => log("브라우저로 열기", url),
 
   trash: async () =>
     wait(

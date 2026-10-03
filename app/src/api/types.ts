@@ -69,6 +69,36 @@ export interface Unprocessed {
   atMs: number;
 }
 
+export type ScheduleKind = "assignment" | "quiz" | "video" | "event";
+
+/**
+ * LMS 일정 하나. 확장이 LMS에서 읽어 앱에 넘긴다.
+ * 과제·퀴즈·화상 강의는 Canvas 플래너, 영상은 주차학습에서 온다.
+ */
+export interface ScheduleItem {
+  id: string;
+  kind: ScheduleKind;
+  /** LMS 과목 ID. Sorted 과목과 같으면 그 과목 이름·색으로 보여 준다 */
+  courseId: string;
+  /** LMS의 과목 이름 (Sorted에 없는 과목일 때 쓴다) */
+  courseName: string;
+  title: string;
+  /** 마감 시각. 화상 강의는 시작 시각 */
+  dueAtMs: number;
+  /** 영상: 볼 수 있게 열리는 시각 */
+  startAtMs?: number;
+  /** 제출함 / 시청 완료 */
+  done: boolean;
+  /** LMS에서 이 항목을 여는 주소 */
+  url: string;
+}
+
+export interface Schedule {
+  items: ScheduleItem[];
+  /** 마지막으로 LMS에서 읽은 시각. 아직 못 읽었으면 null */
+  fetchedAtMs: number | null;
+}
+
 /** Sorted 휴지통에 있는 과목. 되살리면 자료·최근 변경과 함께 돌아온다 */
 export interface TrashedCourse {
   course: Course;
