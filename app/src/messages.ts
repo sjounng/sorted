@@ -142,10 +142,15 @@ export function assumptions(probe: Received["probe"], timeZone?: string): Row[] 
       detail: `${lms.courseName} · 주차를 못 찾음\n${page}`,
     });
   } else {
+    const why =
+      lms?.error ??
+      (courseId.tab || courseId.referrer
+        ? "확장이 조회 결과를 보내지 않음. 확장을 새로고침했는지 확인"
+        : "과목 ID 없음");
     rows.push({
       label: "5. 과목명·주차 (LMS)",
       status: "fail",
-      detail: `LMS 조회 실패 (${lms?.error ?? "과목 ID 없음"})\n${page}`,
+      detail: `LMS 조회 실패 (${why})\n${page}`,
     });
   }
 

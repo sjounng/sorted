@@ -120,7 +120,11 @@ describe("assumptions", () => {
       lms: { courseName: null, courseCode: null, week: null, error: "HTTP 401" },
     });
     expect(assumptions(failed, TZ)[4].detail).toContain("HTTP 401");
-    expect(assumptions(probe({ lms: null }), TZ)[4].detail).toContain("과목 ID 없음");
+    expect(assumptions(probe({ lms: null }), TZ)[4].detail).toContain(
+      "확장이 조회 결과를 보내지 않음",
+    );
+    const noCourse = probe({ lms: null, courseId: { referrer: null, tab: null, url: null } });
+    expect(assumptions(noCourse, TZ)[4].detail).toContain("과목 ID 없음");
   });
 
   it("reports a probe error as one failed row", () => {
