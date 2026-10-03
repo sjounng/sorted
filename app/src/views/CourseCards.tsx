@@ -1,4 +1,4 @@
-import { api, type Change, type Course, type Overview } from "../api";
+import type { Change, Course, Overview } from "../api";
 import { openView } from "../windows";
 
 // LMS 대시보드의 과목 카드 색. 목록 순서대로 돌려 써서 8과목까지는 색이 겹치지 않는다.
@@ -14,7 +14,11 @@ const COLORS = [
 ];
 
 /** 과목 탭: LMS 대시보드처럼 과목을 카드로 보여 준다. 창 폭에 맞춰 한 줄에 1~여러 장. */
-export function CourseCards({ data }: { data: Overview }) {
+export function CourseCards(props: {
+  data: Overview;
+  onSelect: (course: Course, color: string) => void;
+}) {
+  const { data, onSelect } = props;
   if (data.courses.length === 0) {
     return (
       <p className="empty muted">아직 정리한 강의자료가 없어요. LMS에서 평소처럼 받아 보세요.</p>
@@ -30,7 +34,7 @@ export function CourseCards({ data }: { data: Overview }) {
           newVersions={data.changes.filter(
             (ch) => ch.kind === "newVersion" && ch.courseName === c.name,
           )}
-          onOpen={() => api.revealInFinder(`${data.sortedFolder}/${c.name}`)}
+          onOpen={() => onSelect(c, COLORS[i % COLORS.length])}
         />
       ))}
     </ul>
@@ -48,7 +52,7 @@ function CourseCard(props: {
 
   return (
     <li className="card" style={{ "--course": color } as React.CSSProperties}>
-      <button className="card-main" onClick={onOpen} title={`${course.name} 폴더 열기`}>
+      <button className="card-main" onClick={onOpen} title={`${course.name} 자료 보기`}>
         <span className="card-cover" />
         <span className="card-body">
           <strong className="card-title">{course.name}</strong>

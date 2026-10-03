@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { api, type Change, type Overview, type UnprocessedReason } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { api, type Change, type Course, type Overview, type UnprocessedReason } from "../api";
 import { ago } from "../format";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 import { CourseCards } from "./CourseCards";
+import { CourseDetail } from "./CourseDetail";
 
 type Tab = "courses" | "changes" | "unprocessed";
 
@@ -11,6 +12,14 @@ type Tab = "courses" | "changes" | "unprocessed";
 export function Popover() {
   const { data, error, reload } = useLoad(api.overview);
   const [tab, setTab] = useState<Tab>("courses");
+  // 과목 카드를 누르면 과목 탭 안에서 그 과목 화면으로 들어간다.
+  const [opened, setOpened] = useState<{ course: Course; color: string }>();
+  const panel = useRef<HTMLElement>(null);
+
+  // 들어가고 나올 때 목록 맨 위에서 시작한다.
+  useEffect(() => {
+    panel.current?.scrollTo({ top: 0 });
+  }, [opened]);
 
   useEffect(() => {
     const off = api.onOverviewChanged(reload);
@@ -42,7 +51,10 @@ export function Popover() {
             role="tab"
             aria-selected={tab === t.id}
             className={tab === t.id ? "tab active" : "tab"}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setOpened(undefined);
+            }}
           >
             {t.label}
             {t.count ? <span className="badge">{t.count}</span> : null}
@@ -50,8 +62,18 @@ export function Popover() {
         ))}
       </nav>
 
-      <section className="panel" role="tabpanel">
-        {tab === "courses" && <CourseCards data={data} />}
+      <section className="panel" role="tabpanel" ref={panel}>
+        {tab === "courses" &&
+          (opened ? (
+            <CourseDetail
+              courseId={opened.course.id}
+              folder={`${data.sortedFolder}/${opened.course.name}`}
+              color={opened.color}
+              onBack={() => setOpened(undefined)}
+            />
+          ) : (
+            <CourseCards data={data} onSelect={(course, color) => setOpened({ course, color })} />
+          ))}
         {tab === "changes" && <ChangeList data={data} />}
         {tab === "unprocessed" && <UnprocessedList data={data} />}
       </section>

@@ -3,12 +3,15 @@ import type {
   CleanupRequest,
   Comparison,
   Course,
+  CourseDetail,
+  CourseFile,
   DuplicateNotice,
   Overview,
   PageChange,
   PageImage,
   Region,
   SetupStatus,
+  WeekGroup,
 } from "./types";
 
 // 목업 앱 본체. 판정 코어가 생기기 전까지 화면을 채운다.
@@ -23,25 +26,129 @@ const wait = <T>(value: T, ms = 150) => new Promise<T>((r) => setTimeout(() => r
 const log = (...args: unknown[]) => console.info("[mock]", ...args);
 
 const TERM = "2026년 2학기";
-const course = (id: string, name: string, fileCount: number, latestWeek: string): Course => ({
-  id,
-  name,
-  lmsTitle: `202620HY${id}_${name}`,
-  term: TERM,
-  fileCount,
-  latestWeek,
-});
+const now = Date.now();
 
-const courses: Course[] = [
-  course("11171", "소프트웨어공학", 12, "5주차"),
-  course("11174", "테크노경영학(스타트업종합설계)", 8, "5주차"),
-  course("11182", "시스템감리론", 6, "4주차"),
-  course("11184", "확률과통계", 10, "5주차"),
-  course("11190", "생활법률", 5, "4주차"),
-  course("11201", "사랑의실천2(스마트커뮤니케이션)", 3, "3주차"),
+// 과목별 자료. 주차 안에서는 LMS 게시 순서. 카드의 파일 수·최근 주차는 여기서 센다.
+// "(v2)"가 붙은 파일은 새 버전이고, 아직 변경 비교를 열어 보지 않은 상태다.
+const LIBRARY: { id: string; name: string; weeks: Record<string, string[]> }[] = [
+  {
+    id: "11171",
+    name: "소프트웨어공학",
+    weeks: {
+      "1주차": ["01_강의소개.pdf", "01_소프트웨어공학개요.pdf"],
+      "2주차": ["02_소프트웨어프로세스.pdf", "02_애자일과스크럼.pdf"],
+      "3주차": ["03_요구사항공학.pdf", "03_유스케이스.pdf"],
+      "4주차": ["04_UML.pdf", "04_설계원칙.pdf"],
+      "5주차": [
+        "05_아키텍처.pdf",
+        "05_디자인패턴.pdf",
+        "Phase1_과제명세.pdf",
+        "Phase1_과제명세 (v2).pdf",
+      ],
+    },
+  },
+  {
+    id: "11174",
+    name: "테크노경영학(스타트업종합설계)",
+    weeks: {
+      "1주차": ["01_스타트업개론.pdf"],
+      "2주차": ["02_고객발견.pdf", "02_린캔버스_템플릿.pdf"],
+      "3주차": ["03_시장규모추정.pdf", "03_팀빌딩.pdf"],
+      "4주차": ["04_MVP설계.pdf"],
+      "5주차": ["05_비즈니스모델.pdf", "05_중간발표_가이드.pdf"],
+    },
+  },
+  {
+    id: "11182",
+    name: "시스템감리론",
+    weeks: {
+      "1주차": ["01_정보시스템감리개요.pdf"],
+      "2주차": ["02_감리기준과법령.pdf"],
+      "3주차": ["03_감리계획수립.pdf", "03_감리체크리스트.pdf"],
+      "4주차": ["04_감리절차.pdf", "04_사례연구.pdf"],
+    },
+  },
+  {
+    id: "11184",
+    name: "확률과통계",
+    weeks: {
+      "1주차": ["01_확률의기초.pdf", "01_연습문제.pdf"],
+      "2주차": ["02_순열과조합.pdf", "02_연습문제.pdf"],
+      "3주차": ["03_확률변수.pdf", "03_연습문제.pdf"],
+      "4주차": ["04_이산확률분포.pdf", "04_연습문제.pdf"],
+      "5주차": ["05_조건부확률.pdf", "05_연습문제.pdf"],
+    },
+  },
+  {
+    id: "11190",
+    name: "생활법률",
+    weeks: {
+      "1주차": ["01_법의기초.pdf"],
+      "2주차": ["02_계약법.pdf"],
+      "3주차": ["03_주택임대차.pdf", "03_판례자료.pdf"],
+      "4주차": ["04_소비자보호.pdf"],
+    },
+  },
+  {
+    id: "11201",
+    name: "사랑의실천2(스마트커뮤니케이션)",
+    weeks: {
+      "1주차": ["01_오리엔테이션.pdf"],
+      "2주차": ["02_스마트커뮤니케이션.pdf"],
+      "3주차": ["03_봉사활동계획서_양식.pdf"],
+    },
+  },
 ];
 
-const now = Date.now();
+/** 과제 명세는 변경 비교·구버전 정리 목업과 같은 문서다 */
+const SPEC_DOCUMENT = "6aa284ef1cf74";
+
+function details(): CourseDetail[] {
+  return LIBRARY.map((c) => {
+    const weekNames = Object.keys(c.weeks);
+    const last = weekNames.length;
+    const course: Course = {
+      id: c.id,
+      name: c.name,
+      lmsTitle: `202620HY${c.id}_${c.name}`,
+      term: TERM,
+      fileCount: weekNames.reduce((n, w) => n + c.weeks[w].length, 0),
+      latestWeek: weekNames[last - 1],
+    };
+    const weeks: WeekGroup[] = weekNames.map((week, wi) => ({
+      week,
+      files: c.weeks[week].map((fileName, fi): CourseFile => {
+        const isV2 = fileName.includes("(v2)");
+        const isSpec = fileName.startsWith("Phase1_과제명세");
+        // 지난 주차일수록 일주일씩 앞서 받은 것으로 둔다. 새 버전은 방금 받았다.
+        const savedAtMs = isV2
+          ? now - 4 * MINUTE
+          : now - (last - 1 - wi) * 7 * DAY - (fi + 1) * HOUR;
+        return {
+          id: `${c.id}-${wi}-${fi}`,
+          documentId: isSpec ? SPEC_DOCUMENT : `${c.id}-${wi}-${fi}`,
+          fileName,
+          path: `${SORTED}/${c.name}/${week}/${fileName}`,
+          version: isV2 ? 2 : 1,
+          sizeBytes: fakeSize(fileName),
+          savedAtMs,
+          unseenChange: isV2,
+        };
+      }),
+    }));
+    return { course, weeks: weeks.reverse() };
+  });
+}
+
+/** 파일 이름으로 정해지는 그럴듯한 크기 (300KB~6MB) */
+function fakeSize(name: string): number {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return 300_000 + (h % 5_700_000);
+}
+
+const library = details();
+const courses: Course[] = library.map((d) => d.course);
 
 const overview: Overview = {
   sortedFolder: SORTED,
@@ -113,6 +220,13 @@ export const mockBackend: Backend = {
     listeners.add(callback);
     return () => listeners.delete(callback);
   },
+
+  courseDetail: async (courseId) => {
+    const found = library.find((d) => d.course.id === courseId);
+    if (!found) throw new Error(`과목을 찾을 수 없어요: ${courseId}`);
+    return wait(structuredClone(found));
+  },
+  openFile: async (path) => log("파일 열기", path),
 
   setupStatus: () => wait({ ...setup }),
   requestDownloadsAccess: async () => {

@@ -10,6 +10,9 @@ export const tauriBackend: Backend = {
   overview: () => invoke("overview"),
   onOverviewChanged: (callback) => listen("overview-changed", () => callback()),
 
+  courseDetail: (courseId) => invoke("course_detail", { courseId }),
+  openFile: (path) => invoke("open_file", { path }),
+
   setupStatus: () => invoke("setup_status"),
   requestDownloadsAccess: () => invoke("request_downloads_access"),
   openSystemSettings: () => invoke("open_system_settings"),

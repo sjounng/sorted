@@ -667,3 +667,128 @@ button.link {
   line-height: 18px;
   text-align: center;
 }
+
+/* 과목 화면: 주차별 자료 */
+
+.course {
+  padding: 0 clamp(14px, 3vw, 28px) 24px;
+}
+
+.course-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * clamp(14px, 3vw, 28px));
+  padding: 8px clamp(10px, 3vw, 24px) 4px;
+  background: var(--bg);
+}
+
+.back {
+  font-size: 13px;
+}
+
+.course-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 14px 14px;
+  margin-bottom: 4px;
+  border-left: 4px solid var(--course);
+}
+
+.course-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.course-titles > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-titles .muted {
+  font-size: 12px;
+}
+
+.course-head button {
+  flex: none;
+}
+
+.week h2 {
+  margin: 18px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.week h2 .muted {
+  font-weight: 400;
+}
+
+.files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.file-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+.file-main:hover {
+  background: var(--hover);
+}
+
+.file-main .pdf {
+  flex: none;
+  color: var(--course);
+}
+
+.file-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-text strong {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-text .muted {
+  font-size: 12px;
+}
+
+.pill {
+  flex: none;
+  margin-right: 4px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}

@@ -16,6 +16,34 @@ export interface Course {
   latestWeek: string;
 }
 
+/** 정리 폴더에 있는 강의자료 하나 */
+export interface CourseFile {
+  id: string;
+  /** 같은 문서의 버전들은 documentId가 같다 (content_id) */
+  documentId: string;
+  fileName: string;
+  path: string;
+  /** 1이면 처음 받은 그대로. 새 버전이면 2, 3, … */
+  version: number;
+  sizeBytes: number;
+  savedAtMs: number;
+  /** 새 버전이 왔는데 아직 변경 비교를 열어 보지 않았다 */
+  unseenChange: boolean;
+}
+
+export interface WeekGroup {
+  /** 예: "5주차", "미분류" */
+  week: string;
+  /** LMS 게시 순서 */
+  files: CourseFile[];
+}
+
+/** 과목 하나의 자료 전체. 주차는 최근 주차가 먼저 온다 */
+export interface CourseDetail {
+  course: Course;
+  weeks: WeekGroup[];
+}
+
 export type ChangeKind = "organized" | "newVersion" | "duplicate";
 
 /** 메뉴 막대의 "최근 변경" 한 줄 */
