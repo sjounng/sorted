@@ -29,7 +29,7 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 (server/)           판정 보조 서버 (선택, FR-18, 4단계 예정). Lambda + LLM. API 키는 여기에만 둔다
 ```
 
-데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), probe-history.jsonl, logs/)
+데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), schedule.json(일정), probe-history.jsonl, logs/)
 정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
 
 > **이 Mac에서는 `~/Sorted` = 저장소 `~/sorted`** (디스크가 대소문자를 구분하지 않음). 그대로 두면 강의 PDF가 저장소 안에 들어간다.

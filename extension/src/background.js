@@ -3,14 +3,15 @@
 // 1. 앱 연결 확인: 설치·Chrome 시작·아이콘 클릭 때 hello를 보낸다.
 // 2. LMS 다운로드 감지: 다운로드가 끝나면 출처 정보와 LMS의 과목명·주차를 앱에 보낸다
 //    (스파이크 #3, FR-1·FR-11·FR-12의 출발점).
+// 3. 일정 (FR-19): LMS 탭이 열려 있을 때 한 시간에 한 번까지 플래너를 읽어 앱에 보낸다.
 //
 // 결과는 아이콘 배지로 보여 준다.
 //   OK  앱이 받음
 //   Q   앱이 꺼져 있어 중계 프로그램이 보관해 둠 (앱이 켜지면 전달됨)
 //   !   중계 프로그램을 찾지 못함 (scripts/install-native-host.sh 실행 필요)
 
-import { lookupCourse, moduleItemIdOf } from "./canvas.js";
-import { buildDownloadMessage, courseIdOf, isLmsDownload, queryParam } from "./lms.js";
+import { lookupCourse, lookupPlanner, moduleItemIdOf } from "./canvas.js";
+import { buildDownloadMessage, courseIdOf, isLmsDownload, isLmsHost, queryParam } from "./lms.js";
 
 /** scripts/install-native-host.sh 가 등록하는 이름과 같아야 한다. */
 const HOST = "dev.sorted.host";
@@ -102,4 +103,47 @@ async function fetchText(url) {
   const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
+}
+
+// ── 일정 (FR-19) ──────────────────────────────────────
+// LMS에 새 요청을 만들므로 LMS가 열려 있을 때만, 한 시간에 한 번까지 읽는다 (기획안 "추가 요청 최소화").
+// 확장은 쿠키·인증 토큰을 읽지 않는다. fetch가 로그인 쿠키를 실어 보낼 뿐이다.
+
+const SCHEDULE_EVERY_MS = 60 * 60 * 1000;
+
+chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
+  if (info.status !== "complete" || !tab.url) return;
+  let host;
+  try {
+    host = new URL(tab.url).hostname;
+  } catch {
+    return;
+  }
+  if (isLmsHost(host)) refreshSchedule();
+});
+
+async function refreshSchedule() {
+  const { scheduleAt = 0 } = await chrome.storage.local.get("scheduleAt");
+  if (Date.now() - scheduleAt < SCHEDULE_EVERY_MS) return;
+  // 실패해도 한 시간 동안은 다시 묻지 않는다 (로그아웃 상태에서 LMS를 계속 두드리지 않게)
+  await chrome.storage.local.set({ scheduleAt: Date.now() });
+  try {
+    const items = await lookupPlanner(fetchPage, Date.now());
+    await sendToApp({
+      type: "schedule",
+      source: "planner",
+      items,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    // 내용은 남기지 않는다
+    console.warn("[Sorted] 일정을 읽지 못함:", err?.message ?? err);
+  }
+}
+
+/** 쿠키를 실어 GET하고 본문과 다음 쪽(Link 헤더)을 돌려준다. */
+async function fetchPage(url) {
+  const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return { text: await res.text(), link: res.headers.get("Link") };
 }
