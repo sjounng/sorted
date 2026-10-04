@@ -9,6 +9,7 @@ mod inbox;
 mod organizer;
 mod pipeline;
 mod probe;
+mod schedule;
 mod screen;
 
 use std::error::Error;
@@ -26,6 +27,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use inbox::{Inbox, Received, Source};
 use organizer::Organizer;
 use pipeline::Outcome;
+use schedule::{Schedule, ScheduleStore};
 use screen::{AssignChoice, AssignRequest, CourseDetail, Overview, Permission, SetupStatus};
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
@@ -59,6 +61,22 @@ fn course_detail(
     organizer
         .course_detail(&course_id)
         .ok_or_else(|| "없는 과목이에요.".into())
+}
+
+// 일정 (FR-19)
+
+#[tauri::command]
+fn schedule(store: State<'_, ScheduleStore>) -> Schedule {
+    store.schedule()
+}
+
+/// LMS 페이지를 기본 브라우저로 연다. 한양대 LMS 주소(https)만.
+#[tauri::command]
+fn open_in_browser(url: String) -> Result<(), String> {
+    if !schedule::is_lms_url(&url) {
+        return Err("LMS 주소만 열 수 있어요.".into());
+    }
+    open([url])
 }
 
 // 파일 열기
@@ -202,7 +220,9 @@ pub fn run() {
             assign_course,
             skip_assign,
             open_file,
-            reveal_in_finder
+            reveal_in_finder,
+            schedule,
+            open_in_browser
         ])
         .menu(|app| {
             // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
@@ -256,6 +276,7 @@ fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let paths = Paths::from_env();
     paths.ensure_data_dir()?;
     app.manage(ProbeHistory(paths.data_dir().join("probe-history.jsonl")));
+    app.manage(ScheduleStore::open(paths.data_dir().join("schedule.json")));
     app.manage(Organizer::open(
         sorted_root_dir(),
         paths.data_dir().join("library.json"),
@@ -283,6 +304,10 @@ fn receive(app: &AppHandle, line: &[u8], source: Source) -> serde_json::Value {
         let _ = app.emit("native-message", &item);
         if item.is_download() {
             start_probe(app.clone(), item);
+        } else if item.message["type"] == "schedule" {
+            if let Err(e) = app.state::<ScheduleStore>().update(&item.message) {
+                eprintln!("일정 메시지를 처리하지 못함: {e}");
+            }
         }
     }
     reply
