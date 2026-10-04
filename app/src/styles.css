@@ -94,8 +94,8 @@
 * {
   --course-ink: color-mix(in srgb, var(--course, var(--fg)) 58%, var(--fg));
   /* 카드 윗부분: 과목 색을 바탕과 섞은 모브 틴트 + 조금 진한 점 격자 (다크에선 어두운 바탕과 섞인다) */
-  --course-tint: color-mix(in srgb, var(--course, var(--panel)) 50%, var(--bg));
-  --course-dot: color-mix(in srgb, var(--course, var(--panel)) 78%, var(--bg));
+  --course-tint: color-mix(in srgb, var(--course, var(--panel)) 42%, var(--bg));
+  --course-dot: color-mix(in srgb, var(--course, var(--panel)) 72%, var(--bg));
 }
 
 body {
