@@ -1,5 +1,8 @@
 :root {
   color-scheme: light dark;
+  /* 글씨 역할: 세리프 = 제목·큰 숫자, 산세리프 = 본문 (아래 "글씨" 절) */
+  /* 영어·숫자는 Georgia, 한글은 Georgia에 없으므로 깔끔한 고딕으로 이어진다 (명조는 가늘고 넓어 보임) */
+  --serif: Georgia, "Iowan Old Style", "Baskerville", "Apple SD Gothic Neo", sans-serif;
   /* 레퍼런스(Smartech 대시보드) 팔레트: 연보라 테두리, 크림 바탕, 더스티 핑크 위젯, 자두색 강조 */
   --frame: linear-gradient(160deg, #d9c6d1 0%, #b79db2 100%);
   --canvas: #f4ede7; /* 오른쪽 화면 바탕, 선택한 메뉴 알약 */
@@ -2338,4 +2341,124 @@ button.link {
 
 .stat-small .stat-big {
   font-size: 26px;
+}
+
+/* ───────── 글씨 (레퍼런스: 세리프 제목·숫자 + 작은 대문자 라벨 + 산세리프 본문) ─────────
+   제목과 큰 숫자는 보통 굵기의 세리프, 라벨은 자간을 넓힌 작은 대문자.
+   한 곳에 모아 두어 글씨만 바꿀 때 여기만 고치면 된다. */
+
+/* 작은 대문자 라벨: "● DASHBOARD", 달성률 카드 제목, 일정 날짜 구분, 요일 */
+.eyebrow,
+.stat-title,
+.sched-day,
+.sr-group,
+.cal-wd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--muted);
+}
+
+.eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-deep);
+}
+
+.stat-title {
+  opacity: 0.85;
+}
+
+/* 세리프 제목 */
+.widget-head h2,
+.sched-head h2,
+.trash-head strong,
+.dialog h1,
+.compare-head h1,
+.add-title,
+.card-title,
+.group-title strong,
+.week h2,
+.cal-head strong {
+  font-family: var(--serif);
+  /* Georgia엔 500이 없어 영어는 보통 굵기 그대로, 한글(Apple SD Gothic Neo)만 Medium으로 또렷해진다 */
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.widget-head h2 {
+  font-size: 21px;
+}
+
+.sched-head h2 {
+  font-size: 22px;
+}
+
+.trash-head strong {
+  font-size: 24px;
+}
+
+.dialog h1 {
+  font-size: 23px;
+}
+
+.compare-head h1 {
+  font-size: 19px;
+}
+
+.cal-head strong {
+  font-size: 17px;
+}
+
+/* 과목명: 카드에서는 조금 크게, 과목 화면 머리에서는 더 크게 */
+.card-title {
+  font-size: 18px;
+}
+
+.course-head .card-title {
+  font-size: 24px;
+}
+
+.group-title strong {
+  font-size: 17px;
+}
+
+.week h2 {
+  font-size: 16px;
+}
+
+/* 큰 숫자는 세리프 (레퍼런스의 $8,822처럼) */
+.stat-big,
+.up-date strong {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.stat-big {
+  font-size: 36px;
+}
+
+.stat-small .stat-big {
+  font-size: 30px;
+}
+
+.up-date strong {
+  font-size: 21px;
+}
+
+.ring-text {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 20px;
 }

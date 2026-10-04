@@ -75,6 +75,10 @@ export function Dashboard(props: {
     <div className="dash">
       <header className="dash-head">
         <div className="dash-greet">
+          <p className="eyebrow">
+            <span className="eyebrow-dot" aria-hidden />
+            Dashboard
+          </p>
           <h1>
             Hello{name ? ", " : "."}
             {name && (
