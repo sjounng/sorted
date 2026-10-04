@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
 import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
@@ -43,6 +43,7 @@ export function Dashboard(props: {
   const [upRef, upCount] = useFitCount(52, 10, 4);
   const [changeRef, changeCount] = useFitCount(46, 10, 4);
   const [month, setMonth] = useState(() => firstOfMonth(Date.now()));
+  const nameRef = useGlyphRoom(name);
 
   const now = Date.now();
   const items = schedule.data?.items ?? [];
@@ -78,7 +79,10 @@ export function Dashboard(props: {
             Hello{name ? ", " : "."}
             {name && (
               <>
-                <span className="greet-name">{name}</span>.
+                <span className="greet-name" ref={nameRef}>
+                  {name}
+                </span>
+                .
               </>
             )}
           </h1>
@@ -256,4 +260,40 @@ function Ring(props: {
       </span>
     </div>
   );
+}
+
+/**
+ * 손글씨 글꼴은 글자 꼬리(g·f·j의 고리, 대문자 장식)가 글자 칸 밖으로 나와 앞의 쉼표·뒤의 마침표와 겹친다.
+ * 첫 글자와 마지막 글자가 칸 밖으로 나온 만큼을 재서 그만큼 여백을 준다. 안 나오면 기본 여백만.
+ */
+function useGlyphRoom(text: string) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (!ctx) return;
+
+    const fit = () => {
+      const cs = getComputedStyle(el);
+      const size = parseFloat(cs.fontSize);
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const chars = Array.from(text);
+      const first = ctx.measureText(chars[0] ?? "");
+      const last = ctx.measureText(chars[chars.length - 1] ?? "");
+      const left = Math.max(0, first.actualBoundingBoxLeft);
+      const right = Math.max(0, last.actualBoundingBoxRight - last.width);
+      el.style.marginLeft = `${Math.max(0.14 * size, left)}px`;
+      el.style.paddingRight = `${right + 0.06 * size}px`;
+    };
+
+    fit();
+    // 한글 손글씨는 웹 글꼴이라 다 받은 뒤 다시 잰다. 창 크기에 따라 글자 크기도 바뀐다
+    document.fonts.ready.then(fit);
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [text]);
+
+  return ref;
 }

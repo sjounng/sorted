@@ -1791,6 +1791,9 @@ button.link {
   font-weight: 400;
   color: var(--brand-deep);
   font-synthesis: none;
+  /* 기본 여백. 글자 꼬리가 더 나오면 Dashboard.tsx의 useGlyphRoom이 재서 늘린다 */
+  margin-left: 0.14em;
+  padding-right: 0.06em;
 }
 
 .dash-head p {
