@@ -187,6 +187,30 @@ pub struct Unprocessed {
     pub at_ms: u64,
 }
 
+// ── 중복 (FR-7) ──
+
+/// 같은 문서·같은 내용을 다시 받았을 때 중복 안내 창에 보여 줄 것
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateNotice {
+    pub id: String,
+    /// 방금 받은 파일 이름
+    pub file_name: String,
+    pub course_name: String,
+    pub week: String,
+    pub existing_path: PathBuf,
+    pub existing_saved_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum DuplicateChoice {
+    /// 기존 파일을 열고 방금 받은 복사본은 휴지통으로
+    OpenExisting,
+    /// 아무것도 지우지 않는다
+    KeepBoth,
+}
+
 // ── 과목 화면 ──
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
