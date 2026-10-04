@@ -13,6 +13,15 @@ const KIND_LABEL: Record<ScheduleKind, string> = {
 
 type KindFilter = "all" | ScheduleKind;
 
+/** 거르기 버튼은 여러 개를 고르는 것이라 복수형 (항목에 붙는 종류 표시는 단수형 그대로) */
+const FILTER_LABEL: Record<KindFilter, string> = {
+  all: "All",
+  assignment: "Assignments",
+  quiz: "Quizzes",
+  video: "Videos",
+  event: "Events",
+};
+
 /**
  * 일정 탭: LMS의 과제·퀴즈·영상 마감을 한곳에서 본다.
  * 왼쪽 달력에서 날을 고르면 그날 일정만, 아니면 다가오는 일정을 D-day 순으로.
@@ -87,7 +96,7 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
                 aria-pressed={kind === k}
                 onClick={() => setKind(k)}
               >
-                {k === "all" ? "All" : KIND_LABEL[k]}
+                {FILTER_LABEL[k]}
               </button>
             ))}
             {day === undefined && (
