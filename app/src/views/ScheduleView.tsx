@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { api, type Course, type ScheduleItem, type ScheduleKind } from "../api";
 import { courseColor } from "../courseColor";
 import { WEEKDAYS, ago, clock, dateLabel, dDay, daysLeft, monthLabel, startOfDay } from "../format";
-import { isLateOpen, isMissed } from "../schedule";
+import { isLateOpen } from "../schedule";
 import { useLoad } from "../useLoad";
 
 const KIND_LABEL: Record<ScheduleKind, string> = {
@@ -59,14 +59,14 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
   const now = Date.now();
   const byKind = data.items.filter((i) => kind === "all" || i.kind === kind);
   const byDue = (a: ScheduleItem, b: ScheduleItem) => a.dueAtMs - b.dueAtMs;
-  // 날을 고르지 않았을 때: 맨 위에 지각 인정 중(남은 기한 순), 놓친 것, 그 아래 다가오는 일정
+  // 날을 고르지 않았을 때: 맨 위에 지각 인정 중(남은 기한 순), 그 아래 다가오는 일정.
+  // 놓친 것(지각 인정 없음·끝남)은 할 수 있는 게 없으니 목록에 두지 않는다 (달력에서 그날을 고르면 보인다)
   const lateOpen =
     day === undefined
       ? byKind
           .filter((i) => isLateOpen(i, now))
           .sort((a, b) => (a.lateUntilMs ?? 0) - (b.lateUntilMs ?? 0))
       : [];
-  const missed = day === undefined ? byKind.filter((i) => isMissed(i, now)).sort(byDue) : [];
   const shown = (
     day !== undefined
       ? byKind.filter((i) => startOfDay(i.dueAtMs) === day)
@@ -122,7 +122,7 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
           </div>
         </header>
 
-        {shown.length === 0 && lateOpen.length === 0 && missed.length === 0 ? (
+        {shown.length === 0 && lateOpen.length === 0 ? (
           <p className="empty muted">
             {day !== undefined ? "Nothing on this day." : "Nothing coming up."}
           </p>
@@ -130,10 +130,6 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
           <ul className="sched-rows">
             {lateOpen.length > 0 && <li className="sched-day late">Late · still open</li>}
             {lateOpen.map((item) => (
-              <ScheduleRow key={item.id} item={item} now={now} {...look(item)} />
-            ))}
-            {missed.length > 0 && <li className="sched-day missed">Missed</li>}
-            {missed.map((item) => (
               <ScheduleRow key={item.id} item={item} now={now} {...look(item)} />
             ))}
             {shown.map((item, i) => {
