@@ -1963,8 +1963,22 @@ button.link {
 }
 
 /* 대시보드 안의 달력: 크림색 둥근 카드 */
+/* 내 일정: 제목 줄을 달력과 같은 폭으로 맞춰 달력 위에 붙인다 (레퍼런스처럼) */
+.widget-wide {
+  --cal-width: 420px;
+}
+
+.widget-wide .widget-head {
+  width: 100%;
+  max-width: var(--cal-width);
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
 .dash-cal .cal {
-  max-width: 420px;
+  max-width: var(--cal-width);
   margin: 0 auto;
   border-radius: 24px;
   box-shadow: none;
@@ -2271,11 +2285,15 @@ button.link {
     justify-content: center;
   }
 
+  .widget-wide {
+    --cal-width: 520px;
+  }
+
   .dash-cal .cal {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 520px;
+    max-width: var(--cal-width);
     height: 100%;
     margin: 0;
     padding: 10px 14px 12px;
