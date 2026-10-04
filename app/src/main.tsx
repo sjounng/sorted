@@ -1,5 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource/nanum-pen-script/400.css";
+import { applyStoredTheme } from "./theme";
 import { currentView } from "./windows";
 import { Assign } from "./views/Assign";
 import { Cleanup } from "./views/Cleanup";
@@ -32,6 +34,7 @@ function App() {
 }
 
 document.body.dataset.view = currentView().view;
+applyStoredTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

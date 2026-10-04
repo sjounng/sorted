@@ -1,54 +1,128 @@
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1d1d1f;
-  --muted: #6e6e73;
-  --line: #e5e5ea;
-  --hover: #f2f2f7;
-  --accent: #0a84ff;
-  /* LMS 남색. 선택한 탭과 카드의 새 버전 배지에 쓴다 */
-  --brand: #1d3f7a;
-  --accent-soft: rgba(10, 132, 255, 0.16);
-  --warn: #b25000;
-  --warn-soft: rgba(178, 80, 0, 0.1);
-  --danger: #d70015;
-  --added: #248a3d;
-  --added-soft: rgba(36, 138, 61, 0.14);
-  --panel: #f5f5f7;
-  --ok: #248a3d;
-  --pass: #1a7f37;
-  --fail: #cf222e;
+  /* 글씨 역할: 세리프 = 제목·큰 숫자, 산세리프 = 본문 (아래 "글씨" 절) */
+  /* 영어·숫자는 Georgia, 한글은 Georgia에 없으므로 깔끔한 고딕으로 이어진다 (명조는 가늘고 넓어 보임) */
+  --serif: Georgia, "Iowan Old Style", "Baskerville", "Apple SD Gothic Neo", sans-serif;
+  /* 레퍼런스(Smartech 대시보드) 팔레트: 연보라 테두리, 크림 바탕, 더스티 핑크 위젯, 자두색 강조 */
+  --frame: linear-gradient(160deg, #d9c6d1 0%, #b79db2 100%);
+  --canvas: #f4ede7; /* 오른쪽 화면 바탕, 선택한 메뉴 알약 */
+  --sidebar: #ece2e1;
+  --bg: #fbf7f3; /* 카드·목록·입력 칸 */
+  --panel: #e5d6db; /* 위젯 상자 */
+  /* 글자·채우기 색: 팬톤 팔레트 (Transparent Yellow #f5efc6 · Sceptre Red #4d0e12 · Cerulean Blue #a5bcd6
+     · Potting Soil #4a2e27 · Java Brown #231815). 배경(모브·크림)은 그대로 */
+  --fg: #231815; /* Java Brown */
+  --muted: color-mix(in srgb, #4a2e27 78%, var(--bg)); /* Potting Soil을 흐리게 */
+  --line: #ddcdd3;
+  --hover: #efe5e6;
+  --accent: #4d0e12; /* Sceptre Red: 링크·강조 글자 */
+  --brand: #4d0e12; /* Sceptre Red: 선택한 메뉴, 버튼, 배지, 달성률 카드 */
+  --brand-deep: #4d0e12;
+  --on-brand: #f5efc6; /* Transparent Yellow: 채운 색 위의 글자 */
+  --accent-soft: rgba(77, 14, 18, 0.1);
+  --warn: #4a2e27; /* Potting Soil: 주의 글자 */
+  --warn-fill: #4a2e27; /* Potting Soil: 주의로 채우는 곳 (처리 못한 파일 카드, D-2·3 배지) */
+  --late-bg: #f5efc6; /* 지각 인정 중 배지: Transparent Yellow 바탕 + 빨간 테두리·글자 */
+  --late-ink: var(--danger);
+  --warn-soft: rgba(74, 46, 39, 0.1);
+  --danger: #4d0e12;
+  --added: color-mix(in srgb, #a5bcd6 45%, #231815); /* Cerulean Blue를 글자로 읽히게 어둡게 */
+  --added-soft: rgba(165, 188, 214, 0.35);
+  --ok: color-mix(in srgb, #a5bcd6 45%, #231815);
+  --pass: color-mix(in srgb, #a5bcd6 45%, #231815);
+  --fail: #4d0e12;
+  /* 달성률 고리 색 */
+  --ring-pink: #f5efc6; /* Transparent Yellow */
+  --ring-teal: #a5bcd6; /* Cerulean Blue */
+  --ring-yellow: #f5efc6;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
 
+/* 다크 모드: 시스템을 따르거나(사용자가 고르지 않았을 때) 앱에서 직접 고른다 (theme.ts) */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1c1e;
-    --fg: #f5f5f7;
-    --muted: #a1a1a6;
-    --line: #38383a;
-    --hover: #2c2c2e;
-    --brand: #3a67b5;
-    --warn: #ff9f0a;
-    --warn-soft: rgba(255, 159, 10, 0.12);
-    --danger: #ff453a;
-    --ok: #30d158;
-    --added: #30d158;
-    --added-soft: rgba(48, 209, 88, 0.16);
-    --panel: #161618;
-    --pass: #3fb950;
-    --fail: #ff7b72;
+  :root:not([data-theme="light"]) {
+    --frame: linear-gradient(160deg, #3a2c37 0%, #241b22 100%);
+    --canvas: #2b2329;
+    --sidebar: #241d22;
+    --bg: #352c33;
+    --panel: #3d3139;
+    --fg: #f5efc6; /* Transparent Yellow */
+    --muted: color-mix(in srgb, #f5efc6 62%, var(--bg));
+    --line: #4d3f49;
+    --hover: #40343d;
+    --accent: #a5bcd6; /* Cerulean Blue: 어두운 바탕에서 읽히는 강조 */
+    --brand: color-mix(in srgb, #4d0e12 80%, #f5efc6); /* Sceptre Red를 조금 밝게 */
+    --brand-deep: #a5bcd6;
+    --on-brand: #f5efc6;
+    --accent-soft: rgba(165, 188, 214, 0.16);
+    --warn: color-mix(in srgb, #4a2e27 40%, #f5efc6);
+    --warn-fill: color-mix(in srgb, #4a2e27 88%, #f5efc6);
+    --late-bg: color-mix(in srgb, var(--danger) 14%, var(--bg));
+    --late-ink: var(--on-brand); /* 어두운 바탕에선 크림 글자 + 빨간 테두리 */
+    --warn-soft: rgba(245, 239, 198, 0.1);
+    --danger: color-mix(in srgb, #4d0e12 45%, #f5efc6);
+    --added: #a5bcd6;
+    --added-soft: rgba(165, 188, 214, 0.18);
+    --ok: #a5bcd6;
+    --pass: #a5bcd6;
+    --fail: color-mix(in srgb, #4d0e12 45%, #f5efc6);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --frame: linear-gradient(160deg, #3a2c37 0%, #241b22 100%);
+  --canvas: #2b2329;
+  --sidebar: #241d22;
+  --bg: #352c33;
+  --panel: #3d3139;
+  --fg: #f5efc6; /* Transparent Yellow */
+  --muted: color-mix(in srgb, #f5efc6 62%, var(--bg));
+  --line: #4d3f49;
+  --hover: #40343d;
+  --accent: #a5bcd6; /* Cerulean Blue: 어두운 바탕에서 읽히는 강조 */
+  --brand: color-mix(in srgb, #4d0e12 80%, #f5efc6); /* Sceptre Red를 조금 밝게 */
+  --brand-deep: #a5bcd6;
+  --on-brand: #f5efc6;
+  --accent-soft: rgba(165, 188, 214, 0.16);
+  --warn: color-mix(in srgb, #4a2e27 40%, #f5efc6);
+  --warn-fill: color-mix(in srgb, #4a2e27 88%, #f5efc6);
+  --late-bg: color-mix(in srgb, var(--danger) 14%, var(--bg));
+  --late-ink: var(--on-brand); /* 어두운 바탕에선 크림 글자 + 빨간 테두리 */
+  --warn-soft: rgba(245, 239, 198, 0.1);
+  --danger: color-mix(in srgb, #4d0e12 45%, #f5efc6);
+  --added: #a5bcd6;
+  --added-soft: rgba(165, 188, 214, 0.18);
+  --ok: #a5bcd6;
+  --pass: #a5bcd6;
+  --fail: color-mix(in srgb, #4d0e12 45%, #f5efc6);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* 과목 색으로 쓰는 글자: 연한 파스텔도 읽히게 글자색 쪽으로 섞는다 (다크 모드에선 밝게) */
+* {
+  --course-ink: color-mix(in srgb, var(--course, var(--fg)) 58%, var(--fg));
+  /* 카드 윗부분: 과목 색을 바탕과 섞은 모브 틴트 + 조금 진한 점 격자 (다크에선 어두운 바탕과 섞인다) */
+  --course-tint: color-mix(in srgb, var(--course, var(--panel)) 42%, var(--bg));
+  --course-dot: color-mix(in srgb, var(--course, var(--panel)) 72%, var(--bg));
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--canvas);
   color: var(--fg);
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* 메인 창은 레퍼런스처럼 연보라 테두리 위에 둥근 앱 카드를 띄운다 */
+body[data-view="main"] {
+  background: var(--frame);
 }
 
 h1 {
@@ -92,112 +166,313 @@ h1 {
   color: var(--warn);
 }
 
-/* 메인 창 */
+/* 메인 창: 왼쪽 사이드바 + 오른쪽 화면 */
 
 .home {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
+  box-sizing: border-box;
+  height: calc(100vh - 28px);
+  margin: 14px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--canvas);
+  box-shadow: 0 10px 40px rgba(74, 46, 68, 0.18);
 }
 
-.home-head {
-  padding: 14px 16px 8px;
-}
-
-.home-head h1 {
-  font-size: 15px;
-}
-
-/* 탭: 대시보드 카드처럼 그림자로 본문과 나누고, 선택한 탭은 남색 알약 */
-.tabs {
-  position: relative;
-  z-index: 2;
+.side-nav {
   display: flex;
-  gap: 6px;
-  padding: 2px 12px 12px;
-  background: var(--bg);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.04);
+  flex: none;
+  flex-direction: column;
+  width: 220px;
+  padding: 26px 0 18px 18px;
+  box-sizing: border-box;
+  background: var(--sidebar);
 }
 
-.tab {
+/* 로고: "Sorted" 글자 */
+.brand-logo {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
+  gap: 10px;
+  margin: 0 0 24px 8px;
+  color: var(--fg);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.brand-mark {
+  display: none;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* 프로필: 이니셜 원(누르면 색 고르기) + 이름(누르면 이름 바꾸기) */
+.profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% - 18px);
+  margin: 0 0 28px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.avatar-btn {
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  transition: transform 0.15s;
+}
+
+.avatar-btn:hover,
+.avatar-btn[aria-expanded="true"] {
+  transform: scale(1.05);
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 3px solid var(--canvas);
+  border-radius: 50%;
+  background: linear-gradient(
+    140deg,
+    var(--avatar-from, var(--ring-teal)),
+    var(--avatar-to, var(--brand))
+  );
+  box-shadow: 0 2px 8px rgba(74, 46, 68, 0.2);
+  color: var(--avatar-ink, #fff);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.profile-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.profile-name:hover {
+  background: var(--hover);
+}
+
+/* 동그라미 색 고르기: 프로필 아래에 뜨는 작은 창 */
+.avatar-picker {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 4px;
+  display: grid;
+  grid-template-columns: repeat(5, 30px);
+  gap: 10px;
+  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--bg);
+  box-shadow: 0 10px 30px rgba(74, 46, 68, 0.18);
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--avatar-from), var(--avatar-to));
+  box-shadow: 0 0 0 1px var(--line);
+  transition: transform 0.12s;
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch.selected {
+  box-shadow: 0 0 0 2px var(--brand-deep);
+}
+
+.profile-name small {
   color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  white-space: nowrap;
-  cursor: pointer;
+  font-size: 11px;
+}
+
+.profile-form {
+  margin: 0 18px 24px 0;
+}
+
+.profile-form .text {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.profile-form .field-hint {
+  margin-top: 4px;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-bottom {
+  margin-top: auto;
+}
+
+/* 선택한 메뉴는 오른쪽 화면과 이어진 크림색 알약 (레퍼런스처럼) */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 18px 0 0 18px;
+  background: none;
+  color: var(--fg);
+  font-size: 14px;
+  text-align: left;
+  opacity: 0.85;
   transition:
     background 0.15s,
-    color 0.15s,
-    border-color 0.15s;
+    opacity 0.15s;
 }
 
-.tab:hover:not(.active) {
+.nav-item svg {
+  flex: none;
+  color: var(--brand-deep);
+}
+
+.nav-item:hover:not(.active) {
   background: var(--hover);
-  color: var(--fg);
+  opacity: 1;
 }
 
-.tab.active {
-  border-color: var(--brand);
-  background: var(--brand);
-  color: #fff;
+.nav-item.active {
+  background: var(--canvas);
   font-weight: 600;
+  opacity: 1;
 }
 
-.badge {
-  min-width: 18px;
-  padding: 0 5px;
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-count {
+  min-width: 20px;
+  margin-right: 6px;
+  padding: 0 6px;
   box-sizing: border-box;
-  border-radius: 9px;
-  background: var(--warn);
-  color: #fff;
+  border-radius: 10px;
+  background: var(--brand);
+  color: var(--on-brand);
   font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
+  font-weight: 700;
+  line-height: 20px;
   text-align: center;
 }
 
-/* 휴지통 탭: 글자 대신 아이콘. 오른쪽 끝에 붙고 지운 과목 수를 모서리 배지로 보여 준다 */
-.tab-icon {
-  position: relative;
-  margin-left: auto;
-  padding: 5px 9px;
+.nav-count.quiet {
+  background: var(--line);
+  color: var(--muted);
 }
 
-.badge.corner {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 16px;
-  padding: 0 4px;
-  border: 2px solid var(--bg);
-  border-radius: 10px;
-  background: var(--muted);
-  font-size: 10px;
-  line-height: 14px;
-}
+/* 좁은 창: 테두리 없이 꽉 채우고, 사이드바는 아이콘만 (이름은 마우스를 올리면) */
+@media (max-width: 640px) {
+  .home {
+    height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
 
-.tab.active .badge.corner {
-  border-color: var(--bg);
-  background: var(--fg);
-  color: var(--bg);
-}
+  .side-nav {
+    width: 64px;
+    padding: 16px 0 12px 10px;
+  }
 
-.tab.active .badge {
-  background: #fff;
-  color: var(--brand);
+  .brand-logo {
+    margin: 0 0 16px 4px;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .brand-mark {
+    display: grid;
+  }
+
+  .profile {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 0;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    border-width: 2px;
+  }
+
+  .profile-name,
+  .profile-form,
+  .nav-label {
+    display: none;
+  }
+
+  .nav-item {
+    position: relative;
+    justify-content: center;
+    padding: 11px 0;
+  }
+
+  .nav-count {
+    position: absolute;
+    top: 3px;
+    right: 6px;
+    min-width: 16px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 16px;
+  }
 }
 
 .panel {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
 }
 
@@ -270,13 +545,6 @@ h1 {
   color: var(--accent);
 }
 
-.home-foot {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-top: 1px solid var(--line);
-}
-
 /* 버튼 */
 
 button {
@@ -298,13 +566,13 @@ button:disabled {
 button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 button.danger {
   border-color: var(--danger);
   background: var(--danger);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 button.link {
@@ -394,7 +662,7 @@ button.link {
 .step.done .mark {
   border-color: var(--ok);
   background: var(--ok);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .step.failed .mark {
@@ -617,11 +885,11 @@ button.link {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
   transition: box-shadow 0.15s;
 }
 
@@ -645,11 +913,19 @@ button.link {
   text-align: left;
 }
 
+/* 모브 틴트 + 점 격자 */
+.card-cover,
+.course-cover {
+  background-color: var(--course-tint);
+  background-image: radial-gradient(circle, var(--course-dot) 1.4px, transparent 1.7px);
+  background-position: 7px 7px;
+  background-size: 14px 14px;
+}
+
 .card-cover {
   display: block;
   width: 100%;
   height: clamp(56px, 12vw, 140px);
-  background: var(--course);
 }
 
 .card-body {
@@ -674,7 +950,7 @@ button.link {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow-wrap: anywhere;
-  color: var(--course);
+  color: var(--course-ink);
   font-size: 16px;
   font-weight: 700;
 }
@@ -715,7 +991,7 @@ button.link {
 }
 
 .icon-btn:hover {
-  color: var(--course);
+  color: var(--course-ink);
 }
 
 .icon-btn .dot {
@@ -727,7 +1003,7 @@ button.link {
   box-sizing: border-box;
   border-radius: 9px;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
@@ -760,17 +1036,16 @@ button.link {
   gap: 12px;
   overflow: hidden;
   margin-top: 4px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .course-cover {
   grid-column: 1 / -1;
   height: clamp(36px, 7vw, 72px);
-  background: var(--course);
 }
 
 .course-titles {
@@ -800,11 +1075,11 @@ button.link {
 .week {
   overflow: hidden;
   margin-top: 16px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .week h2 {
@@ -815,7 +1090,7 @@ button.link {
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
   border-left: 4px solid var(--course);
-  color: var(--course);
+  color: var(--course-ink);
   font-size: 13px;
   font-weight: 700;
 }
@@ -861,7 +1136,7 @@ button.link {
 
 .file-main .pdf {
   flex: none;
-  color: var(--course);
+  color: var(--course-ink);
 }
 
 .file-text {
@@ -926,7 +1201,7 @@ button.link {
 
 .group-title strong {
   overflow: hidden;
-  color: var(--course);
+  color: var(--course-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -956,12 +1231,12 @@ button.link {
   border: 0;
   border-radius: 50%;
   background: none;
-  color: #fff;
+  color: var(--course-ink);
 }
 
 .kebab:hover,
 .kebab[aria-expanded="true"] {
-  background: rgba(0, 0, 0, 0.18);
+  background: color-mix(in srgb, var(--course-ink) 14%, transparent);
 }
 
 .menu {
@@ -1097,11 +1372,11 @@ button.link {
   gap: 12px;
   padding: 14px 16px;
   margin-top: clamp(14px, 3vw, 28px);
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .trash-head strong {
@@ -1129,11 +1404,11 @@ button.link {
 .trash-list {
   overflow: hidden;
   margin-top: 16px;
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .trash-row {
@@ -1262,11 +1537,11 @@ button.link {
 
 .cal,
 .sched-list {
-  border-radius: 4px;
+  border-radius: 22px;
   background: var(--bg);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(74, 46, 68, 0.06),
+    0 6px 18px rgba(74, 46, 68, 0.08);
 }
 
 .cal {
@@ -1354,7 +1629,7 @@ button.link {
 
 .cal-day.today .num {
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-weight: 700;
 }
 
@@ -1362,19 +1637,20 @@ button.link {
   border-color: var(--brand);
 }
 
-.dots {
+/* 달력 점. 과목 카드의 새 버전 배지(.icon-btn .dot)와 이름이 겹치지 않게 cal-를 붙인다 */
+.cal-dots {
   display: flex;
   gap: 2px;
   height: 5px;
 }
 
-.dot {
+.cal-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
 }
 
-.dot.done {
+.cal-dot.done {
   opacity: 0.35;
 }
 
@@ -1414,7 +1690,7 @@ button.link {
 .chip.active {
   border-color: var(--brand);
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .check {
@@ -1450,8 +1726,9 @@ button.link {
 
 .dday {
   flex: none;
-  width: 52px;
-  padding: 2px 0;
+  min-width: 52px;
+  padding: 2px 6px;
+  box-sizing: border-box;
   border-radius: 6px;
   background: var(--hover);
   color: var(--muted);
@@ -1461,13 +1738,37 @@ button.link {
 }
 
 .sched-row.urgent .dday {
-  background: var(--danger);
-  color: #fff;
+  background: var(--brand); /* 다크에서 --danger는 글자용으로 밝아 크림 글자가 안 읽힌다 */
+  color: var(--on-brand);
 }
 
 .sched-row.soon .dday {
-  background: var(--warn);
-  color: #fff;
+  background: var(--warn-fill);
+  color: var(--on-brand);
+}
+
+/* 마감이 지났는데 안 한 것
+   - 지각 인정 중: 아직 할 수 있으니 가장 진하게 (채운 D+N)
+   - 놓침: 할 수 있는 게 없으니 테두리만, 흐리게 */
+/* 지각 인정 중: 오늘·내일 마감(빨간 채움)과 모양부터 다르게, 반전 배지 "2d late" */
+.sched-row.late .dday {
+  background: var(--late-bg);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  color: var(--late-ink);
+}
+
+.sched-day.late {
+  color: var(--danger);
+}
+
+.sched-row.missed .dday {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: var(--muted);
+}
+
+.sched-row.missed .sched-title strong {
+  color: var(--muted);
 }
 
 .sched-row.done .dday {
@@ -1551,4 +1852,751 @@ button.link {
 .sched-foot {
   margin: 10px 16px 0;
   font-size: 11px;
+}
+
+/* Dashboard (레퍼런스: 큰 대문자 인사, 더스티 핑크 위젯, 테두리 알약, 자두색 달성률 카드) */
+
+.dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-areas:
+    "head head"
+    "main stats";
+  align-items: start;
+  gap: 26px 26px;
+  padding: clamp(18px, 3.2vw, 40px);
+}
+
+.dash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+  grid-area: head;
+}
+
+.dash-greet {
+  min-width: 0;
+}
+
+/* 인사: "Hello,"와 마침표는 세리프(macOS 기본 Georgia 보통 굵기), 사용자가 정한 이름만 손글씨 */
+.dash-head h1 {
+  color: var(--fg);
+  font-family: Georgia, "Baskerville", "Times New Roman", serif;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.greet-name {
+  /* 영어 이름은 macOS 기본 Snell Roundhand, 한글 이름은 앱에 넣은 나눔손글씨 펜 */
+  font-family: "Snell Roundhand", "Nanum Pen Script", cursive;
+  font-size: 1.25em;
+  font-weight: 400;
+  color: var(--brand-deep);
+  font-synthesis: none;
+  /* 기본 여백. 글자 꼬리가 더 나오면 Dashboard.tsx의 useGlyphRoom이 재서 늘린다 */
+  margin-left: 0.14em;
+  padding-right: 0.06em;
+}
+
+.dash-head p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.dash-main {
+  display: grid;
+  grid-area: main;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+  min-width: 0;
+}
+
+.widget {
+  min-width: 0;
+  padding: 20px 20px 18px;
+  border-radius: 28px;
+  background: var(--panel);
+}
+
+.widget-wide {
+  grid-column: 1 / -1;
+}
+
+.widget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 4px 14px;
+}
+
+.widget-head h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.widget-head .link {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.75;
+}
+
+.widget-empty {
+  margin: 12px 4px;
+  font-size: 13px;
+}
+
+/* 다가오는 마감: 레퍼런스의 "18 | Robotics lesson" 알약 */
+.up-list,
+.mini-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.up-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 0 16px 0 0;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  text-align: left;
+}
+
+.up-item:hover {
+  border-color: var(--course);
+}
+
+.up-date {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  margin: -1.5px 0 -1.5px -1.5px;
+  border: 1.5px solid var(--course);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--canvas);
+  color: var(--fg);
+  line-height: 1.1;
+}
+
+.up-date strong {
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.up-date small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.up-item.urgent .up-date small {
+  color: var(--danger);
+}
+
+.up-item.soon .up-date small {
+  color: var(--warn);
+}
+
+.up-text,
+.mini-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.up-text strong,
+.mini-text strong {
+  overflow: hidden;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.up-text .muted,
+.mini-text .muted {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 최근 변경 미니 목록 */
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  text-align: left;
+}
+
+.mini-row:hover {
+  border-color: var(--course);
+}
+
+/* 대시보드 안의 달력: 크림색 둥근 카드 */
+/* 내 일정: 제목 줄을 달력과 같은 폭으로 맞춰 달력 위에 붙인다 (레퍼런스처럼) */
+.widget-wide {
+  --cal-width: 420px;
+}
+
+.widget-wide .widget-head {
+  width: 100%;
+  max-width: var(--cal-width);
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.dash-cal .cal {
+  max-width: var(--cal-width);
+  margin: 0 auto;
+  border-radius: 24px;
+  box-shadow: none;
+}
+
+/* 오른쪽 달성률: 테두리 상자 안에 자두색 카드 */
+.dash-stats {
+  display: flex;
+  grid-area: stats;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border: 2px solid var(--line);
+  border-radius: 30px;
+  background: var(--panel);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--brand);
+  color: var(--on-brand);
+  text-align: center;
+}
+
+.stat-title {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.stat-ring {
+  width: 108px;
+  height: 108px;
+}
+
+.ring-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--on-brand) 16%, transparent);
+  stroke-width: 7;
+}
+
+.ring-value {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 7;
+  transition: stroke-dasharray 0.4s;
+}
+
+.ring-text {
+  fill: var(--on-brand);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.stat-big {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.stat-note {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.stat-warn {
+  background: var(--warn-fill);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .dash {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "stats"
+      "main";
+  }
+
+  .dash-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .stat-card {
+    padding: 14px 8px;
+  }
+
+  .stat-ring {
+    width: 84px;
+    height: 84px;
+  }
+}
+
+.name-cta {
+  margin-top: 4px;
+  padding: 0;
+  color: var(--brand);
+  font-size: 12px;
+}
+
+/* 검색: 레퍼런스의 둥근 검색창. 결과는 아래로 펼친다 */
+.search-box {
+  position: relative;
+  flex: 0 1 360px;
+  min-width: 220px;
+  margin-top: 6px;
+}
+
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.search-input:focus-within {
+  border-color: var(--brand);
+  background: var(--bg);
+}
+
+.search-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.search-input input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.search-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  max-height: min(420px, 60vh);
+  padding: 8px;
+  overflow-y: auto;
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: 0 14px 40px rgba(74, 46, 68, 0.2);
+}
+
+.sr-group {
+  margin: 6px 10px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sr-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+}
+
+.sr-item.active {
+  background: var(--hover);
+}
+
+.sr-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sr-text strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-pdf {
+  flex: none;
+  padding: 2px 5px;
+  border: 1.5px solid var(--course);
+  border-radius: 6px;
+  color: var(--course-ink);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.sr-empty {
+  margin: 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .search-box {
+    flex-basis: 100%;
+    margin-top: 0;
+  }
+}
+
+/* Dashboard 한 화면 모드: 창이 충분히 크면 스크롤 없이 칸을 높이 비율로 나눈다.
+   (useFitCount.ts의 DASH_FIT과 같은 조건. 더 작은 창에서는 위의 쌓이는 레이아웃과 스크롤) */
+@media (min-width: 1080px) and (min-height: 680px) {
+  .panel-dash {
+    overflow: hidden;
+  }
+
+  .dash {
+    box-sizing: border-box;
+    height: 100%;
+    /* 위젯 칸과 달성률 칸이 남은 높이를 끝까지 채우게 (기본은 위로 붙음) */
+    align-items: stretch;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 20px 22px;
+    padding: 26px 30px 28px;
+  }
+
+  .dash-head h1 {
+    font-size: 40px;
+  }
+
+  .dash-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 20px;
+    min-height: 0;
+  }
+
+  .widget {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 16px 18px;
+    overflow: hidden;
+  }
+
+  .widget-head {
+    margin-bottom: 10px;
+  }
+
+  /* 목록은 남은 높이를 다 쓰고, 넘치는 항목은 useFitCount가 아예 그리지 않는다 */
+  .up-list,
+  .mini-rows {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .up-item {
+    flex: none;
+    height: 52px;
+    box-sizing: border-box;
+  }
+
+  .up-date {
+    width: 52px;
+    height: 52px;
+  }
+
+  .mini-row {
+    flex: none;
+    height: 46px;
+    box-sizing: border-box;
+  }
+
+  /* 달력은 칸 높이를 채우고 날짜 칸이 그에 맞춰 줄어든다 */
+  .dash-cal {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .widget-wide {
+    --cal-width: 520px;
+  }
+
+  .dash-cal .cal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: var(--cal-width);
+    height: 100%;
+    margin: 0;
+    padding: 10px 14px 12px;
+    box-sizing: border-box;
+  }
+
+  .dash-cal .cal-head {
+    margin-bottom: 4px;
+  }
+
+  /* 요일 줄은 글자 높이만, 날짜 줄들이 남은 높이를 나눈다 */
+  .dash-cal .cal-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: auto;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .dash-cal .cal-wd {
+    padding: 0;
+  }
+
+  .dash-cal .cal-day {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .dash-cal .cal-day .num {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* 달성률: 고리 카드 두 장이 높이를 나눠 갖고, 숫자 카드 두 장은 한 줄에 */
+  .dash-stats {
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .dash-stats > .stat-card {
+    flex: 1;
+    min-height: 0;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .stat-ring {
+    flex: 1;
+    width: auto;
+    height: auto;
+    max-height: 120px;
+    min-height: 0;
+    aspect-ratio: 1;
+  }
+}
+
+/* 숫자 카드 두 장(정리한 자료, 처리 못한 파일)은 나란히 */
+.stat-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-small {
+  padding: 12px 8px;
+}
+
+.stat-small .stat-big {
+  font-size: 26px;
+}
+
+/* ───────── 글씨 (레퍼런스: 세리프 제목·숫자 + 작은 대문자 라벨 + 산세리프 본문) ─────────
+   제목과 큰 숫자는 보통 굵기의 세리프, 라벨은 자간을 넓힌 작은 대문자.
+   한 곳에 모아 두어 글씨만 바꿀 때 여기만 고치면 된다. */
+
+/* 작은 대문자 라벨: 달성률 카드 제목, 일정 날짜 구분, 요일, 검색 그룹 */
+.stat-title,
+.sched-day,
+.sr-group,
+.cal-wd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.stat-title {
+  opacity: 0.85;
+}
+
+/* 세리프 제목 */
+.widget-head h2,
+.sched-head h2,
+.trash-head strong,
+.dialog h1,
+.compare-head h1,
+.add-title,
+.card-title,
+.group-title strong,
+.week h2,
+.cal-head strong {
+  font-family: var(--serif);
+  /* Georgia엔 500이 없어 영어는 보통 굵기 그대로, 한글(Apple SD Gothic Neo)만 Medium으로 또렷해진다 */
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.widget-head h2 {
+  font-size: 21px;
+}
+
+.sched-head h2 {
+  font-size: 22px;
+}
+
+.trash-head strong {
+  font-size: 24px;
+}
+
+.dialog h1 {
+  font-size: 23px;
+}
+
+.compare-head h1 {
+  font-size: 19px;
+}
+
+.cal-head strong {
+  font-size: 17px;
+}
+
+/* 과목명: 카드에서는 조금 크게, 과목 화면 머리에서는 더 크게 */
+.card-title {
+  font-size: 18px;
+}
+
+.course-head .card-title {
+  font-size: 24px;
+}
+
+.group-title strong {
+  font-size: 17px;
+}
+
+.week h2 {
+  font-size: 16px;
+}
+
+/* 큰 숫자는 세리프 (레퍼런스의 $8,822처럼) */
+.stat-big,
+.up-date strong {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.stat-big {
+  font-size: 36px;
+}
+
+.stat-small .stat-big {
+  font-size: 30px;
+}
+
+.up-date strong {
+  font-size: 21px;
+}
+
+.ring-text {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 20px;
+}
+
+/* Dashboard 인사 아래: 마감은 지났지만 지각 인정 중인 게 있을 때만 뜨는 띠 */
+.late-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 12px 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+  text-align: left;
+}
+
+.late-strip:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.late-strip svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.late-strip > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

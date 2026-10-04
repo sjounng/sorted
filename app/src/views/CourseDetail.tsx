@@ -17,7 +17,7 @@ export function CourseDetail(props: {
     <div className="course" style={{ "--course": color } as React.CSSProperties}>
       <div className="course-bar">
         <button className="link back" onClick={onBack}>
-          ‹ 과목
+          ‹ My Classes
         </button>
       </div>
 
@@ -29,32 +29,38 @@ export function CourseDetail(props: {
             <div className="course-titles">
               <strong className="card-title">{data.course.name}</strong>
               <span className="card-sub" title={data.course.lmsTitle}>
-                {data.course.lmsTitle ?? "직접 추가한 과목"}
+                {data.course.lmsTitle ?? "Added manually"}
               </span>
               <span className="muted">
-                {data.course.term} · 파일 {data.course.fileCount}개
+                {data.course.term} · {data.course.fileCount} files
               </span>
             </div>
             <button className="course-folder" onClick={() => api.revealInFinder(folder)}>
-              폴더 열기
+              Open Folder
             </button>
           </header>
 
           {data.weeks.length === 0 && (
             <p className="empty muted">
-              아직 자료가 없어요. 이 과목 폴더에 PDF를 넣거나, LMS에서 받으면 여기에 모여요.
+              No files yet. Download from the LMS or drop PDFs into this class folder.
             </p>
           )}
           {data.weeks.map((w) => (
             <section key={w.week} className="week">
               <h2>
                 {w.week}
-                <span className="muted"> · {w.files.length}개</span>
+                <span className="muted">
+                  {" "}
+                  · {w.files.length} {w.files.length === 1 ? "file" : "files"}
+                </span>
               </h2>
               <ul className="files">
-                {w.files.map((f) => (
-                  <FileRow key={f.id} file={f} />
-                ))}
+                {/* 같은 주차 안에서는 받은 순서대로: 먼저 받은 게 위, 늦게 받은 게 아래로 쌓인다 */}
+                {[...w.files]
+                  .sort((a, b) => a.savedAtMs - b.savedAtMs)
+                  .map((f) => (
+                    <FileRow key={f.id} file={f} />
+                  ))}
               </ul>
             </section>
           ))}
@@ -67,7 +73,7 @@ export function CourseDetail(props: {
 function FileRow({ file }: { file: CourseFile }) {
   return (
     <li className="file-row">
-      <button className="file-main" onClick={() => api.openFile(file.path)} title="열기">
+      <button className="file-main" onClick={() => api.openFile(file.path)} title="Open">
         <PdfIcon />
         <span className="file-text">
           <strong>{file.fileName}</strong>
@@ -79,7 +85,7 @@ function FileRow({ file }: { file: CourseFile }) {
       </button>
       {file.unseenChange && (
         <button className="pill" onClick={() => openView("compare", file.documentId)}>
-          새 버전 · 변경 보기
+          New version · See changes
         </button>
       )}
     </li>

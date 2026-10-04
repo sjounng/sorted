@@ -12,12 +12,12 @@ export function courseNameProblem(
   exceptId?: string,
 ): string | undefined {
   const trimmed = name.trim();
-  if (!trimmed) return "과목명을 입력해 주세요.";
-  if (trimmed.length > MAX) return `과목명은 ${MAX}자까지 쓸 수 있어요.`;
-  if (/[/:]/.test(trimmed)) return "과목명에 / 나 : 는 쓸 수 없어요.";
-  if (trimmed.startsWith(".")) return "과목명은 . 으로 시작할 수 없어요.";
+  if (!trimmed) return "Enter a class name.";
+  if (trimmed.length > MAX) return `Class names can be up to ${MAX} characters.`;
+  if (/[/:]/.test(trimmed)) return "Class names can’t contain / or :.";
+  if (trimmed.startsWith(".")) return "Class names can’t start with a dot.";
   if (courses.some((c) => c.id !== exceptId && c.name === trimmed)) {
-    return "같은 이름의 과목이 이미 있어요.";
+    return "A class with this name already exists.";
   }
   return undefined;
 }

@@ -189,7 +189,7 @@ const trashed: { detail: CourseDetail; index: number; changes: Change[]; removed
 
 function findTrashed(courseId: string) {
   const found = trashed.find((t) => t.detail.course.id === courseId);
-  if (!found) throw new Error(`휴지통에 없는 과목이에요: ${courseId}`);
+  if (!found) throw new Error(`This class isn’t in the Trash: ${courseId}`);
   return found;
 }
 
@@ -212,7 +212,7 @@ let setup: SetupStatus = {
 
 function findCourse(courseId: string): CourseDetail {
   const found = library.find((d) => d.course.id === courseId);
-  if (!found) throw new Error(`과목을 찾을 수 없어요: ${courseId}`);
+  if (!found) throw new Error(`Class not found: ${courseId}`);
   return found;
 }
 
@@ -309,7 +309,7 @@ export const mockBackend: Backend = {
     const t = findTrashed(courseId);
     const problem = courseNameProblem(t.detail.course.name, courses());
     if (problem) {
-      throw new Error(`${problem} 먼저 지금 있는 과목의 이름을 바꿔 주세요.`);
+      throw new Error(`${problem} Rename the existing class first.`);
     }
     trashed.splice(trashed.indexOf(t), 1);
     library.splice(Math.min(t.index, library.length), 0, t.detail);
@@ -436,17 +436,17 @@ function mockComparison(documentId: string): Comparison {
     {
       kind: "modified",
       page: 3,
-      summary: "제출물: GitHub 저장소 항목에 이슈 히스토리 추가",
+      summary: "Edited on “제출물”: added 이슈 히스토리 to the GitHub item",
       regions: [bulletRegion(2)],
     },
-    { kind: "added", page: 6, summary: "새 장: 중간 점검", regions: [] },
+    { kind: "added", page: 6, summary: "New page: “중간 점검”", regions: [] },
     {
       kind: "modified",
       page: 9,
-      summary: "일정: 제출 마감 10월 24일 → 10월 21일",
+      summary: "Edited on “일정”: deadline 10월 24일 → 10월 21일",
       regions: [bulletRegion(0)],
     },
-    { kind: "removed", page: 9, oldPage: 9, summary: "이전 9장 '질문' 삭제", regions: [] },
+    { kind: "removed", page: 9, oldPage: 9, summary: "Old page 9 “질문” removed", regions: [] },
   ];
 
   return {

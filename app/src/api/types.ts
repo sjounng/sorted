@@ -87,6 +87,11 @@ export interface ScheduleItem {
   dueAtMs: number;
   /** 영상: 볼 수 있게 열리는 시각 */
   startAtMs?: number;
+  /**
+   * 마감 뒤에도 늦게 해서 인정받을 수 있는 마지막 시각. 없으면 지각 인정 없음.
+   * 영상은 주차학습 late_at, 과제·퀴즈는 제출이 닫히는 lock_at (플래너 응답엔 없어 과제 정보에서 따로 읽는다)
+   */
+  lateUntilMs?: number;
   /** 제출함 / 시청 완료 */
   done: boolean;
   /** LMS에서 이 항목을 여는 주소 */

@@ -1,28 +1,37 @@
 import { useMemo, useState } from "react";
 import { api, type Course, type ScheduleItem, type ScheduleKind } from "../api";
 import { courseColor } from "../courseColor";
-import { ago, clockKo, dateKo, dDay, daysLeft, startOfDay } from "../format";
+import { WEEKDAYS, ago, clock, dateLabel, dDay, daysLeft, monthLabel, startOfDay } from "../format";
+import { isLateOpen } from "../schedule";
 import { useLoad } from "../useLoad";
 
 const KIND_LABEL: Record<ScheduleKind, string> = {
-  assignment: "과제",
-  quiz: "퀴즈",
-  video: "영상",
-  event: "일정",
+  assignment: "Assignment",
+  quiz: "Quiz",
+  video: "Video",
+  event: "Event",
 };
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
 type KindFilter = "all" | ScheduleKind;
+
+/** 거르기 버튼은 여러 개를 고르는 것이라 복수형 (항목에 붙는 종류 표시는 단수형 그대로) */
+const FILTER_LABEL: Record<KindFilter, string> = {
+  all: "All",
+  assignment: "Assignments",
+  quiz: "Quizzes",
+  video: "Videos",
+  event: "Events",
+};
 
 /**
  * 일정 탭: LMS의 과제·퀴즈·영상 마감을 한곳에서 본다.
  * 왼쪽 달력에서 날을 고르면 그날 일정만, 아니면 다가오는 일정을 D-day 순으로.
  */
-export function ScheduleView({ courses }: { courses: Course[] }) {
+export function ScheduleView(props: { courses: Course[]; initialDay?: number }) {
+  const { courses, initialDay } = props;
   const { data, error } = useLoad(api.schedule);
-  const [month, setMonth] = useState(() => firstOfMonth(Date.now()));
-  const [day, setDay] = useState<number>();
+  const [month, setMonth] = useState(() => firstOfMonth(initialDay ?? Date.now()));
+  const [day, setDay] = useState<number | undefined>(initialDay);
   const [kind, setKind] = useState<KindFilter>("all");
   const [showDone, setShowDone] = useState(false);
 
@@ -42,18 +51,27 @@ export function ScheduleView({ courses }: { courses: Course[] }) {
   if (data.fetchedAtMs === null) {
     return (
       <p className="empty muted">
-        아직 LMS 일정을 불러오지 않았어요. 크롬에서 LMS를 한 번 열면 여기에 모여요.
+        No LMS schedule yet. Open the LMS in Chrome once and it will show up here.
       </p>
     );
   }
 
   const now = Date.now();
   const byKind = data.items.filter((i) => kind === "all" || i.kind === kind);
+  const byDue = (a: ScheduleItem, b: ScheduleItem) => a.dueAtMs - b.dueAtMs;
+  // 날을 고르지 않았을 때: 맨 위에 지각 인정 중(남은 기한 순), 그 아래 다가오는 일정.
+  // 놓친 것(지각 인정 없음·끝남)은 할 수 있는 게 없으니 목록에 두지 않는다 (달력에서 그날을 고르면 보인다)
+  const lateOpen =
+    day === undefined
+      ? byKind
+          .filter((i) => isLateOpen(i, now))
+          .sort((a, b) => (a.lateUntilMs ?? 0) - (b.lateUntilMs ?? 0))
+      : [];
   const shown = (
     day !== undefined
       ? byKind.filter((i) => startOfDay(i.dueAtMs) === day)
       : byKind.filter((i) => i.dueAtMs >= now && (showDone || !i.done))
-  ).sort((a, b) => a.dueAtMs - b.dueAtMs);
+  ).sort(byDue);
 
   return (
     <div className="schedule">
@@ -71,16 +89,16 @@ export function ScheduleView({ courses }: { courses: Course[] }) {
           <h2>
             {day !== undefined ? (
               <>
-                {dateKo(day)}
+                {dateLabel(day)}
                 <button className="link" onClick={() => setDay(undefined)}>
-                  ✕ 다가오는 일정 보기
+                  ✕ Back to upcoming
                 </button>
               </>
             ) : (
-              "다가오는 일정"
+              "Upcoming"
             )}
           </h2>
-          <div className="chips" role="group" aria-label="종류">
+          <div className="chips" role="group" aria-label="Type">
             {(["all", "assignment", "quiz", "video", "event"] as KindFilter[]).map((k) => (
               <button
                 key={k}
@@ -88,7 +106,7 @@ export function ScheduleView({ courses }: { courses: Course[] }) {
                 aria-pressed={kind === k}
                 onClick={() => setKind(k)}
               >
-                {k === "all" ? "전체" : KIND_LABEL[k]}
+                {FILTER_LABEL[k]}
               </button>
             ))}
             {day === undefined && (
@@ -98,18 +116,22 @@ export function ScheduleView({ courses }: { courses: Course[] }) {
                   checked={showDone}
                   onChange={(e) => setShowDone(e.target.checked)}
                 />
-                완료한 것도 보기
+                Show completed
               </label>
             )}
           </div>
         </header>
 
-        {shown.length === 0 ? (
+        {shown.length === 0 && lateOpen.length === 0 ? (
           <p className="empty muted">
-            {day !== undefined ? "이날은 일정이 없어요." : "다가오는 일정이 없어요."}
+            {day !== undefined ? "Nothing on this day." : "Nothing coming up."}
           </p>
         ) : (
           <ul className="sched-rows">
+            {lateOpen.length > 0 && <li className="sched-day late">Late · still open</li>}
+            {lateOpen.map((item) => (
+              <ScheduleRow key={item.id} item={item} now={now} {...look(item)} />
+            ))}
             {shown.map((item, i) => {
               const header =
                 day === undefined &&
@@ -127,7 +149,7 @@ export function ScheduleView({ courses }: { courses: Course[] }) {
           </ul>
         )}
 
-        <p className="sched-foot muted">LMS에서 {ago(data.fetchedAtMs)}에 불러왔어요.</p>
+        <p className="sched-foot muted">Synced from the LMS {ago(data.fetchedAtMs)}.</p>
       </section>
     </div>
   );
@@ -142,25 +164,49 @@ function ScheduleRow(props: {
 }) {
   const { item, name, color, now, dayHeader } = props;
   const left = daysLeft(item.dueAtMs, now);
-  const urgency = item.done ? "done" : left <= 1 ? "urgent" : left <= 3 ? "soon" : "later";
+  const late = isLateOpen(item, now);
+  const pastDue = !item.done && item.kind !== "event" && item.dueAtMs < now;
+  const urgency = item.done
+    ? "done"
+    : late
+      ? "late"
+      : pastDue
+        ? "missed"
+        : left <= 1
+          ? "urgent"
+          : left <= 3
+            ? "soon"
+            : "later";
   const notOpenYet = item.startAtMs !== undefined && item.startAtMs > now;
 
   const when =
     item.kind === "event"
-      ? `시작 ${clockKo(item.dueAtMs)}`
-      : notOpenYet
-        ? `${dateKo(item.startAtMs!)} ${clockKo(item.startAtMs!)}부터 시청 · 마감 ${clockKo(item.dueAtMs)}`
-        : `마감 ${clockKo(item.dueAtMs)}`;
+      ? `Starts ${clock(item.dueAtMs)}`
+      : late
+        ? `Late until ${dateLabel(item.lateUntilMs!)} ${clock(item.lateUntilMs!)}`
+        : pastDue
+          ? `Was due ${dateLabel(item.dueAtMs)} ${clock(item.dueAtMs)}`
+          : notOpenYet
+            ? `Opens ${dateLabel(item.startAtMs!)} ${clock(item.startAtMs!)} · due ${clock(item.dueAtMs)}`
+            : `Due ${clock(item.dueAtMs)}`;
 
   return (
     <>
       {dayHeader && <li className="sched-day">{dayHeader}</li>}
       <li className={`sched-row ${urgency}`} style={{ "--course": color } as React.CSSProperties}>
-        <span className="dday">{item.done ? "완료" : dDay(item.dueAtMs, now)}</span>
+        <span className="dday">
+          {item.done
+            ? "Done"
+            : late
+              ? `${-left}d late`
+              : pastDue
+                ? "Missed"
+                : dDay(item.dueAtMs, now)}
+        </span>
         <button
           className="sched-main"
           onClick={() => api.openInBrowser(item.url)}
-          title="LMS에서 열기"
+          title="Open in LMS"
         >
           <span className="sched-title">
             <span className={`kind-tag ${item.kind}`}>{KIND_LABEL[item.kind]}</span>
@@ -176,7 +222,7 @@ function ScheduleRow(props: {
   );
 }
 
-function MonthCalendar(props: {
+export function MonthCalendar(props: {
   month: number;
   items: ScheduleItem[];
   selected?: number;
@@ -204,19 +250,17 @@ function MonthCalendar(props: {
   const shift = (n: number) => onMonth(new Date(m.getFullYear(), m.getMonth() + n, 1).getTime());
 
   return (
-    <section className="cal" aria-label="달력">
+    <section className="cal" aria-label="Calendar">
       <header className="cal-head">
-        <button className="cal-nav" aria-label="이전 달" onClick={() => shift(-1)}>
+        <button className="cal-nav" aria-label="Previous month" onClick={() => shift(-1)}>
           ‹
         </button>
-        <strong>
-          {m.getFullYear()}년 {m.getMonth() + 1}월
-        </strong>
-        <button className="cal-nav" aria-label="다음 달" onClick={() => shift(1)}>
+        <strong>{monthLabel(month)}</strong>
+        <button className="cal-nav" aria-label="Next month" onClick={() => shift(1)}>
           ›
         </button>
         <button className="link cal-today" onClick={() => onMonth(firstOfMonth(Date.now()))}>
-          오늘
+          Today
         </button>
       </header>
       <div className="cal-grid">
@@ -241,16 +285,16 @@ function MonthCalendar(props: {
             <button
               key={key}
               className={classes}
-              aria-label={`${dateKo(key)}${dayItems.length ? `, 일정 ${dayItems.length}개` : ""}`}
+              aria-label={`${dateLabel(key)}${dayItems.length ? `, ${dayItems.length} ${dayItems.length === 1 ? "item" : "items"}` : ""}`}
               aria-pressed={key === selected}
               onClick={() => onSelect(key)}
             >
               <span className="num">{d.getDate()}</span>
-              <span className="dots">
+              <span className="cal-dots">
                 {(open.length ? open : dayItems).slice(0, 3).map((x) => (
                   <span
                     key={x.id}
-                    className={x.done ? "dot done" : "dot"}
+                    className={x.done ? "cal-dot done" : "cal-dot"}
                     style={{ background: colorOf(x) }}
                   />
                 ))}
@@ -263,7 +307,7 @@ function MonthCalendar(props: {
   );
 }
 
-function firstOfMonth(ms: number): number {
+export function firstOfMonth(ms: number): number {
   const d = new Date(ms);
   return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
 }
@@ -271,7 +315,7 @@ function firstOfMonth(ms: number): number {
 /** 목록의 날짜 구분: "오늘", "내일", "10월 9일 (금)" */
 function dayLabel(ms: number, now: number): string {
   const n = daysLeft(ms, now);
-  if (n === 0) return `오늘 · ${dateKo(ms)}`;
-  if (n === 1) return `내일 · ${dateKo(ms)}`;
-  return dateKo(ms);
+  if (n === 0) return `Today · ${dateLabel(ms)}`;
+  if (n === 1) return `Tomorrow · ${dateLabel(ms)}`;
+  return dateLabel(ms);
 }

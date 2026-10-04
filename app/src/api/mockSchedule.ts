@@ -20,7 +20,11 @@ function item(
   courseName: string,
   title: string,
   due: [number, number, number],
-  options: { start?: [number, number, number]; done?: boolean } = {},
+  options: {
+    start?: [number, number, number];
+    late?: [number, number, number];
+    done?: boolean;
+  } = {},
 ): ScheduleItem {
   seq += 1;
   const path =
@@ -39,6 +43,7 @@ function item(
     title,
     dueAtMs: at(...due),
     startAtMs: options.start ? at(...options.start) : undefined,
+    lateUntilMs: options.late ? at(...options.late) : undefined,
     done: options.done ?? false,
     url: `${LMS}/${path}`,
   };
@@ -95,6 +100,25 @@ export function mockSchedule(): Schedule {
         done: true,
       },
     ),
+    // 마감이 지났지만 지각 인정 중: Dashboard 띠와 Schedule "Late · still open"
+    item("video", "11184", "확률및통계", "4주차_이산확률분포", [-2, 23, 59], {
+      start: [-9, 16, 0],
+      late: [2, 23, 59],
+    }),
+    item(
+      "assignment",
+      "11174",
+      "테크노경영학(스타트업종합설계)",
+      "[완성하기] 4주차: 핵심정리노트",
+      [-1, 23, 59],
+      {
+        late: [3, 23, 59],
+      },
+    ),
+    // 마감이 지났고 지각 인정도 없음: 목록엔 안 보이고 달력에서 그날을 고르면 보인다
+    item("assignment", "11171", "소프트웨어공학", "Phase 1 유스케이스 다이어그램", [-1, 23, 59]),
+    // 놓친 지 7일이 넘은 건 목록에서 빠진다 (달력에서만 보임)
+    item("quiz", "99001", "글쓰기와소통", "[정리하기] 2주차 Quiz", [-10, 13, 59]),
     // Sorted에 없는 과목: LMS 이름 그대로, 회색으로 보인다
     item("quiz", "99001", "글쓰기와소통", "[정리하기] 5주차 Quiz", [3, 13, 59]),
     item("quiz", "99001", "글쓰기와소통", "2026년 2학기 중간고사", [14, 13, 15]),

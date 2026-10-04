@@ -8,13 +8,13 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 export type View = "main" | "log" | "setup" | "assign" | "duplicate" | "compare" | "cleanup";
 
 const SIZES: Record<View, { title: string; width: number; height: number }> = {
-  main: { title: "Sorted", width: 960, height: 720 },
-  log: { title: "Sorted 메시지 기록", width: 480, height: 600 },
-  setup: { title: "Sorted 시작하기", width: 460, height: 520 },
-  assign: { title: "과목 지정", width: 420, height: 480 },
-  duplicate: { title: "이미 받은 파일", width: 420, height: 260 },
-  compare: { title: "변경 비교", width: 1040, height: 700 },
-  cleanup: { title: "이전 버전 정리", width: 420, height: 300 },
+  main: { title: "Sorted", width: 1200, height: 780 },
+  log: { title: "Sorted Message Log", width: 480, height: 600 },
+  setup: { title: "Welcome to Sorted", width: 460, height: 520 },
+  assign: { title: "Choose a Class", width: 420, height: 480 },
+  duplicate: { title: "Already Downloaded", width: 420, height: 260 },
+  compare: { title: "Compare Versions", width: 1040, height: 700 },
+  cleanup: { title: "Clean Up Old Version", width: 420, height: 300 },
 };
 
 export function currentView(): { view: View; id: string | null } {

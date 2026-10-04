@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Sorted",
-        "width": 960,
-        "height": 720,
+        "width": 1200,
+        "height": 780,
         "minWidth": 380,
         "minHeight": 480,
         "resizable": true,

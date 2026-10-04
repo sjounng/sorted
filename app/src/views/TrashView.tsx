@@ -15,21 +15,24 @@ export function TrashView() {
     <div className="course trash">
       <header className="trash-head">
         <div>
-          <strong>휴지통</strong>
+          <strong>Trash</strong>
           <p className="muted">
-            지운 과목이 여기 모여요. 되살리면 자료와 최근 변경까지 원래대로 돌아와요.
+            Deleted classes stay here. Restoring brings back their files and recent changes.
           </p>
         </div>
         {data && data.length > 0 && !confirmEmpty && (
-          <button onClick={() => setConfirmEmpty(true)}>비우기</button>
+          <button onClick={() => setConfirmEmpty(true)}>Empty Trash</button>
         )}
       </header>
 
       {confirmEmpty && data && (
         <div className="callout trash-confirm">
-          <p>과목 {data.length}개를 완전히 지울까요? 과목 폴더는 macOS 휴지통으로 가요.</p>
+          <p>
+            Permanently delete {data.length} {data.length === 1 ? "class" : "classes"}? Their
+            folders go to the macOS Trash.
+          </p>
           <div className="actions">
-            <button onClick={() => setConfirmEmpty(false)}>취소</button>
+            <button onClick={() => setConfirmEmpty(false)}>Cancel</button>
             <button
               className="danger"
               onClick={async () => {
@@ -38,14 +41,14 @@ export function TrashView() {
                 reload();
               }}
             >
-              모두 지우기
+              Delete All
             </button>
           </div>
         </div>
       )}
 
       {error && <p className="empty warn">{error}</p>}
-      {data?.length === 0 && <p className="empty muted">휴지통이 비어 있어요.</p>}
+      {data?.length === 0 && <p className="empty muted">Trash is empty.</p>}
       {data && data.length > 0 && (
         <ul className="files trash-list">
           {data.map((t) => (
@@ -82,7 +85,7 @@ function TrashRow({ item, onDone }: { item: TrashedCourse; onDone: () => void })
         <span className="trash-text">
           <strong>{course.name}</strong>
           <span className="muted">
-            자료 {course.fileCount}개 · {ago(item.removedAtMs)} 지움
+            {course.fileCount} files · deleted {ago(item.removedAtMs)}
           </span>
         </span>
         {!confirm && (
@@ -92,10 +95,10 @@ function TrashRow({ item, onDone }: { item: TrashedCourse; onDone: () => void })
               disabled={busy}
               onClick={() => run(() => api.restoreCourse(course.id))}
             >
-              되살리기
+              Restore
             </button>
             <button disabled={busy} onClick={() => setConfirm(true)}>
-              완전히 삭제
+              Delete Permanently
             </button>
           </span>
         )}
@@ -103,15 +106,15 @@ function TrashRow({ item, onDone }: { item: TrashedCourse; onDone: () => void })
 
       {confirm && (
         <div className="trash-confirm">
-          <p className="muted">Sorted에서 완전히 지우고, 과목 폴더는 macOS 휴지통으로 보내요.</p>
+          <p className="muted">Removes it from Sorted and moves its folder to the macOS Trash.</p>
           <div className="actions">
-            <button onClick={() => setConfirm(false)}>취소</button>
+            <button onClick={() => setConfirm(false)}>Cancel</button>
             <button
               className="danger"
               disabled={busy}
               onClick={() => run(() => api.purgeCourse(course.id))}
             >
-              완전히 삭제
+              Delete Permanently
             </button>
           </div>
         </div>

@@ -15,7 +15,7 @@ export function Cleanup({ id }: { id: string }) {
 
   return (
     <main className="dialog">
-      <h1>이전 버전을 지울까요?</h1>
+      <h1>Delete the old version?</h1>
       <p className="file">
         <strong>{data.fileName}</strong>
         <span className="muted">
@@ -26,22 +26,22 @@ export function Cleanup({ id }: { id: string }) {
 
       {data.hasAnnotations ? (
         <p className="callout warn">
-          이 파일에 필기가 있는 것 같아요. 받은 뒤로 내용이 바뀌었어요. 지우기 전에 필기를 옮겨
-          두세요.
+          This file looks annotated: it changed after you downloaded it. Move your notes before
+          deleting.
         </p>
       ) : (
-        <p className="muted">파일은 휴지통으로 가고, 비교용 데이터는 바로 지워져요.</p>
+        <p className="muted">The file goes to the Trash and its comparison data is removed.</p>
       )}
 
       <div className="actions">
-        <button onClick={() => api.revealInFinder(data.oldPath)}>Finder에서 보기</button>
+        <button onClick={() => api.revealInFinder(data.oldPath)}>Show in Finder</button>
         <span className="spacer" />
-        <button onClick={() => choose("keep")}>보관</button>
+        <button onClick={() => choose("keep")}>Keep</button>
         <button
           className={data.hasAnnotations ? "danger" : "primary"}
           onClick={() => choose("delete")}
         >
-          휴지통으로
+          Move to Trash
         </button>
       </div>
     </main>
