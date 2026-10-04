@@ -16,9 +16,21 @@ use sorted_core::library::{Document, Library, Version};
 
 use crate::pipeline::{self, Download, Outcome, Settings};
 use crate::screen::{
-    self, AssignChoice, AssignRequest, Change, ChangeKind, CourseDetail, Overview, Permission,
-    Unprocessed, UnprocessedReason,
+    self, AssignChoice, AssignRequest, Change, ChangeKind, CourseDetail, DuplicateChoice,
+    DuplicateNotice, Overview, Permission, Unprocessed, UnprocessedReason,
 };
+use sorted_core::fingerprint;
+
+/// 중복으로 판정된 다운로드 하나 (FR-7). 사용자가 고를 때까지 기억한다 (앱이 켜져 있는 동안).
+#[derive(Debug, Clone)]
+struct Duplicate {
+    id: u64,
+    /// 방금 받은 파일 (다운로드 폴더)
+    downloaded: PathBuf,
+    /// 같은 내용을 가진 기존 버전. 경로가 아니라 문서·버전으로 기억해 옮겨도 찾는다 (FR-14)
+    doc_id: String,
+    version: u32,
+}
 
 /// history.json에 남기는 최근 변경 수
 const KEEP_CHANGES: usize = 200;
@@ -63,6 +75,7 @@ pub struct Organizer {
     failures: Mutex<Vec<Unprocessed>>,
     /// 마지막으로 정리 폴더를 훑은 때. 앱을 켠 뒤 처음이면 None
     last_scan: Mutex<Option<Instant>>,
+    duplicates: Mutex<Vec<Duplicate>>,
 }
 
 impl Organizer {
@@ -95,6 +108,7 @@ impl Organizer {
             history: Mutex::new(history),
             failures: Mutex::new(Vec::new()),
             last_scan: Mutex::new(None),
+            duplicates: Mutex::new(Vec::new()),
         };
         // 이 기능(FR-14) 전에 정리된 파일에도 속성을 붙인다
         organizer.tag_untagged();
@@ -279,7 +293,13 @@ impl Organizer {
                 };
                 self.add_change(kind, path);
             }
-            Outcome::Duplicate { existing, .. } => self.add_change(ChangeKind::Duplicate, existing),
+            Outcome::Duplicate {
+                existing,
+                downloaded,
+            } => {
+                self.remember_duplicate(id, existing, downloaded);
+                self.add_change(ChangeKind::Duplicate, existing);
+            }
             Outcome::NotPdf { .. } => failures.push(failure(UnprocessedReason::NotPdf)),
             Outcome::LoginExpired { .. } => failures.push(failure(UnprocessedReason::LoginExpired)),
             Outcome::Error { .. } => failures.push(failure(UnprocessedReason::MoveFailed)),
@@ -325,6 +345,106 @@ impl Organizer {
         if let Err(e) = save_json(&self.history_file, &*history) {
             eprintln!("history.json 저장 실패: {e}");
         }
+    }
+
+    fn remember_duplicate(&self, id: u64, existing: &Path, downloaded: &Path) {
+        let found = {
+            let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+            lib.version_at(existing)
+                .map(|(doc, version)| (doc.key.id(), version.number))
+        };
+        let Some((doc_id, version)) = found else {
+            return;
+        };
+        let mut duplicates = self.duplicates.lock().unwrap_or_else(|e| e.into_inner());
+        duplicates.retain(|d| d.id != id);
+        duplicates.push(Duplicate {
+            id,
+            downloaded: downloaded.to_owned(),
+            doc_id,
+            version,
+        });
+    }
+
+    fn duplicate(&self, id: u64) -> Option<Duplicate> {
+        self.duplicates
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .find(|d| d.id == id)
+            .cloned()
+    }
+
+    /// 중복 안내 창에 보여 줄 것 (FR-7). 기억하는 중복이 아니면 None.
+    pub fn duplicate_notice(&self, id: u64) -> Option<DuplicateNotice> {
+        let dup = self.duplicate(id)?;
+        self.locate();
+        let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let (doc, version) = lib.version_of(&dup.doc_id, dup.version)?;
+        Some(DuplicateNotice {
+            id: id.to_string(),
+            file_name: dup
+                .downloaded
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            course_name: doc.course.clone(),
+            week: doc.week.clone(),
+            existing_path: version.path.clone(),
+            existing_saved_at_ms: version.added_at_ms,
+        })
+    }
+
+    /// 사용자가 중복 안내 창에서 골랐다 (FR-7).
+    /// `OpenExisting`: 기존 파일 경로를 돌려주고(부른 쪽이 연다), 받은 복사본은 `trash`로 휴지통에 보낸다.
+    /// 지우기 전에 받은 파일이 정리 폴더 밖에 있고 내용이 기존 버전과 같은지 다시 확인한다.
+    /// `KeepBoth`: 아무것도 지우지 않는다. 어느 쪽이든 기억에서 뺀다.
+    pub fn resolve_duplicate(
+        &self,
+        id: u64,
+        choice: DuplicateChoice,
+        trash: &dyn Fn(&Path) -> io::Result<()>,
+    ) -> Result<Option<PathBuf>, String> {
+        let dup = self
+            .duplicate(id)
+            .ok_or("이미 처리했거나 모르는 중복이에요.")?;
+        let forget = || {
+            self.duplicates
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .retain(|d| d.id != id);
+        };
+        if choice == DuplicateChoice::KeepBoth {
+            forget();
+            return Ok(None);
+        }
+
+        self.locate();
+        let (existing, sha256) = {
+            let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+            let (_, version) = lib
+                .version_of(&dup.doc_id, dup.version)
+                .ok_or("기존 파일 기록을 찾을 수 없어요.")?;
+            if version.missing {
+                return Err("기존 파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.".into());
+            }
+            (version.path.clone(), version.sha256.clone())
+        };
+        // 받은 복사본을 지워도 되는지: 정리 폴더 밖이고, 지금도 기존 파일과 내용이 같아야 한다
+        if dup.downloaded.starts_with(self.root()) {
+            return Err("정리 폴더 안의 파일은 지우지 않아요.".into());
+        }
+        match fingerprint::of_file(&dup.downloaded) {
+            Ok(fp) if fp.sha256 == sha256 => {
+                trash(&dup.downloaded).map_err(|e| format!("휴지통으로 보내지 못했어요: {e}"))?;
+            }
+            Ok(_) => return Err("받은 파일 내용이 바뀌어 지우지 않았어요.".into()),
+            // 이미 사용자가 치웠으면 지울 것이 없다
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("받은 파일을 읽지 못했어요: {e}")),
+        }
+        forget();
+        Ok(Some(existing))
     }
 
     /// 메인 창 전체 (FR-13)
@@ -998,5 +1118,81 @@ mod tests {
         assert!(!doc.versions[0].missing);
         assert_eq!(filetag::read(&placed).unwrap().v, 1);
         assert_eq!(org.overview().changes[0].kind, ChangeKind::Organized);
+    }
+
+    /// 운영체제/1주차/a.pdf를 정리해 두고, 같은 내용을 다시 받아 중복을 만든다
+    fn duplicated(name: &str) -> (PathBuf, Organizer, PathBuf, PathBuf) {
+        let (dir, org, existing) = organized(name);
+        let again = dir.join("Downloads/a (1).pdf");
+        fs::write(&again, "%PDF-1.7 a").unwrap();
+        let lms = json!({ "courseName": "운영체제", "week": { "name": "1주차" } });
+        let out = org.handle(
+            2,
+            &json!({ "filename": again, "contentId": "abc", "lms": lms }),
+            None,
+        );
+        assert!(matches!(out, Outcome::Duplicate { .. }), "{out:?}");
+        (dir, org, existing, again)
+    }
+
+    /// 테스트용 휴지통: 지우지 않고 dir/Trash로 옮긴다
+    fn fake_trash(dir: &Path) -> impl Fn(&Path) -> io::Result<()> + '_ {
+        move |p: &Path| {
+            fs::create_dir_all(dir.join("Trash"))?;
+            fs::rename(p, dir.join("Trash").join(p.file_name().unwrap()))
+        }
+    }
+
+    #[test]
+    fn duplicate_notice_shows_the_existing_file() {
+        let (_, org, existing, _) = duplicated("dup-notice");
+        let n = org.duplicate_notice(2).unwrap();
+        assert_eq!(n.file_name, "a (1).pdf");
+        assert_eq!(
+            (n.course_name.as_str(), n.week.as_str()),
+            ("운영체제", "1주차")
+        );
+        assert_eq!(n.existing_path, existing);
+        assert!(org.duplicate_notice(99).is_none());
+    }
+
+    #[test]
+    fn open_existing_trashes_only_the_downloaded_copy() {
+        let (dir, org, existing, again) = duplicated("dup-open");
+        let opened = org
+            .resolve_duplicate(2, DuplicateChoice::OpenExisting, &fake_trash(&dir))
+            .unwrap();
+        assert_eq!(opened, Some(existing.clone()));
+        assert!(!again.exists() && dir.join("Trash/a (1).pdf").exists());
+        assert!(existing.exists(), "기존 파일은 그대로");
+        assert!(org.duplicate_notice(2).is_none(), "한 번 처리하면 잊는다");
+    }
+
+    #[test]
+    fn keep_both_deletes_nothing() {
+        let (dir, org, existing, again) = duplicated("dup-keep");
+        let opened = org
+            .resolve_duplicate(2, DuplicateChoice::KeepBoth, &fake_trash(&dir))
+            .unwrap();
+        assert_eq!(opened, None);
+        assert!(again.exists() && existing.exists());
+    }
+
+    #[test]
+    fn a_changed_download_is_never_trashed() {
+        let (dir, org, _, again) = duplicated("dup-changed");
+        fs::write(&again, "%PDF-1.7 바뀐 내용").unwrap();
+        assert!(org
+            .resolve_duplicate(2, DuplicateChoice::OpenExisting, &fake_trash(&dir))
+            .is_err());
+        assert!(again.exists());
+    }
+
+    #[test]
+    fn existing_file_moved_by_the_user_is_still_found() {
+        let (dir, org, existing, _) = duplicated("dup-moved");
+        let moved = dir.join("Sorted/운영체제/1주차/내 필기.pdf");
+        fs::rename(&existing, &moved).unwrap();
+        assert_eq!(org.duplicate_notice(2).unwrap().existing_path, moved);
     }
 }

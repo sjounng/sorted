@@ -28,7 +28,10 @@ use inbox::{Inbox, Received, Source};
 use organizer::Organizer;
 use pipeline::Outcome;
 use schedule::{Schedule, ScheduleStore};
-use screen::{AssignChoice, AssignRequest, CourseDetail, Overview, Permission, SetupStatus};
+use screen::{
+    AssignChoice, AssignRequest, CourseDetail, DuplicateChoice, DuplicateNotice, Overview,
+    Permission, SetupStatus,
+};
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
 const MAIN: &str = "main";
@@ -77,6 +80,56 @@ fn open_in_browser(url: String) -> Result<(), String> {
         return Err("LMS 주소만 열 수 있어요.".into());
     }
     open([url])
+}
+
+// 중복 (FR-7)
+
+#[tauri::command]
+fn duplicate_notice(
+    organizer: State<'_, Organizer>,
+    id: String,
+) -> Result<DuplicateNotice, String> {
+    organizer
+        .duplicate_notice(parse_id(&id)?)
+        .ok_or_else(|| "이미 처리했거나 모르는 중복이에요.".into())
+}
+
+/// [기존 파일 열기]: 기존 파일을 열고 받은 복사본은 휴지통으로. [둘 다 보관]: 아무것도 지우지 않는다.
+#[tauri::command]
+fn resolve_duplicate(app: AppHandle, id: String, choice: DuplicateChoice) -> Result<(), String> {
+    let organizer = app.state::<Organizer>();
+    if let Some(existing) = organizer.resolve_duplicate(parse_id(&id)?, choice, &move_to_trash)? {
+        open([existing.as_os_str()])?;
+    }
+    let _ = app.emit("overview-changed", ());
+    Ok(())
+}
+
+/// macOS 휴지통으로 보낸다. Finder 자동화 대신 파일 API를 써서 자동화 권한 창이 뜨지 않는다.
+fn move_to_trash(path: &Path) -> std::io::Result<()> {
+    use trash::macos::{DeleteMethod, TrashContextExtMacos};
+    let mut context = trash::TrashContext::default();
+    context.set_delete_method(DeleteMethod::NsFileManager);
+    context.delete(path).map_err(std::io::Error::other)
+}
+
+/// 중복 안내 창을 띄운다 (FR-7: 받은 직후 묻는다). 같은 중복의 창이 이미 있으면 앞으로 가져온다.
+fn show_duplicate_window(app: &AppHandle, id: u64) {
+    let label = format!("duplicate-{id}");
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.set_focus();
+        return;
+    }
+    let url = tauri::WebviewUrl::App(format!("index.html?view=duplicate&id={id}").into());
+    let built = tauri::WebviewWindowBuilder::new(app, &label, url)
+        .title("이미 받은 파일")
+        .inner_size(420.0, 260.0)
+        .center()
+        .focused(true)
+        .build();
+    if let Err(e) = built {
+        eprintln!("중복 안내 창을 열지 못함: {e}");
+    }
 }
 
 // 파일 열기
@@ -222,7 +275,9 @@ pub fn run() {
             open_file,
             reveal_in_finder,
             schedule,
-            open_in_browser
+            open_in_browser,
+            duplicate_notice,
+            resolve_duplicate
         ])
         .menu(|app| {
             // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
@@ -353,6 +408,9 @@ fn report(app: &AppHandle, id: u64, outcome: &Outcome) {
         json!({ "id": id, "outcome": outcome }),
     );
     let _ = app.emit("overview-changed", ());
+    if matches!(outcome, Outcome::Duplicate { .. }) {
+        show_duplicate_window(app, id);
+    }
 }
 
 #[cfg(test)]

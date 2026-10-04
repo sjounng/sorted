@@ -154,6 +154,15 @@ impl Library {
             .find_map(|d| d.versions.iter().find(|v| v.path == path).map(|v| (d, v)))
     }
 
+    /// 문서 ID(`DocKey::id`)와 버전 번호로 찾는다.
+    pub fn version_of(&self, doc_id: &str, number: u32) -> Option<(&Document, &Version)> {
+        let doc = self.documents.iter().find(|d| d.key.id() == doc_id)?;
+        doc.versions
+            .iter()
+            .find(|v| v.number == number)
+            .map(|v| (doc, v))
+    }
+
     /// 화면이 쓰는 과목 ID(`Course::id`)로 찾는다.
     pub fn course_by_id(&self, id: &str) -> Option<&Course> {
         self.courses.iter().find(|c| c.id() == id)
