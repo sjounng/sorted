@@ -31,8 +31,9 @@
   line-height: 1.5;
 }
 
+/* 다크 모드: 시스템을 따르거나(사용자가 고르지 않았을 때) 앱에서 직접 고른다 (theme.ts) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --frame: linear-gradient(160deg, #3a2c37 0%, #241b22 100%);
     --canvas: #2b2329;
     --sidebar: #241d22;
@@ -55,6 +56,40 @@
     --pass: #8cc7a6;
     --fail: #f07a90;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --frame: linear-gradient(160deg, #3a2c37 0%, #241b22 100%);
+  --canvas: #2b2329;
+  --sidebar: #241d22;
+  --bg: #352c33;
+  --panel: #3d3139;
+  --fg: #f2e9ef;
+  --muted: #b8a7b3;
+  --line: #4d3f49;
+  --hover: #40343d;
+  --accent: #d2a6c8;
+  --brand: #9b7393;
+  --brand-deep: #b48aac;
+  --accent-soft: rgba(210, 166, 200, 0.16);
+  --warn: #e6995f;
+  --warn-soft: rgba(230, 153, 95, 0.14);
+  --danger: #f07a90;
+  --added: #8cc7a6;
+  --added-soft: rgba(140, 199, 166, 0.16);
+  --ok: #8cc7a6;
+  --pass: #8cc7a6;
+  --fail: #f07a90;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* 과목 색으로 쓰는 글자: 연한 파스텔도 읽히게 글자색 쪽으로 섞는다 (다크 모드에선 밝게) */
+* {
+  --course-ink: color-mix(in srgb, var(--course, var(--fg)) 58%, var(--fg));
 }
 
 body {
@@ -801,11 +836,15 @@ button.link {
   text-align: left;
 }
 
+/* LMS의 평평한 색 블록과 다르게: 부드러운 그라데이션 위에 옅은 원 두 개 */
 .card-cover {
   display: block;
   width: 100%;
   height: clamp(56px, 12vw, 140px);
-  background: var(--course);
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
+    radial-gradient(circle at 12% 120%, rgba(255, 255, 255, 0.26) 0 34%, transparent 35%),
+    linear-gradient(135deg, var(--course), color-mix(in srgb, var(--course) 55%, #fff));
 }
 
 .card-body {
@@ -830,7 +869,7 @@ button.link {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow-wrap: anywhere;
-  color: var(--course);
+  color: var(--course-ink);
   font-size: 16px;
   font-weight: 700;
 }
@@ -871,7 +910,7 @@ button.link {
 }
 
 .icon-btn:hover {
-  color: var(--course);
+  color: var(--course-ink);
 }
 
 .icon-btn .dot {
@@ -971,7 +1010,7 @@ button.link {
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
   border-left: 4px solid var(--course);
-  color: var(--course);
+  color: var(--course-ink);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1017,7 +1056,7 @@ button.link {
 
 .file-main .pdf {
   flex: none;
-  color: var(--course);
+  color: var(--course-ink);
 }
 
 .file-text {
@@ -1082,7 +1121,7 @@ button.link {
 
 .group-title strong {
   overflow: hidden;
-  color: var(--course);
+  color: var(--course-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1736,17 +1775,22 @@ button.link {
   min-width: 0;
 }
 
-/* 인사: 우아한 이탤릭 세리프 (macOS 기본 글꼴. 한글 이름은 명조로 이어진다) */
+/* 인사: "Hello,"는 로고(Sorted)와 같은 글씨, 사용자가 정한 이름만 손글씨 */
 .dash-head h1 {
   color: var(--fg);
-  font-family: "Hoefler Text", "Baskerville", "AppleMyungjo", Georgia, serif;
-  font-size: clamp(34px, 4.6vw, 50px);
-  font-style: italic;
-  font-weight: 400;
-  /* 한글 글꼴엔 이탤릭이 없어 브라우저가 억지로 기울이면 뭉개진다. 한글은 바로 세운 명조로 둔다 */
-  font-synthesis: none;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1.15;
+}
+
+.greet-name {
+  /* 영어 이름은 macOS 기본 Snell Roundhand, 한글 이름은 앱에 넣은 나눔손글씨 펜 */
+  font-family: "Snell Roundhand", "Nanum Pen Script", cursive;
+  font-size: 1.25em;
+  font-weight: 400;
+  color: var(--brand-deep);
+  font-synthesis: none;
 }
 
 .dash-head p {
@@ -2124,7 +2168,7 @@ button.link {
   padding: 2px 5px;
   border: 1.5px solid var(--course);
   border-radius: 6px;
-  color: var(--course);
+  color: var(--course-ink);
   font-size: 9px;
   font-weight: 800;
 }
@@ -2159,7 +2203,7 @@ button.link {
   }
 
   .dash-head h1 {
-    font-size: 42px;
+    font-size: 40px;
   }
 
   .dash-main {

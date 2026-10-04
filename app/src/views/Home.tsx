@@ -6,12 +6,15 @@ import {
   ClassesIcon,
   DashboardIcon,
   FolderIcon,
+  MoonIcon,
   ScheduleIcon,
   SettingsIcon,
+  SunIcon,
   TrashIcon,
   UnprocessedIcon,
 } from "../icons";
 import { initial, useDisplayName } from "../profile";
+import { useTheme } from "../theme";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
@@ -41,6 +44,7 @@ export function Home() {
   const panel = useRef<HTMLElement>(null);
   const [name, setName] = useDisplayName();
   const [editingName, setEditingName] = useState(false);
+  const [theme, toggleTheme] = useTheme();
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
   useEffect(() => {
@@ -141,6 +145,17 @@ export function Home() {
             >
               <FolderIcon />
               <span className="nav-label">Open Folder</span>
+            </button>
+          </li>
+          <li>
+            <button
+              className="nav-item"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-pressed={theme === "dark"}
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              <span className="nav-label">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
             </button>
           </li>
           <li>

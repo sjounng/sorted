@@ -74,7 +74,14 @@ export function Dashboard(props: {
     <div className="dash">
       <header className="dash-head">
         <div className="dash-greet">
-          <h1>{name ? `Hello, ${name}!` : "Hello!"}</h1>
+          <h1>
+            Hello{name ? ", " : "!"}
+            {name && (
+              <>
+                <span className="greet-name">{name}</span>!
+              </>
+            )}
+          </h1>
           {!name && (
             <button className="link name-cta" onClick={onEditName}>
               Set your name for a proper hello ›
