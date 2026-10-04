@@ -12,12 +12,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sorted_core::filetag::{self, Tag};
-use sorted_core::library::{Document, Library, Version};
+use sorted_core::library::{DocKey, Document, Library, Version};
 
 use crate::pipeline::{self, Download, Outcome, Settings};
 use crate::screen::{
     self, AssignChoice, AssignRequest, Change, ChangeKind, CourseDetail, DuplicateChoice,
-    DuplicateNotice, Overview, Permission, Unprocessed, UnprocessedReason,
+    DuplicateNotice, Overview, Permission, TrashedCourse, Unprocessed, UnprocessedReason,
 };
 use sorted_core::fingerprint;
 
@@ -453,9 +453,22 @@ impl Organizer {
             self.tag_untagged();
         }
         let lib = self.library();
+        // Sorted 휴지통에 든 과목의 최근 변경은 숨긴다 (되살리면 다시 보인다)
+        let removed: Vec<String> = lib
+            .courses
+            .iter()
+            .filter(|c| c.is_removed())
+            .map(|c| c.id())
+            .collect();
         let changes = {
             let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
-            history.changes.iter().rev().cloned().collect()
+            history
+                .changes
+                .iter()
+                .rev()
+                .filter(|c| !removed.contains(&c.course_id))
+                .cloned()
+                .collect()
         };
         let mut unprocessed: Vec<Unprocessed> = self
             .pending()
@@ -481,9 +494,174 @@ impl Organizer {
         Overview {
             sorted_folder: self.root().to_owned(),
             courses: screen::courses(&lib),
-            trash_count: 0,
+            trash_count: removed.len(),
             changes,
             unprocessed,
+        }
+    }
+
+    // ── 과목 추가·이름 바꾸기·Sorted 휴지통 ──
+
+    /// 과목을 직접 추가한다. 정리 폴더에 같은 이름의 폴더를 만든다.
+    pub fn add_course(&self, name: &str) -> Result<screen::Course, String> {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(problem) = screen::course_name_problem(name, &lib) {
+            return Err(problem.into());
+        }
+        let name = name.trim();
+        fs::create_dir_all(self.course_folder(name)?)
+            .map_err(|e| format!("과목 폴더를 만들지 못했어요: {e}"))?;
+        lib.remember_course(None, name, &[]);
+        if let Some(c) = lib.courses.iter_mut().find(|c| c.name == name) {
+            c.pin_id();
+        }
+        self.save_library(&lib);
+        let course = screen::courses(&lib)
+            .into_iter()
+            .find(|c| c.name == name)
+            .ok_or("과목을 추가하지 못했어요.")?;
+        Ok(course)
+    }
+
+    /// 과목명(= 폴더 이름)을 바꾼다. 과목 ID와 자료는 그대로이고, 폴더 안의 파일은 함께 옮겨진다.
+    pub fn rename_course(&self, course_id: &str, name: &str) -> Result<(), String> {
+        self.locate();
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let index = lib
+            .courses
+            .iter()
+            .position(|c| c.id() == course_id)
+            .ok_or("없는 과목이에요.")?;
+        let old = lib.courses[index].name.clone();
+        let new = name.trim();
+        if new == old {
+            return Ok(());
+        }
+        if let Some(problem) = screen::course_name_problem(new, &lib) {
+            return Err(problem.into());
+        }
+        let (from, to) = (self.course_folder(&old)?, self.course_folder(new)?);
+        if to.exists() {
+            return Err("같은 이름의 폴더가 정리 폴더에 이미 있어요.".into());
+        }
+        if from.is_dir() {
+            fs::rename(&from, &to).map_err(|e| format!("과목 폴더 이름을 바꾸지 못했어요: {e}"))?;
+        }
+
+        lib.courses[index].pin_id();
+        lib.courses[index].name = new.to_owned();
+        for doc in lib.documents.iter_mut().filter(|d| d.course == old) {
+            doc.course = new.to_owned();
+            if let DocKey::Name { course, .. } = &mut doc.key {
+                *course = new.to_owned();
+            }
+            for v in &mut doc.versions {
+                if let Ok(rest) = v.path.strip_prefix(&from) {
+                    v.path = to.join(rest);
+                }
+            }
+        }
+        self.save_library(&lib);
+        drop(lib);
+
+        let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        for c in history
+            .changes
+            .iter_mut()
+            .filter(|c| c.course_id == course_id)
+        {
+            c.course_name = new.to_owned();
+        }
+        if let Err(e) = save_json(&self.history_file, &*history) {
+            eprintln!("history.json 저장 실패: {e}");
+        }
+        drop(history);
+        // 파일명으로 식별하는 문서는 ID가 바뀌므로 속성을 다시 새긴다
+        self.tag_untagged();
+        Ok(())
+    }
+
+    /// Sorted 휴지통으로 옮긴다. 화면에서만 숨기고 파일·폴더는 그대로 둔다.
+    pub fn remove_course(&self, course_id: &str) -> Result<(), String> {
+        self.set_removed(course_id, Some(now_ms()))
+    }
+
+    /// Sorted 휴지통에서 되살린다.
+    pub fn restore_course(&self, course_id: &str) -> Result<(), String> {
+        self.set_removed(course_id, None)
+    }
+
+    fn set_removed(&self, course_id: &str, removed_at_ms: Option<u64>) -> Result<(), String> {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let course = lib
+            .courses
+            .iter_mut()
+            .find(|c| c.id() == course_id)
+            .ok_or("없는 과목이에요.")?;
+        course.pin_id();
+        course.removed_at_ms = removed_at_ms;
+        self.save_library(&lib);
+        Ok(())
+    }
+
+    pub fn trash(&self) -> Vec<TrashedCourse> {
+        screen::trashed(&self.library())
+    }
+
+    /// Sorted 휴지통에서 지운다: 과목 폴더는 `trash`로 macOS 휴지통에 보내고(Finder에서 꺼낼 수 있음),
+    /// 과목·자료 기록과 최근 변경을 지운다. 휴지통에 든 과목만.
+    pub fn purge_course(
+        &self,
+        course_id: &str,
+        trash: &dyn Fn(&Path) -> io::Result<()>,
+    ) -> Result<(), String> {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let index = lib
+            .courses
+            .iter()
+            .position(|c| c.id() == course_id)
+            .ok_or("없는 과목이에요.")?;
+        if !lib.courses[index].is_removed() {
+            return Err("휴지통에 있는 과목만 완전히 지울 수 있어요.".into());
+        }
+        let name = lib.courses[index].name.clone();
+        let folder = self.course_folder(&name)?;
+        if folder.exists() {
+            trash(&folder).map_err(|e| format!("과목 폴더를 휴지통으로 보내지 못했어요: {e}"))?;
+        }
+        lib.courses.remove(index);
+        lib.documents.retain(|d| d.course != name);
+        self.save_library(&lib);
+        drop(lib);
+
+        let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        history.changes.retain(|c| c.course_id != course_id);
+        if let Err(e) = save_json(&self.history_file, &*history) {
+            eprintln!("history.json 저장 실패: {e}");
+        }
+        Ok(())
+    }
+
+    /// 휴지통의 과목을 모두 지운다. 하나라도 실패하면 거기서 멈추고 이유를 돌려준다.
+    pub fn empty_trash(&self, trash: &dyn Fn(&Path) -> io::Result<()>) -> Result<(), String> {
+        for t in self.trash() {
+            self.purge_course(&t.course.id, trash)?;
+        }
+        Ok(())
+    }
+
+    /// 정리 폴더 바로 아래의 과목 폴더. 정리 폴더 자신이나 그 밖을 가리키는 이름은 거절한다.
+    fn course_folder(&self, name: &str) -> Result<PathBuf, String> {
+        let name = name.trim();
+        if name.is_empty() || name.starts_with('.') || name.contains(['/', ':']) {
+            return Err("과목 폴더로 쓸 수 없는 이름이에요.".into());
+        }
+        Ok(self.root().join(name))
+    }
+
+    fn save_library(&self, lib: &Library) {
+        if let Err(e) = lib.save(&self.library_file) {
+            eprintln!("library.json 저장 실패: {e}");
         }
     }
 
@@ -1194,5 +1372,97 @@ mod tests {
         let moved = dir.join("Sorted/운영체제/1주차/내 필기.pdf");
         fs::rename(&existing, &moved).unwrap();
         assert_eq!(org.duplicate_notice(2).unwrap().existing_path, moved);
+    }
+
+    #[test]
+    fn add_course_makes_a_folder_and_rejects_bad_names() {
+        let (dir, org) = setup("add-course");
+        let c = org.add_course(" 데이터베이스 ").unwrap();
+        assert_eq!(c.name, "데이터베이스");
+        assert!(c.id.starts_with("local-"));
+        assert!(dir.join("Sorted/데이터베이스").is_dir());
+        assert!(org.add_course("데이터베이스").is_err(), "같은 이름");
+        assert!(org.add_course("../밖").is_err());
+        assert!(org.add_course(".숨김").is_err());
+        assert_eq!(org.overview().courses.len(), 1);
+    }
+
+    #[test]
+    fn rename_moves_the_folder_and_keeps_the_id() {
+        let (dir, org, path) = organized("rename-course");
+        let id = org.overview().courses[0].id.clone();
+        org.rename_course(&id, "OS").unwrap();
+
+        assert!(!dir.join("Sorted/운영체제").exists());
+        let moved = dir.join("Sorted/OS/1주차").join(path.file_name().unwrap());
+        assert!(moved.is_file());
+        let o = org.overview();
+        assert_eq!(
+            (o.courses[0].id.as_str(), o.courses[0].name.as_str()),
+            (id.as_str(), "OS")
+        );
+        assert_eq!(o.changes[0].course_name, "OS");
+        assert_eq!(the_doc(&org).versions[0].path, moved);
+        assert_eq!(filetag::read(&moved).unwrap().course, id);
+
+        fs::create_dir_all(dir.join("Sorted/알고리즘")).unwrap();
+        assert!(
+            org.rename_course(&id, "알고리즘").is_err(),
+            "폴더가 이미 있으면 거절"
+        );
+        assert!(org.rename_course("nope", "X").is_err());
+    }
+
+    #[test]
+    fn remove_hides_without_touching_files_and_restore_brings_it_back() {
+        let (_, org, path) = organized("remove-course");
+        let id = org.overview().courses[0].id.clone();
+        org.remove_course(&id).unwrap();
+
+        let o = org.overview();
+        assert!(o.courses.is_empty() && o.changes.is_empty());
+        assert_eq!(o.trash_count, 1);
+        assert_eq!(org.trash()[0].course.id, id);
+        assert!(path.is_file(), "파일은 그대로");
+
+        org.restore_course(&id).unwrap();
+        let o = org.overview();
+        assert_eq!((o.courses.len(), o.changes.len(), o.trash_count), (1, 1, 0));
+    }
+
+    #[test]
+    fn purge_sends_the_folder_to_the_trash_only_for_trashed_courses() {
+        let (dir, org, _) = organized("purge-course");
+        let id = org.overview().courses[0].id.clone();
+        assert!(
+            org.purge_course(&id, &fake_trash(&dir)).is_err(),
+            "휴지통에 없는 과목"
+        );
+        assert!(dir.join("Sorted/운영체제").is_dir());
+
+        org.remove_course(&id).unwrap();
+        org.purge_course(&id, &fake_trash(&dir)).unwrap();
+        assert!(!dir.join("Sorted/운영체제").exists());
+        assert!(
+            dir.join("Trash/운영체제/1주차").is_dir(),
+            "macOS 휴지통으로"
+        );
+        assert!(dir.join("Sorted").is_dir(), "정리 폴더는 그대로");
+        assert!(org.trash().is_empty() && org.library().documents.is_empty());
+        assert!(org.overview().changes.is_empty());
+    }
+
+    #[test]
+    fn empty_trash_purges_every_trashed_course() {
+        let (dir, org) = setup("empty-trash");
+        for name in ["가", "나"] {
+            let c = org.add_course(name).unwrap();
+            org.remove_course(&c.id).unwrap();
+        }
+        org.add_course("다").unwrap();
+        org.empty_trash(&fake_trash(&dir)).unwrap();
+        assert!(org.trash().is_empty());
+        assert_eq!(org.overview().courses.len(), 1);
+        assert!(dir.join("Sorted/다").is_dir());
     }
 }

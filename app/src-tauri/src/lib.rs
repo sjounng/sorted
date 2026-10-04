@@ -30,7 +30,7 @@ use pipeline::Outcome;
 use schedule::{Schedule, ScheduleStore};
 use screen::{
     AssignChoice, AssignRequest, CourseDetail, DuplicateChoice, DuplicateNotice, Overview,
-    Permission, SetupStatus,
+    Permission, SetupStatus, TrashedCourse,
 };
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
@@ -64,6 +64,63 @@ fn course_detail(
     organizer
         .course_detail(&course_id)
         .ok_or_else(|| "없는 과목이에요.".into())
+}
+
+// 과목 추가·이름 바꾸기·Sorted 휴지통
+
+#[tauri::command]
+fn add_course(app: AppHandle, name: String) -> Result<screen::Course, String> {
+    let course = app.state::<Organizer>().add_course(&name)?;
+    changed(&app);
+    Ok(course)
+}
+
+#[tauri::command]
+fn rename_course(app: AppHandle, course_id: String, name: String) -> Result<(), String> {
+    app.state::<Organizer>().rename_course(&course_id, &name)?;
+    changed(&app);
+    Ok(())
+}
+
+/// Sorted 휴지통으로. 파일·폴더는 그대로 둔다.
+#[tauri::command]
+fn remove_course(app: AppHandle, course_id: String) -> Result<(), String> {
+    app.state::<Organizer>().remove_course(&course_id)?;
+    changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn trash(organizer: State<'_, Organizer>) -> Vec<TrashedCourse> {
+    organizer.trash()
+}
+
+#[tauri::command]
+fn restore_course(app: AppHandle, course_id: String) -> Result<(), String> {
+    app.state::<Organizer>().restore_course(&course_id)?;
+    changed(&app);
+    Ok(())
+}
+
+/// Sorted 휴지통에서 지운다. 과목 폴더는 macOS 휴지통으로 간다.
+#[tauri::command]
+fn purge_course(app: AppHandle, course_id: String) -> Result<(), String> {
+    app.state::<Organizer>()
+        .purge_course(&course_id, &move_to_trash)?;
+    changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn empty_trash(app: AppHandle) -> Result<(), String> {
+    let result = app.state::<Organizer>().empty_trash(&move_to_trash);
+    changed(&app);
+    result
+}
+
+/// 메인 창 데이터가 바뀌었다고 화면에 알린다
+fn changed(app: &AppHandle) {
+    let _ = app.emit("overview-changed", ());
 }
 
 // 일정 (FR-19)
@@ -107,8 +164,8 @@ fn resolve_duplicate(app: AppHandle, id: String, choice: DuplicateChoice) -> Res
 
 /// macOS 휴지통으로 보낸다. Finder 자동화 대신 파일 API를 써서 자동화 권한 창이 뜨지 않는다.
 fn move_to_trash(path: &Path) -> std::io::Result<()> {
-    use trash::macos::{DeleteMethod, TrashContextExtMacos};
-    let mut context = trash::TrashContext::default();
+    use ::trash::macos::{DeleteMethod, TrashContextExtMacos};
+    let mut context = ::trash::TrashContext::default();
     context.set_delete_method(DeleteMethod::NsFileManager);
     context.delete(path).map_err(std::io::Error::other)
 }
@@ -277,7 +334,14 @@ pub fn run() {
             schedule,
             open_in_browser,
             duplicate_notice,
-            resolve_duplicate
+            resolve_duplicate,
+            add_course,
+            rename_course,
+            remove_course,
+            trash,
+            restore_course,
+            purge_course,
+            empty_trash
         ])
         .menu(|app| {
             // macOS 기본 앱 메뉴(종료, 편집, 창 등)에 "개발" 메뉴만 더한다.
