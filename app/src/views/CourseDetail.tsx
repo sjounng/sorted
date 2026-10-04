@@ -55,9 +55,12 @@ export function CourseDetail(props: {
                 </span>
               </h2>
               <ul className="files">
-                {w.files.map((f) => (
-                  <FileRow key={f.id} file={f} />
-                ))}
+                {/* 같은 주차 안에서는 받은 순서대로: 먼저 받은 게 위, 늦게 받은 게 아래로 쌓인다 */}
+                {[...w.files]
+                  .sort((a, b) => a.savedAtMs - b.savedAtMs)
+                  .map((f) => (
+                    <FileRow key={f.id} file={f} />
+                  ))}
               </ul>
             </section>
           ))}
