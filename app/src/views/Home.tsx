@@ -13,7 +13,7 @@ import {
   TrashIcon,
   UnprocessedIcon,
 } from "../icons";
-import { initial, useDisplayName } from "../profile";
+import { AVATAR_COLORS, initial, useAvatarColor, useDisplayName } from "../profile";
 import { useTheme } from "../theme";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
@@ -108,20 +108,7 @@ export function Home() {
             }}
           />
         ) : (
-          <button
-            className="profile"
-            title="Change name"
-            aria-label={name ? `${name}, change name` : "Set your name"}
-            onClick={() => setEditingName(true)}
-          >
-            <span className="avatar" aria-hidden>
-              {initial(name)}
-            </span>
-            <span className="profile-name">
-              {name || "Set your name"}
-              <small>{name ? "Change name" : "for your greeting"}</small>
-            </span>
-          </button>
+          <Profile name={name} onEditName={() => setEditingName(true)} />
         )}
 
         <ul className="nav-list" role="tablist" aria-orientation="vertical">
@@ -209,6 +196,82 @@ export function Home() {
         {tab === "trash" && <TrashView />}
       </section>
     </main>
+  );
+}
+
+/**
+ * 사이드바 프로필: 동그라미를 누르면 색 고르기, 이름을 누르면 이름 바꾸기.
+ * 색 고르는 창은 바깥을 누르거나 Esc로 닫힌다.
+ */
+function Profile({ name, onEditName }: { name: string; onEditName: () => void }) {
+  const [color, chooseColor] = useAvatarColor();
+  const [picking, setPicking] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!picking) return;
+    const close = (e: Event) => {
+      if (
+        e instanceof KeyboardEvent ? e.key === "Escape" : !box.current?.contains(e.target as Node)
+      ) {
+        setPicking(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [picking]);
+
+  return (
+    <div className="profile" ref={box}>
+      <button
+        className="avatar-btn"
+        title="Change color"
+        aria-label="Change avatar color"
+        aria-expanded={picking}
+        onClick={() => setPicking((p) => !p)}
+      >
+        <span
+          className="avatar"
+          aria-hidden
+          style={{ "--avatar-from": color.from, "--avatar-to": color.to } as React.CSSProperties}
+        >
+          {initial(name)}
+        </span>
+      </button>
+      <button
+        className="profile-name"
+        title="Change name"
+        aria-label={name ? `${name}, change name` : "Set your name"}
+        onClick={onEditName}
+      >
+        {name || "Set your name"}
+        <small>{name ? "Change name" : "for your greeting"}</small>
+      </button>
+
+      {picking && (
+        <div className="avatar-picker" role="radiogroup" aria-label="Avatar color">
+          {AVATAR_COLORS.map((c) => (
+            <button
+              key={c.id}
+              role="radio"
+              aria-checked={c.id === color.id}
+              aria-label={c.label}
+              title={c.label}
+              className={c.id === color.id ? "swatch selected" : "swatch"}
+              style={{ "--avatar-from": c.from, "--avatar-to": c.to } as React.CSSProperties}
+              onClick={() => {
+                chooseColor(c.id);
+                setPicking(false);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

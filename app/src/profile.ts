@@ -47,3 +47,58 @@ export function useDisplayName(): [string, (name: string) => void] {
 export function initial(name: string): string {
   return name ? Array.from(name)[0].toUpperCase() : "S";
 }
+
+// 프로필 동그라미 색. 앱 팔레트에 어울리는 그라데이션 몇 가지 중에서 고른다. 이름처럼 화면 저장소에 둔다.
+
+export interface AvatarColor {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
+export const AVATAR_COLORS: AvatarColor[] = [
+  { id: "mist", label: "Mist", from: "#7fb5b7", to: "#7d5a77" },
+  { id: "rose", label: "Rose", from: "#e5a3b3", to: "#a35b78" },
+  { id: "lavender", label: "Lavender", from: "#c3b2e3", to: "#7a68a8" },
+  { id: "sage", label: "Sage", from: "#b5c9a8", to: "#6f8a6b" },
+  { id: "peach", label: "Peach", from: "#f2c1a0", to: "#c27a63" },
+  { id: "dusk", label: "Dusk", from: "#8fa3c9", to: "#5b5480" },
+  { id: "berry", label: "Berry", from: "#d68aa8", to: "#7a3f62" },
+  { id: "sand", label: "Sand", from: "#e2cfa8", to: "#a08262" },
+];
+
+const COLOR_KEY = "sorted.avatarColor";
+
+function readColor(): AvatarColor {
+  try {
+    const id = localStorage.getItem(COLOR_KEY);
+    return AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS[0];
+  } catch {
+    return AVATAR_COLORS[0];
+  }
+}
+
+/** 고른 동그라미 색과 바꾸는 함수. 다른 창에서 바꿔도 따라온다. */
+export function useAvatarColor(): [AvatarColor, (id: string) => void] {
+  const [color, setColor] = useState(readColor);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === COLOR_KEY) setColor(readColor());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const choose = (id: string) => {
+    const next = AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS[0];
+    try {
+      localStorage.setItem(COLOR_KEY, next.id);
+    } catch {
+      // 저장하지 못해도 이번 실행 동안은 바뀐다
+    }
+    setColor(next);
+  };
+  return [color, choose];
+}
