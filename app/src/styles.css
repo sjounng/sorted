@@ -93,8 +93,9 @@
 /* 과목 색으로 쓰는 글자: 연한 파스텔도 읽히게 글자색 쪽으로 섞는다 (다크 모드에선 밝게) */
 * {
   --course-ink: color-mix(in srgb, var(--course, var(--fg)) 58%, var(--fg));
-  /* 카드 윗부분용 연한 틴트: 라이트에선 크림, 다크에선 어두운 바탕과 섞인다 */
-  --course-tint: color-mix(in srgb, var(--course, var(--panel)) 30%, var(--bg));
+  /* 카드 윗부분: 과목 색을 바탕과 섞은 모브 틴트 + 조금 진한 점 격자 (다크에선 어두운 바탕과 섞인다) */
+  --course-tint: color-mix(in srgb, var(--course, var(--panel)) 42%, var(--bg));
+  --course-dot: color-mix(in srgb, var(--course, var(--panel)) 72%, var(--bg));
 }
 
 body {
@@ -841,12 +842,19 @@ button.link {
   text-align: left;
 }
 
-/* 레퍼런스 카드처럼 연한 단색 틴트 (무늬 없음) */
+/* 모브 틴트 + 점 격자 */
+.card-cover,
+.course-cover {
+  background-color: var(--course-tint);
+  background-image: radial-gradient(circle, var(--course-dot) 1.4px, transparent 1.7px);
+  background-position: 7px 7px;
+  background-size: 14px 14px;
+}
+
 .card-cover {
   display: block;
   width: 100%;
   height: clamp(56px, 12vw, 140px);
-  background: var(--course-tint);
 }
 
 .card-body {
@@ -967,7 +975,6 @@ button.link {
 .course-cover {
   grid-column: 1 / -1;
   height: clamp(36px, 7vw, 72px);
-  background: var(--course-tint);
 }
 
 .course-titles {
