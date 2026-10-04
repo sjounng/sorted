@@ -1740,14 +1740,26 @@ button.link {
   color: var(--on-brand);
 }
 
-/* 마감이 지났는데 안 한 것: 빨간 D+N, 목록 맨 위 "Overdue" 묶음 */
-.sched-row.overdue .dday {
+/* 마감이 지났는데 안 한 것
+   - 지각 인정 중: 아직 할 수 있으니 가장 진하게 (채운 D+N)
+   - 놓침: 할 수 있는 게 없으니 테두리만, 흐리게 */
+.sched-row.late .dday {
   background: var(--danger);
   color: var(--on-brand);
 }
 
-.sched-day.overdue {
+.sched-day.late {
   color: var(--danger);
+}
+
+.sched-row.missed .dday {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: var(--muted);
+}
+
+.sched-row.missed .sched-title strong {
+  color: var(--muted);
 }
 
 .sched-row.done .dday {
@@ -1987,11 +1999,6 @@ button.link {
   font-weight: 600;
 }
 
-.up-item.overdue .up-date {
-  border-color: var(--danger);
-}
-
-.up-item.overdue .up-date small,
 .up-item.urgent .up-date small {
   color: var(--danger);
 }
@@ -2549,4 +2556,38 @@ button.link {
   font-family: var(--serif);
   font-weight: 400;
   font-size: 20px;
+}
+
+/* Dashboard 인사 아래: 마감은 지났지만 지각 인정 중인 게 있을 때만 뜨는 띠 */
+.late-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 12px 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+  text-align: left;
+}
+
+.late-strip:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.late-strip svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.late-strip > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

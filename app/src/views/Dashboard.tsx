@@ -2,7 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
 import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
-import { isOverdue } from "../schedule";
+import { UnprocessedIcon } from "../icons";
+import { isLateOpen } from "../schedule";
 import { useFitCount } from "../useFitCount";
 import { useLoad } from "../useLoad";
 import { MonthCalendar, firstOfMonth } from "./ScheduleView";
@@ -56,12 +57,15 @@ export function Dashboard(props: {
       : { name: item.courseName, color: "var(--muted)" };
   };
 
-  // 지났는데 안 한 것(7일 이내)을 맨 위에, 그다음 다가오는 마감
-  const overdue = items.filter((i) => isOverdue(i, now)).sort((a, b) => a.dueAtMs - b.dueAtMs);
-  const upcoming = [
-    ...overdue,
-    ...items.filter((i) => !i.done && i.dueAtMs >= now).sort((a, b) => a.dueAtMs - b.dueAtMs),
-  ].slice(0, upCount);
+  // Upcoming deadlines는 이름 그대로 아직 마감 전인 것만
+  const upcoming = items
+    .filter((i) => !i.done && i.dueAtMs >= now)
+    .sort((a, b) => a.dueAtMs - b.dueAtMs)
+    .slice(0, upCount);
+  // 마감은 지났지만 지각 인정 중인 것: 인사 아래 띠로 알린다 (남은 기한 순)
+  const lateOpen = items
+    .filter((i) => isLateOpen(i, now))
+    .sort((a, b) => (a.lateUntilMs ?? 0) - (b.lateUntilMs ?? 0));
   const soon = items.filter((i) => !i.done && i.dueAtMs >= now && daysLeft(i.dueAtMs, now) <= 3);
 
   // 달성률: 일주일 안에 마감인 것까지 (이미 지난 것 포함)
@@ -95,11 +99,21 @@ export function Dashboard(props: {
             </button>
           )}
           <p className="muted">
-            {dateLabel(now)} · {overdue.length > 0 && `${overdue.length} overdue · `}
+            {dateLabel(now)} ·{" "}
             {soon.length > 0
               ? `${soon.length} ${soon.length === 1 ? "deadline" : "deadlines"} in the next 3 days.`
               : "No deadlines in the next 3 days."}
           </p>
+          {lateOpen.length > 0 && (
+            <button className="late-strip" onClick={() => onOpenSchedule()}>
+              <UnprocessedIcon />
+              <span>
+                <strong>{lateOpen.length} still open late</strong> · {lateOpen[0].title} until{" "}
+                {dateLabel(lateOpen[0].lateUntilMs!)} {clock(lateOpen[0].lateUntilMs!)}
+              </span>
+              <span aria-hidden>›</span>
+            </button>
+          )}
         </div>
         <SearchBox data={data} onOpenCourse={onOpenCourse} />
       </header>
@@ -117,7 +131,7 @@ export function Dashboard(props: {
               return (
                 <li key={item.id}>
                   <button
-                    className={`up-item ${item.dueAtMs < now ? "overdue" : left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
+                    className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
                     style={{ "--course": color } as React.CSSProperties}
                     onClick={() => api.openInBrowser(item.url)}
                     title="Open in LMS"
