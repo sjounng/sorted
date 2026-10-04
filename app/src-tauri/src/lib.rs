@@ -41,6 +41,9 @@ const LOG: &str = "log";
 /// 스파이크 #3의 다운로드 기록 위치
 struct ProbeHistory(PathBuf);
 
+/// 첫 실행 설정을 끝냈다는 표시 파일 (FR-15). 없으면 앱을 켤 때 설정 창을 띄운다.
+struct SetupMarker(PathBuf);
+
 /// 화면이 처음 열릴 때 지금까지 받은 메시지를 가져간다.
 #[tauri::command]
 fn received_messages(inbox: State<'_, Inbox>) -> Vec<Received> {
@@ -170,22 +173,54 @@ fn move_to_trash(path: &Path) -> std::io::Result<()> {
     context.delete(path).map_err(std::io::Error::other)
 }
 
-/// 중복 안내 창을 띄운다 (FR-7: 받은 직후 묻는다). 같은 중복의 창이 이미 있으면 앞으로 가져온다.
+/// 중복 안내 창을 띄운다 (FR-7: 받은 직후 묻는다).
 fn show_duplicate_window(app: &AppHandle, id: u64) {
-    let label = format!("duplicate-{id}");
-    if let Some(window) = app.get_webview_window(&label) {
+    let query = format!("view=duplicate&id={id}");
+    show_dialog(
+        app,
+        &format!("duplicate-{id}"),
+        &query,
+        "이미 받은 파일",
+        (420.0, 260.0),
+    );
+}
+
+/// 첫 실행 설정 창을 띄운다 (FR-15).
+fn show_setup_window(app: &AppHandle) {
+    show_dialog(
+        app,
+        "setup",
+        "view=setup",
+        "Sorted 시작하기",
+        (460.0, 520.0),
+    );
+}
+
+/// 설정 창이 열려 있으면 새로 고쳐 상태를 다시 불러오게 한다.
+/// 설정 화면은 열 때와 권한 버튼을 누를 때만 상태를 불러오므로, 확장 연결·권한이 바뀌면 앱이 알려 준다.
+fn refresh_setup_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("setup") {
+        let _ = window.eval("location.reload()");
+    }
+}
+
+/// 화면의 대화 창(`index.html?view=…`)을 띄운다. 같은 이름의 창이 이미 있으면 앞으로 가져온다.
+/// 창 이름은 화면이 쓰는 규칙(`<화면>-<id>`)을 따른다 (src/windows.ts, capabilities).
+fn show_dialog(app: &AppHandle, label: &str, query: &str, title: &str, size: (f64, f64)) {
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.show();
         let _ = window.set_focus();
         return;
     }
-    let url = tauri::WebviewUrl::App(format!("index.html?view=duplicate&id={id}").into());
-    let built = tauri::WebviewWindowBuilder::new(app, &label, url)
-        .title("이미 받은 파일")
-        .inner_size(420.0, 260.0)
+    let url = tauri::WebviewUrl::App(format!("index.html?{query}").into());
+    let built = tauri::WebviewWindowBuilder::new(app, label, url)
+        .title(title)
+        .inner_size(size.0, size.1)
         .center()
         .focused(true)
         .build();
     if let Err(e) = built {
-        eprintln!("중복 안내 창을 열지 못함: {e}");
+        eprintln!("{label} 창을 열지 못함: {e}");
     }
 }
 
@@ -247,12 +282,25 @@ fn open_system_settings() -> Result<(), String> {
 
 fn status(app: &AppHandle) -> SetupStatus {
     let organizer = app.state::<Organizer>();
-    SetupStatus {
+    let status = SetupStatus {
         downloads_access: organizer.downloads_access(),
         sorted_folder: organizer.root().to_owned(),
         sorted_folder_created: organizer.root().is_dir(),
         extension_connected: app.state::<Inbox>().has_received(),
+    };
+    // 세 가지가 모두 되면 설정을 끝낸 것으로 본다. 다음부터는 앱을 켤 때 설정 창을 띄우지 않는다
+    if status.downloads_access == Permission::Granted
+        && status.sorted_folder_created
+        && status.extension_connected
+    {
+        let marker = &app.state::<SetupMarker>().0;
+        if !marker.exists() {
+            if let Err(e) = std::fs::write(marker, b"") {
+                eprintln!("설정 완료 표시를 남기지 못함: {e}");
+            }
+        }
     }
+    status
 }
 
 // 과목 지정 (FR-5)
@@ -396,6 +444,9 @@ fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
     paths.ensure_data_dir()?;
     app.manage(ProbeHistory(paths.data_dir().join("probe-history.jsonl")));
     app.manage(ScheduleStore::open(paths.data_dir().join("schedule.json")));
+    let marker = paths.data_dir().join("setup-done");
+    let first_run = !marker.exists();
+    app.manage(SetupMarker(marker));
     app.manage(Organizer::open(
         sorted_root_dir(),
         paths.data_dir().join("library.json"),
@@ -406,6 +457,10 @@ fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
 
     for line in queue::drain(&paths.queue())? {
         receive(&app, &line, Source::Queued);
+    }
+
+    if first_run {
+        show_setup_window(&app);
     }
 
     thread::spawn(move || {
@@ -421,6 +476,10 @@ fn receive(app: &AppHandle, line: &[u8], source: Source) -> serde_json::Value {
     let (reply, item) = app.state::<Inbox>().handle(line, source);
     if let Some(item) = item {
         let _ = app.emit("native-message", &item);
+        if item.message["type"] == "hello" {
+            // 확장이 연결됐다: 열려 있는 설정 창의 "Chrome 확장 연결"을 갱신한다
+            refresh_setup_window(app);
+        }
         if item.is_download() {
             start_probe(app.clone(), item);
         } else if item.message["type"] == "schedule" {
@@ -472,8 +531,12 @@ fn report(app: &AppHandle, id: u64, outcome: &Outcome) {
         json!({ "id": id, "outcome": outcome }),
     );
     let _ = app.emit("overview-changed", ());
-    if matches!(outcome, Outcome::Duplicate { .. }) {
-        show_duplicate_window(app, id);
+    match outcome {
+        Outcome::Duplicate { .. } => show_duplicate_window(app, id),
+        // 다운로드 폴더를 읽지 못했다: 설정 창에서 권한을 다시 묻는다 (FR-15)
+        Outcome::NeedsPermission { .. } => show_setup_window(app),
+        // 파일을 읽었다면 권한이 생긴 것일 수 있다
+        _ => refresh_setup_window(app),
     }
 }
 
