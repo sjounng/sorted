@@ -62,6 +62,7 @@ export interface AvatarColor {
 // 팬톤 팔레트: Transparent Yellow · Sceptre Red · Cerulean Blue · Potting Soil · Java Brown
 // 각 색에 아주 살짝 명암만 준다 (from → to)
 export const AVATAR_COLORS: AvatarColor[] = [
+  { id: "sceptre-red", label: "Sceptre Red", from: "#6b1c22", to: "#4d0e12", ink: "#f5efc6" },
   {
     id: "transparent-yellow",
     label: "Transparent Yellow",
@@ -69,14 +70,13 @@ export const AVATAR_COLORS: AvatarColor[] = [
     to: "#f5efc6",
     ink: "#4a2e27",
   },
-  { id: "sceptre-red", label: "Sceptre Red", from: "#6b1c22", to: "#4d0e12", ink: "#f5efc6" },
   { id: "cerulean-blue", label: "Cerulean Blue", from: "#bccde2", to: "#a5bcd6", ink: "#231815" },
   { id: "potting-soil", label: "Potting Soil", from: "#5f3d34", to: "#4a2e27", ink: "#f5efc6" },
   { id: "java-brown", label: "Java Brown", from: "#3a2a24", to: "#231815", ink: "#f5efc6" },
 ];
 
 /** 고르기 전 기본 색 */
-const DEFAULT_COLOR = "cerulean-blue";
+const DEFAULT_COLOR = "sceptre-red";
 
 const COLOR_KEY = "sorted.avatarColor";
 
