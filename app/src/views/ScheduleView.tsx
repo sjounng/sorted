@@ -194,7 +194,15 @@ function ScheduleRow(props: {
     <>
       {dayHeader && <li className="sched-day">{dayHeader}</li>}
       <li className={`sched-row ${urgency}`} style={{ "--course": color } as React.CSSProperties}>
-        <span className="dday">{item.done ? "Done" : dDay(item.dueAtMs, now)}</span>
+        <span className="dday">
+          {item.done
+            ? "Done"
+            : late
+              ? `${-left}d late`
+              : pastDue
+                ? "Missed"
+                : dDay(item.dueAtMs, now)}
+        </span>
         <button
           className="sched-main"
           onClick={() => api.openInBrowser(item.url)}
