@@ -1775,12 +1775,12 @@ button.link {
   min-width: 0;
 }
 
-/* 인사: "Hello,"와 마침표는 두꺼운 세리프(macOS 기본 Georgia Bold), 사용자가 정한 이름만 손글씨 */
+/* 인사: "Hello,"와 마침표는 세리프(macOS 기본 Georgia 보통 굵기), 사용자가 정한 이름만 손글씨 */
 .dash-head h1 {
   color: var(--fg);
   font-family: Georgia, "Baskerville", "Times New Roman", serif;
   font-size: clamp(30px, 4vw, 44px);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: -0.01em;
   line-height: 1.15;
 }
