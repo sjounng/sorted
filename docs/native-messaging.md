@@ -56,8 +56,32 @@ Chrome 확장 ──sendNativeMessage──▶ Chrome ──stdin/stdout──�
 
 **결론:** 확장 → 중계 프로그램 → 메뉴 막대 앱 경로가 동작한다. 앱이 꺼져 있어도 메시지를 잃지 않는다 (FR-16). 설계를 그대로 유지한다.
 
+## 실제 다운로드로 보관 확인 (이슈 #19, FR-16, 2026-10-04)
+
+스파이크는 hello 메시지로만 확인했다. 빌드한 앱으로 실제 LMS 다운로드를 같은 흐름에 넣어 봤다.
+
+| 순서 | 결과 | 본 것                                                                                                                              |
+| ---- | ---- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 통과 | 앱 종료 → LMS에서 PDF를 받자 배지 `Q`. 중계 프로그램 로그에 "app unreachable (Connection refused); queued"                         |
+| 2    | 통과 | `pending.jsonl`(권한 600)에 다운로드 메시지 1개: 파일 경로, 쿼리 없는 URL, LMS에서 조회한 과목명·주차                              |
+| 3    | 통과 | 앱을 켜자 보관된 메시지를 바로 처리: `pending.jsonl`이 비고, 파일이 `<정리 폴더>/소프트웨어공학/2주차/`로 옮겨짐, 최근 변경에 기록 |
+
+확장은 앱이 꺼져 있어도 LMS 조회까지 마친 메시지를 보내므로, 앱이 나중에 켜져도 과목·주차가 그대로 쓰인다.
+
 ## 문제가 생기면
 
 - 배지 `!`: `chrome://extensions`에서 Sorted의 "서비스 워커"를 눌러 콘솔을 본다. `Specified native messaging host not found`면 2단계를 다시, `Access to the specified native messaging host is forbidden`이면 확장 ID와 매니페스트의 `allowed_origins`를 비교한다.
 - 앱이 바로 꺼짐: 다른 Sorted 앱이 이미 떠 있으면 소켓을 열지 못한다. 다른 Sorted를 ⌘Q로 종료한다.
 - 중계 프로그램 쪽 기록: `tail -f ~/Library/Application\ Support/Sorted/logs/native-host.log`
+
+## 확장 → 앱 메시지
+
+모두 JSON 한 줄이고 `type`으로 구분한다. 앱은 받자마자 `{"ok": true}`로 답하고, 처리는 따로 한다.
+
+| `type`     | 언제                                              | 담는 것                                                                                                      |
+| ---------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `hello`    | 확장 설치·Chrome 시작·아이콘 클릭                 | `reason`, `extensionVersion`                                                                                 |
+| `download` | LMS 다운로드가 끝났을 때                          | 파일 경로, 쿼리 없는 URL·referrer, `contentId`, 과목 ID, 탭 제목, LMS의 과목명·주차 (`extension/src/lms.js`) |
+| `schedule` | LMS 탭이 열려 있을 때 한 시간에 한 번까지 (FR-19) | `source`(`planner`/`weekly`), `items`(앱의 `ScheduleItem`, docs/app-api.md), `fetchedAt`                     |
+
+URL의 쿼리, 사용자 번호, 쿠키·토큰은 어느 메시지에도 넣지 않는다.

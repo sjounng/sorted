@@ -23,7 +23,7 @@
 
 | 이벤트               | 실어 보내는 것                     | 언제                                                         | 상태   |
 | -------------------- | ---------------------------------- | ------------------------------------------------------------ | ------ |
-| `overview-changed`   | 없음                               | 메인 창 데이터(`Overview`)가 바뀔 때마다. 화면은 다시 부른다 | 새로   |
+| `overview-changed`   | 없음                               | 메인 창 데이터(`Overview`)가 바뀔 때마다. 화면은 다시 부른다 | 있음   |
 | `download-processed` | `{ id: number; outcome: Outcome }` | 다운로드 하나의 정리가 끝날 때마다                           | 있음   |
 | `native-message`     | 확장에서 온 메시지 원본            | 메시지를 받을 때마다. 정리 결과도 `outcome`으로 다시 온다    | 개발용 |
 
@@ -33,64 +33,87 @@
 
 | 명령       | 인자 | 돌려주는 것 | 단계 | 상태 |
 | ---------- | ---- | ----------- | ---- | ---- |
-| `overview` | 없음 | `Overview`  | 3    | 새로 |
+| `overview` | 없음 | `Overview`  | 3    | 있음 |
 
 ### 과목 (FR-11, FR-12)
 
 | 명령            | 인자                                 | 돌려주는 것    | 뜻                                                    | 단계 | 상태 |
 | --------------- | ------------------------------------ | -------------- | ----------------------------------------------------- | ---- | ---- |
-| `course_detail` | `{ courseId: string }`               | `CourseDetail` | 과목의 자료 전체, 주차는 LMS 순서대로                 | 3    | 새로 |
-| `add_course`    | `{ name: string }`                   | `Course`       | 과목을 직접 추가. 정리 폴더에 같은 이름의 폴더가 생김 | 3    | 새로 |
-| `rename_course` | `{ courseId: string; name: string }` | 없음           | 과목명(= 폴더 이름)을 바꿈. 과목 ID와 자료는 그대로   | 3    | 새로 |
-| `remove_course` | `{ courseId: string }`               | 없음           | Sorted 휴지통으로. 자료는 그대로 두어 되살릴 수 있음  | 3    | 새로 |
+| `course_detail` | `{ courseId: string }`               | `CourseDetail` | 과목의 자료 전체, 주차는 LMS 순서대로                 | 3    | 있음 |
+| `add_course`    | `{ name: string }`                   | `Course`       | 과목을 직접 추가. 정리 폴더에 같은 이름의 폴더가 생김 | 3    | 있음 |
+| `rename_course` | `{ courseId: string; name: string }` | 없음           | 과목명(= 폴더 이름)을 바꿈. 과목 ID와 자료는 그대로   | 3    | 있음 |
+| `remove_course` | `{ courseId: string }`               | 없음           | Sorted 휴지통으로. 자료는 그대로 두어 되살릴 수 있음  | 3    | 있음 |
 
 ### Sorted 휴지통
 
 | 명령             | 인자                   | 돌려주는 것       | 뜻                                                                      | 단계 | 상태 |
 | ---------------- | ---------------------- | ----------------- | ----------------------------------------------------------------------- | ---- | ---- |
-| `trash`          | 없음                   | `TrashedCourse[]` | 휴지통에 있는 과목                                                      | 3    | 새로 |
-| `restore_course` | `{ courseId: string }` | 없음              | 되살림. 같은 이름의 과목이 이미 있으면 거절                             | 3    | 새로 |
-| `purge_course`   | `{ courseId: string }` | 없음              | 휴지통에서 지움. 과목 폴더는 macOS 휴지통으로 (Finder에서 꺼낼 수 있음) | 3    | 새로 |
-| `empty_trash`    | 없음                   | 없음              | 휴지통의 과목 전부 `purge_course`                                       | 3    | 새로 |
+| `trash`          | 없음                   | `TrashedCourse[]` | 휴지통에 있는 과목                                                      | 3    | 있음 |
+| `restore_course` | `{ courseId: string }` | 없음              | 되살림. 같은 이름의 과목이 이미 있으면 거절                             | 3    | 있음 |
+| `purge_course`   | `{ courseId: string }` | 없음              | 휴지통에서 지움. 과목 폴더는 macOS 휴지통으로 (Finder에서 꺼낼 수 있음) | 3    | 있음 |
+| `empty_trash`    | 없음                   | 없음              | 휴지통의 과목 전부 `purge_course`                                       | 3    | 있음 |
+
+- 과목명은 화면(`validate.ts`)과 같은 규칙으로 한 번 더 검사한다. 정리 폴더에 같은 이름의 폴더가 이미 있으면 이름 바꾸기를 거절한다 (합치지 않음).
+- `rename_course`: 과목 폴더 이름을 바꾸므로 안의 파일이 함께 옮겨지고, 목록의 경로·최근 변경의 과목명도 고친다. 직접 만든 과목은 처음 ID를 저장해 두어 이름을 바꿔도 ID가 그대로다.
+- `remove_course`: 화면에서만 숨긴다 (과목 카드·과목 화면·최근 변경). 그 과목으로 새로 받은 자료는 그대로 정리되지만 보이지 않는다.
+- `purge_course`·`empty_trash`: 정리 폴더 바로 아래의 과목 폴더만 macOS 휴지통으로 보낸다. 휴지통에 든 과목만 지울 수 있다.
 
 ### 일정 (FR-19, #30)
 
 | 명령              | 인자              | 돌려주는 것 | 뜻                              | 단계 | 상태 |
 | ----------------- | ----------------- | ----------- | ------------------------------- | ---- | ---- |
-| `schedule`        | 없음              | `Schedule`  | 확장이 LMS에서 읽어 둔 일정     | 3    | 새로 |
-| `open_in_browser` | `{ url: string }` | 없음        | LMS 페이지 등을 기본 브라우저로 | 3    | 새로 |
+| `schedule`        | 없음              | `Schedule`  | 확장이 LMS에서 읽어 둔 일정     | 3    | 있음 |
+| `open_in_browser` | `{ url: string }` | 없음        | LMS 페이지 등을 기본 브라우저로 | 3    | 있음 |
+
+- `schedule`: 확장이 보낸 일정을 출처(`planner`: 과제·퀴즈·화상 강의 / `weekly`: 주차학습 영상)별로 덮어써 앱 데이터 폴더의 `schedule.json`에 둔 것. 모든 출처를 마감 순으로 합쳐 돌려준다. `fetchedAtMs`는 앱이 마지막으로 받은 시각.
+- 확장은 LMS 탭이 열려 있을 때 한 시간에 한 번까지 플래너를 읽는다. 플래너는 로그인한 사람이 수강하는 과목만 돌려준다. 주차학습 영상(`weekly`)은 아직 없다.
+- `open_in_browser`: `https://`이고 한양대 도메인(`hanyang.ac.kr`, `*.hanyang.ac.kr`)인 주소만 연다.
 
 ### 첫 실행 설정 (FR-15)
 
-| 명령                       | 인자 | 돌려주는 것   | 뜻                                                                   | 단계 | 상태                                   |
-| -------------------------- | ---- | ------------- | -------------------------------------------------------------------- | ---- | -------------------------------------- |
-| `setup_status`             | 없음 | `SetupStatus` | 권한·정리 폴더·확장 연결 상태                                        | 2    | 새로                                   |
-| `request_downloads_access` | 없음 | `SetupStatus` | 다운로드 폴더를 한 번 읽어 권한 창을 띄우고, 보류된 파일을 다시 처리 | 2    | 바꿈 (`retry_permission`)              |
-| `open_system_settings`     | 없음 | 없음          | 시스템 설정 → 개인정보 보호 → 파일 및 폴더                           | 2    | 바꿈 (`open_privacy_settings`, 이름만) |
+| 명령                       | 인자 | 돌려주는 것   | 뜻                                                                   | 단계 | 상태 |
+| -------------------------- | ---- | ------------- | -------------------------------------------------------------------- | ---- | ---- |
+| `setup_status`             | 없음 | `SetupStatus` | 권한·정리 폴더·확장 연결 상태                                        | 2    | 있음 |
+| `request_downloads_access` | 없음 | `SetupStatus` | 다운로드 폴더를 한 번 읽어 권한 창을 띄우고, 보류된 파일을 다시 처리 | 2    | 있음 |
+| `open_system_settings`     | 없음 | 없음          | 시스템 설정 → 개인정보 보호 → 파일 및 폴더                           | 2    | 있음 |
+
+설정 창은 **앱 내부가 띄운다** (창 이름 `setup`): 앱을 켤 때 아직 설정을 끝낸 적이 없을 때, 그리고 다운로드를 처리하다 권한이 없을 때(`needsPermission`). `setup_status`가 세 가지(권한 허용, 정리 폴더, 확장 연결)를 모두 돌려주면 설정을 끝낸 것으로 보고 앱 데이터 폴더에 `setup-done`을 남긴다. 설정 창이 열려 있는 동안 확장이 연결되거나 다운로드가 처리되면 앱이 그 창을 새로 고쳐 상태를 다시 불러오게 한다.
+
+`downloadsAccess`: macOS는 권한 창을 띄우지 않고 상태만 물어볼 방법이 없다. 그래서 앱이 **마지막으로 다운로드 폴더를 실제로 읽었을 때**의 결과다. 앱을 켠 뒤 아직 읽어 본 적이 없으면 `unknown`이고, `request_downloads_access`를 부르면 확인된다 (처음이면 권한 창이 뜨고 답할 때까지 기다린다). `extensionConnected`는 이번 실행에서 확장 메시지를 하나라도 받았는지다 (앱이 꺼져 있던 동안 보관된 것 포함).
 
 ### 파일 열기
 
 | 명령               | 인자               | 돌려주는 것 | 뜻                                       | 단계 | 상태 |
 | ------------------ | ------------------ | ----------- | ---------------------------------------- | ---- | ---- |
-| `open_file`        | `{ path: string }` | 없음        | PDF를 기본 앱(미리보기 등)으로           | 3    | 새로 |
-| `reveal_in_finder` | `{ path: string }` | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌 | 3    | 새로 |
+| `open_file`        | `{ path: string }` | 없음        | PDF를 기본 앱(미리보기 등)으로           | 3    | 있음 |
+| `reveal_in_finder` | `{ path: string }` | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌 | 3    | 있음 |
+
+두 명령 모두 정리 폴더 안(정리 폴더 자신 포함)의 경로만 받는다. 밖이거나 없는 경로는 이유를 담아 거절한다.
 
 ### 과목 지정 (FR-5)
 
 | 명령             | 인자                                       | 돌려주는 것     | 뜻                                      | 단계 | 상태 |
 | ---------------- | ------------------------------------------ | --------------- | --------------------------------------- | ---- | ---- |
-| `assign_request` | `{ fileId: string }`                       | `AssignRequest` | 과목 지정 창에 보여 줄 것               | 2    | 새로 |
-| `assign_course`  | `{ fileId: string; choice: AssignChoice }` | 없음            | 과목을 정해 정리. 이후 같은 과목은 기억 | 2    | 바꿈 |
-| `skip_assign`    | `{ fileId: string }`                       | 없음            | 정하지 않고 다운로드 폴더에 그대로 둠   | 2    | 새로 |
+| `assign_request` | `{ fileId: string }`                       | `AssignRequest` | 과목 지정 창에 보여 줄 것               | 2    | 있음 |
+| `assign_course`  | `{ fileId: string; choice: AssignChoice }` | 없음            | 과목을 정해 정리. 이후 같은 과목은 기억 | 2    | 있음 |
+| `skip_assign`    | `{ fileId: string }`                       | 없음            | 정하지 않고 다운로드 폴더에 그대로 둠   | 2    | 있음 |
 
-`assign_course` 지금 모양: `{ id: number, courseName: string }` → `Outcome | null`. `fileId`는 지금의 보류 번호(`id`)를 문자열로 쓰면 된다.
+- `fileId`는 보류 목록의 번호를 문자열로 쓴 것이다 (`overview.unprocessed[].id`와 같음).
+- `assign_course`: 정리되거나(`organized`) 이미 있는 파일(`duplicate`)이면 성공. 파일이 사라졌거나 권한이 없으면 이유를 담아 거절한다. 새 과목명은 화면(`validate.ts`)과 같은 규칙으로 한 번 더 검사한다.
+- `skip_assign`: 보류 목록에서만 빼고 파일은 다운로드 폴더에 그대로 둔다.
+- 명령이 실패하면 `invoke`가 한국어 이유 문자열로 거절된다 (화면에 그대로 보여 줘도 된다).
 
 ### 중복 (FR-7)
 
 | 명령                | 인자                                      | 돌려주는 것       | 뜻                                                               | 단계 | 상태 |
 | ------------------- | ----------------------------------------- | ----------------- | ---------------------------------------------------------------- | ---- | ---- |
-| `duplicate_notice`  | `{ id: string }`                          | `DuplicateNotice` | "이미 받은 파일이에요" 창에 보여 줄 것                           | 3    | 새로 |
-| `resolve_duplicate` | `{ id: string; choice: DuplicateChoice }` | 없음              | `openExisting`: 기존 파일 열고 받은 복사본은 휴지통 / `keepBoth` | 3    | 새로 |
+| `duplicate_notice`  | `{ id: string }`                          | `DuplicateNotice` | "이미 받은 파일이에요" 창에 보여 줄 것                           | 3    | 있음 |
+| `resolve_duplicate` | `{ id: string; choice: DuplicateChoice }` | 없음              | `openExisting`: 기존 파일 열고 받은 복사본은 휴지통 / `keepBoth` | 3    | 있음 |
+
+- 중복 안내 창은 **앱 내부가 띄운다**: 정리 결과가 `duplicate`이면 바로 `index.html?view=duplicate&id=<id>` 창(이름 `duplicate-<id>`)을 연다. `id`는 받은 메시지 번호다.
+- `openExisting`: 기존 파일을 기본 앱으로 열고, 방금 받은 복사본은 macOS 휴지통으로 보낸다 (되살릴 수 있음). 보내기 전에 받은 파일이 정리 폴더 밖에 있고 내용(SHA-256)이 기존 버전과 지금도 같은지 다시 확인하고, 아니면 이유를 담아 거절한다.
+- `keepBoth`: 아무것도 지우지 않는다. 받은 파일은 다운로드 폴더에 그대로 남는다.
+- 기존 파일을 사용자가 옮겼으면 새 위치를 따라간다 (FR-14). 중복 기록은 앱이 켜져 있는 동안만 기억한다.
 
 ### 변경 비교·구버전 정리 (FR-9, FR-10)
 
@@ -100,34 +123,36 @@
 | `cleanup_request` | `{ documentId: string }`                        | `CleanupRequest` | 구버전 정리 창에 보여 줄 것                                  | 4    | 새로 |
 | `resolve_cleanup` | `{ documentId: string; choice: CleanupChoice }` | 없음             | `delete`: 구버전을 휴지통으로, 비교용 데이터도 지움 / `keep` | 4    | 새로 |
 
-### 지금 있는 명령이 옮겨 갈 곳
+### 없앤 명령
 
-PR #20이 머지되고 화면이 새 명령으로 옮겨 가면 지운다.
+화면이 새 명령으로 옮겨 가서 없앴다: `pending_downloads`·`library`·`sorted_root` → `overview`·`course_detail`, `retry_permission` → `request_downloads_access`, `open_privacy_settings` → `open_system_settings`.
+`received_messages`는 개발용 메시지 기록 창이 쓰므로 그대로 둔다.
 
-| 지금 있는 명령          | 옮겨 갈 곳                                           |
-| ----------------------- | ---------------------------------------------------- |
-| `pending_downloads`     | `overview`의 `unprocessed`                           |
-| `library`               | `overview`(과목·최근 변경), `course_detail`(자료)    |
-| `sorted_root`           | `overview.sortedFolder`, `setup_status.sortedFolder` |
-| `retry_permission`      | `request_downloads_access`                           |
-| `open_privacy_settings` | `open_system_settings`                               |
-| `received_messages`     | 그대로 둠 (개발용, 메시지 기록 창)                   |
+### `overview`·`course_detail` 동작
+
+- `changes`: 정리할 때마다 남기는 기록. 앱 데이터 폴더의 `history.json`에 최근 200개까지 남아 앱을 다시 켜도 보인다. 새것부터 온다.
+- `unprocessed`: 과목을 기다리는 파일(`unknownCourse`)과 PDF가 아님·로그인 만료·옮기기 실패. 앱이 켜져 있는 동안만 기억한다 (보류 목록과 같음).
+- `trashCount`: 휴지통이 아직 없어 0.
+- `course_detail`: 주차는 `N주차`를 숫자 순서로, 숫자 없는 이름은 그 뒤 가나다순, `미분류`는 맨 끝. 같은 주차 안에서는 받은 순서. 문서의 버전마다 파일 하나다.
+- 옮긴 파일 (FR-14): 앱이 정리한 파일에는 속성(xattr `dev.sorted.doc`)이 붙는다. 사용자가 정리 폴더 안에서 옮기거나 이름을 바꾸면 앱이 따라가고, 다른 `<과목>/<주차>/` 폴더로 옮겼으면 목록의 과목·주차도 그 폴더를 따른다. 정리 폴더 밖으로 옮기거나 지운 파일은 `overview`·`course_detail`에서 빠진다 (해시는 남김). 다시 넣으면 10초 안에 다시 보인다.
+- `restored: true`: 사라졌던 버전과 같은 내용을 다시 받아 그 문서가 있던 과목·주차에 다시 정리했다. 최근 변경에는 `organized`로 남는다 (새 버전 아님). 평소에는 이 필드가 없다.
+- 문서 ID: `cid-<content_id>`, `item-<모듈 항목 번호>`, 파일명으로 식별한 문서는 `name-<해시>`. 파일 ID는 `<문서 ID>-v<버전>`.
 
 ## `Outcome`
 
 다운로드 하나를 정리한 결과. `download-processed` 이벤트로 온다. `kind`로 구분한다.
 화면은 이것을 직접 보여 주기보다 `overview`의 `changes`·`unprocessed`로 본다.
 
-| `kind`            | 필드                                | 뜻                                                 | `overview`에서                                                    |
-| ----------------- | ----------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| `organized`       | `path`, `course`, `week`, `version` | `~/Sorted/<course>/<week>/`로 옮김                 | `changes`: `version`이 1이면 `organized`, 2 이상이면 `newVersion` |
-| `duplicate`       | `existing`, `downloaded`            | 같은 내용을 이미 가짐. 받은 파일은 그대로 둠       | `changes`: `duplicate` → 중복 창 (FR-7)                           |
-| `needsCourse`     | `path`                              | 과목을 정하지 못함. 보류 목록에 들어감             | `unprocessed`: `unknownCourse` → 과목 지정 창 (FR-5)              |
-| `needsPermission` | `path`                              | 다운로드 폴더를 읽을 권한 없음. 보류 목록에 들어감 | `setup_status.downloadsAccess`가 `denied` (FR-15)                 |
-| `loginExpired`    | `path`                              | PDF 대신 웹 페이지가 받아짐                        | `unprocessed`: `loginExpired` (FR-2)                              |
-| `notPdf`          | `path`                              | PDF가 아님. 손대지 않음                            | `unprocessed`: `notPdf`                                           |
-| `missing`         | `path`                              | 처리 전에 파일이 사라짐                            | 보여 주지 않음                                                    |
-| `error`           | `message`                           | 그 밖의 실패 (옮기기 실패 등)                      | `unprocessed`: `moveFailed`                                       |
+| `kind`            | 필드                                             | 뜻                                                 | `overview`에서                                                    |
+| ----------------- | ------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `organized`       | `path`, `course`, `week`, `version`, `restored`? | `~/Sorted/<course>/<week>/`로 옮김                 | `changes`: `version`이 1이면 `organized`, 2 이상이면 `newVersion` |
+| `duplicate`       | `existing`, `downloaded`                         | 같은 내용을 이미 가짐. 받은 파일은 그대로 둠       | `changes`: `duplicate` → 중복 창 (FR-7)                           |
+| `needsCourse`     | `path`                                           | 과목을 정하지 못함. 보류 목록에 들어감             | `unprocessed`: `unknownCourse` → 과목 지정 창 (FR-5)              |
+| `needsPermission` | `path`                                           | 다운로드 폴더를 읽을 권한 없음. 보류 목록에 들어감 | `setup_status.downloadsAccess`가 `denied` (FR-15)                 |
+| `loginExpired`    | `path`                                           | PDF 대신 웹 페이지가 받아짐                        | `unprocessed`: `loginExpired` (FR-2)                              |
+| `notPdf`          | `path`                                           | PDF가 아님. 손대지 않음                            | `unprocessed`: `notPdf`                                           |
+| `missing`         | `path`                                           | 처리 전에 파일이 사라짐                            | 보여 주지 않음                                                    |
+| `error`           | `message`                                        | 그 밖의 실패 (옮기기 실패 등)                      | `unprocessed`: `moveFailed`                                       |
 
 ## 데이터 모양
 
@@ -147,13 +172,13 @@ interface Overview {
 }
 
 interface Course {
-  /** LMS 과목 ID (courses/<ID>). 사용자가 직접 추가한 과목은 앱이 정한 ID */
+  /** LMS 과목 ID (courses/<ID>). 사용자가 직접 추가한 과목은 `local-` + 과목명 해시 12자리 */
   id: string;
   /** 폴더 이름으로 쓰는 과목명. 사용자가 바꿀 수 있다. 예: "소프트웨어공학" */
   name: string;
-  /** LMS의 원래 과목 이름. 직접 추가한 과목은 없다. 예: "202620HY11171_소프트웨어공학" */
+  /** LMS의 원래 과목 이름. 직접 추가한 과목은 없다. 예: "202620HY11171_소프트웨어공학" (아직 비어 옴) */
   lmsTitle?: string;
-  /** 예: "2026년 2학기" */
+  /** 예: "2026년 2학기" (아직 확장이 보내지 않아 "") */
   term: string;
   /** 과목 폴더 안의 PDF 수 */
   fileCount: number;

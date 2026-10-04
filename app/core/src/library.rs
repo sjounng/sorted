@@ -12,6 +12,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +31,39 @@ pub struct Course {
     /// 파일명·첫 페이지에서 본 과목 코드 (예: "CSE406"). 과목 ID를 모를 때 과목을 찾는 데 쓴다.
     #[serde(default)]
     pub codes: Vec<String>,
+    /// LMS 과목이 아닐 때의 고정 ID. 이름을 바꿔도 ID가 그대로이도록 처음 정한 것을 저장한다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_id: Option<String>,
+    /// Sorted 휴지통에 넣은 시각. 있으면 화면에서 숨긴다 (파일·폴더는 그대로)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at_ms: Option<u64>,
+}
+
+impl Course {
+    /// 화면이 쓰는 과목 ID. LMS 과목이면 LMS 과목 ID, 직접 지정한 과목이면 `local-` + 과목명 해시.
+    /// 화면이 창 이름에 쓰므로 영문·숫자·`-`만 들어간다 (docs/app-api.md).
+    pub fn id(&self) -> String {
+        match (&self.lms_id, &self.local_id) {
+            (Some(id), _) | (None, Some(id)) => id.clone(),
+            (None, None) => local_id_for(&self.name),
+        }
+    }
+
+    /// 지금의 ID를 고정한다. 이름을 바꾸기 전에 부르면 바꾼 뒤에도 ID가 같다.
+    pub fn pin_id(&mut self) {
+        if self.lms_id.is_none() && self.local_id.is_none() {
+            self.local_id = Some(local_id_for(&self.name));
+        }
+    }
+
+    pub fn is_removed(&self) -> bool {
+        self.removed_at_ms.is_some()
+    }
+}
+
+/// 직접 만든 과목의 ID: `local-` + 과목명 해시
+pub fn local_id_for(name: &str) -> String {
+    format!("local-{}", short_hash(name))
 }
 
 /// 같은 강의자료를 알아보는 기준. 위에 있는 것일수록 믿을 만하다 (FR-3).
@@ -42,6 +76,34 @@ pub enum DocKey {
     ModuleItem { value: String },
     /// 둘 다 없을 때: 과목 + 정규화한 파일 이름
     Name { course: String, name: String },
+}
+
+impl DocKey {
+    /// 화면이 쓰는 문서 ID. 창 이름에 쓰이므로 영문·숫자·`-`만 들어간다 (docs/app-api.md).
+    pub fn id(&self) -> String {
+        match self {
+            DocKey::ContentId { value } if is_plain(value) => format!("cid-{value}"),
+            DocKey::ModuleItem { value } if is_plain(value) => format!("item-{value}"),
+            DocKey::ContentId { value } => format!("cid-{}", short_hash(value)),
+            DocKey::ModuleItem { value } => format!("item-{}", short_hash(value)),
+            DocKey::Name { course, name } => {
+                format!("name-{}", short_hash(&format!("{course}/{name}")))
+            }
+        }
+    }
+}
+
+fn is_plain(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 64 && s.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+/// SHA-256 앞 6바이트(16진수 12자리)
+fn short_hash(s: &str) -> String {
+    Sha256::digest(s.as_bytes())
+        .iter()
+        .take(6)
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -64,6 +126,13 @@ pub struct Version {
     pub size: u64,
     pub path: PathBuf,
     pub added_at_ms: u64,
+    /// 정리 폴더에서 찾을 수 없다 (사용자가 밖으로 옮겼거나 지움, FR-14). 화면에서 숨기고 해시는 남긴다
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub missing: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 impl Library {
@@ -100,6 +169,27 @@ impl Library {
             .find(|c| c.lms_id.as_deref() == Some(id))
     }
 
+    /// 정리 폴더의 파일 경로로 그 문서와 버전을 찾는다.
+    pub fn version_at(&self, path: &Path) -> Option<(&Document, &Version)> {
+        self.documents
+            .iter()
+            .find_map(|d| d.versions.iter().find(|v| v.path == path).map(|v| (d, v)))
+    }
+
+    /// 문서 ID(`DocKey::id`)와 버전 번호로 찾는다.
+    pub fn version_of(&self, doc_id: &str, number: u32) -> Option<(&Document, &Version)> {
+        let doc = self.documents.iter().find(|d| d.key.id() == doc_id)?;
+        doc.versions
+            .iter()
+            .find(|v| v.number == number)
+            .map(|v| (doc, v))
+    }
+
+    /// 화면이 쓰는 과목 ID(`Course::id`)로 찾는다.
+    pub fn course_by_id(&self, id: &str) -> Option<&Course> {
+        self.courses.iter().find(|c| c.id() == id)
+    }
+
     pub fn course_by_code(&self, code: &str) -> Option<&Course> {
         self.courses
             .iter()
@@ -125,6 +215,8 @@ impl Library {
                     lms_id: lms_id.map(str::to_owned),
                     name: name.to_owned(),
                     codes: Vec::new(),
+                    local_id: None,
+                    removed_at_ms: None,
                 });
                 self.courses.last_mut().expect("just pushed")
             }
@@ -164,6 +256,7 @@ mod tests {
                 size: 10,
                 path: "/x/a.pdf".into(),
                 added_at_ms: 1,
+                missing: false,
             }],
         });
         lib
@@ -227,5 +320,59 @@ mod tests {
                 value: "6a913a6546923".into()
             })
             .is_none());
+    }
+
+    #[test]
+    fn course_id_is_lms_id_or_ascii_local_id() {
+        let mut lib = Library::default();
+        lib.remember_course(Some("210208"), "소프트웨어공학", &[]);
+        lib.remember_course(None, "운영체제", &[]);
+        assert_eq!(lib.courses[0].id(), "210208");
+        let local = lib.courses[1].id();
+        assert!(local.starts_with("local-") && local.len() == "local-".len() + 12);
+        assert!(local.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+        assert_eq!(lib.course_by_id(&local).unwrap().name, "운영체제");
+        assert!(lib.course_by_id("nope").is_none());
+    }
+
+    #[test]
+    fn doc_ids_are_ascii_and_stable() {
+        let cid = DocKey::ContentId {
+            value: "6aa284ef1cf74".into(),
+        };
+        assert_eq!(cid.id(), "cid-6aa284ef1cf74");
+        let item = DocKey::ModuleItem {
+            value: "8582056".into(),
+        };
+        assert_eq!(item.id(), "item-8582056");
+        let name = DocKey::Name {
+            course: "운영체제".into(),
+            name: "강의 노트".into(),
+        };
+        assert_eq!(name.id(), name.id());
+        assert!(name.id().starts_with("name-"));
+        let odd = DocKey::ContentId {
+            value: "a/b 한글".into(),
+        };
+        for id in [name.id(), odd.id()] {
+            assert!(
+                id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn pinned_id_survives_a_rename() {
+        let mut lib = Library::default();
+        lib.remember_course(None, "운영체제", &[]);
+        let before = lib.courses[0].id();
+        lib.courses[0].pin_id();
+        lib.courses[0].name = "OS".into();
+        assert_eq!(lib.courses[0].id(), before);
+        // 예전 목록(local_id 없음)도 그대로 읽힌다
+        let old: Course = serde_json::from_str(r#"{"lmsId":null,"name":"운영체제"}"#).unwrap();
+        assert_eq!(old.id(), before);
+        assert!(!old.is_removed());
     }
 }

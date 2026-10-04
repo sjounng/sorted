@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   findWeek,
   lookupCourse,
+  lookupPlanner,
+  nextLink,
+  planItems,
+  plannerUrl,
   moduleItemIdOf,
   parseCanvasJson,
   splitCourseName,
@@ -160,5 +164,120 @@ describe("lookupCourse", () => {
     const r = await lookupCourse(fakeFetch, "999", { moduleItemId: null, fileName: "x" });
     expect(r.courseName).toBeNull();
     expect(r.error).toContain("404");
+  });
+});
+
+// 플래너 응답 모양을 줄여 만든 가짜 데이터 (사용자 정보 없음)
+const PLANNER = [
+  {
+    plannable_type: "assignment",
+    plannable_id: 2802020,
+    course_id: 210208,
+    context_name: "202620HY11171_소프트웨어공학",
+    plannable_date: "2026-10-09T04:00:00Z",
+    plannable: { title: "cse406-phase-1-poster-submission", due_at: "2026-10-09T04:00:00Z" },
+    submissions: { submitted: false },
+    html_url: "/courses/210208/assignments/2802020?foo=bar",
+  },
+  {
+    plannable_type: "quiz",
+    plannable_id: 77,
+    course_id: 210208,
+    context_name: "202620HY11171_소프트웨어공학",
+    plannable: { title: "중간고사", due_at: "2026-10-17T04:15:00Z" },
+    submissions: { submitted: true },
+    html_url: "/courses/210208/quizzes/77",
+  },
+  {
+    plannable_type: "calendar_event",
+    plannable_id: 5,
+    course_id: 213105,
+    context_name: "사랑의실천3(기업가정신)",
+    plannable: { title: "화상 강의", start_at: "2026-10-06T06:00:00Z" },
+    submissions: false,
+    planner_override: { marked_complete: true },
+    html_url: "https://learning.hanyang.ac.kr/calendar?event_id=5",
+  },
+  {
+    plannable_type: "announcement",
+    plannable_id: 9,
+    course_id: 210208,
+    plannable: { title: "공지" },
+  },
+  { plannable_type: "assignment", plannable_id: 10, plannable: { title: "마감 없음" } },
+  {
+    plannable_type: "assignment",
+    plannable_id: 11,
+    plannable: { title: "밖 링크", due_at: "2026-11-01T00:00:00Z" },
+    html_url: "https://evil.example/x",
+  },
+];
+
+describe("planItems", () => {
+  const items = planItems(PLANNER);
+
+  it("keeps assignments, quizzes and events with a time", () => {
+    expect(items.map((i) => i.id)).toEqual([
+      "assignment-2802020",
+      "quiz-77",
+      "event-5",
+      "assignment-11",
+    ]);
+  });
+
+  it("maps fields to the app's ScheduleItem", () => {
+    expect(items[0]).toEqual({
+      id: "assignment-2802020",
+      kind: "assignment",
+      courseId: "210208",
+      courseName: "소프트웨어공학",
+      title: "cse406-phase-1-poster-submission",
+      dueAtMs: Date.parse("2026-10-09T04:00:00Z"),
+      done: false,
+      url: "https://learning.hanyang.ac.kr/courses/210208/assignments/2802020",
+    });
+  });
+
+  it("uses start time for events and reads done from submissions or the planner", () => {
+    expect(items[1].done).toBe(true);
+    expect(items[2]).toMatchObject({
+      kind: "event",
+      dueAtMs: Date.parse("2026-10-06T06:00:00Z"),
+      done: true,
+      url: "https://learning.hanyang.ac.kr/calendar",
+    });
+  });
+
+  it("never passes links outside the LMS", () => {
+    expect(items[3]).toMatchObject({ url: "", courseId: "" });
+  });
+});
+
+describe("planner paging", () => {
+  it("builds the date range around now", () => {
+    const url = plannerUrl(Date.parse("2026-10-04T00:00:00Z"));
+    expect(url).toContain("start_date=2026-09-20");
+    expect(url).toContain("end_date=2027-02-01");
+  });
+
+  it("follows rel=next only inside the LMS", () => {
+    const next = "https://learning.hanyang.ac.kr/api/v1/planner/items?page=2";
+    expect(nextLink(`<${next}>; rel="next", <https://x>; rel="last"`)).toBe(next);
+    expect(nextLink('<https://evil.example/p2>; rel="next"')).toBeNull();
+    expect(nextLink(null)).toBeNull();
+  });
+
+  it("reads every page", async () => {
+    const pages = [
+      { text: wrap(PLANNER.slice(0, 2)), link: '<https://learning.hanyang.ac.kr/p2>; rel="next"' },
+      { text: wrap(PLANNER.slice(2)), link: null },
+    ];
+    const seen = [];
+    const items = await lookupPlanner(async (url) => {
+      seen.push(url);
+      return pages[seen.length - 1];
+    }, Date.now());
+    expect(seen[1]).toBe("https://learning.hanyang.ac.kr/p2");
+    expect(items).toHaveLength(4);
   });
 });

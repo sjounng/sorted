@@ -29,11 +29,13 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 (server/)           판정 보조 서버 (선택, FR-18, 4단계 예정). Lambda + LLM. API 키는 여기에만 둔다
 ```
 
-데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, probe-history.jsonl, logs/)
+데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), schedule.json(일정), setup-done(첫 설정 끝냄), probe-history.jsonl, logs/)
 정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
 
-> **이 Mac에서는 `~/Sorted` = 저장소 `~/sorted`** (디스크가 대소문자를 구분하지 않음). 그대로 두면 강의 PDF가 저장소 안에 들어간다.
-> 확인할 때는 `open --env SORTED_ROOT="$HOME/Documents/Sorted-test" app/target/release/bundle/macos/Sorted.app`로 띄운다.
+> 저장소는 `~/dev/sorted`에 있다 (2026-10-04에 `~/sorted`에서 옮김: 디스크가 대소문자를 구분하지 않아 `~/Sorted`와 겹쳤음).
+> 개발 중 확인은 테스트 폴더로: `open --env SORTED_ROOT="$HOME/SortedTest" app/target/release/bundle/macos/Sorted.app`
+> 실제 데이터 화면으로 보려면 `VITE_BACKEND=tauri npm run tauri build -- --bundles app`로 빌드한다 (기본은 목업).
+> 테스트 폴더를 문서·데스크톱 같은 보호 폴더 안에 두지 않는다: 빌드마다 서명이 바뀌어 macOS가 권한 창을 다시 띄운다.
 
 ## 확인 명령 (CI와 같음)
 
@@ -80,25 +82,25 @@ cd app && npm run tauri build -- --bundles app && open target/release/bundle/mac
 | #30                     | FR-19 LMS 일정(과제·퀴즈·영상 마감)                                                  | 3    |
 | #12, #13, #24           | FR-9 변경 보여주기, FR-10 구버전 정리, FR-18 이름 바뀐 새 버전 찾기(판정 보조 서버)  | 4    |
 
-## 지금 상태 (2026-10-03)
+## 지금 상태 (2026-10-04)
 
-- `main`: 스파이크 #3(#21), 2단계 앱 내부(#22), FR-17(#27), 기획안 사본 `docs/plan.md`(#26, #29)까지 합쳐짐.
-  닫힌 이슈: #3 #4 #6 #7 #9 #14 #23. 남은 2단계: #5 #8 #15 #18(화면 쪽).
-- 빌드한 앱으로 실제 LMS 자료가 과목·주차 폴더로 정리되는 것 확인 (소프트웨어공학 2주차, `[Week04]` 모듈 → 4주차. 테스트 폴더 사용).
-- 작업한 브랜치는 머지 후에도 지우지 않고 남겨 둔다.
-- 예원: PR #20(`feat/16-menubar-popover`, React 화면 전체 + Dock 앱으로 전환), PR #28(`feat/schedule-tab`, #20 위의 일정 탭). 모두 목업 데이터.
-  화면이 부르는 명령 24개 중 앱 내부에 있는 건 `assign_course` 하나 → `docs/app-api.md`에 정리.
+- 앱 내부 명령: `docs/app-api.md`의 1~3단계 명령을 모두 채움 (메인 창, 과목, 휴지통, 일정, 첫 실행 설정, 과목 지정, 중복, 파일 열기).
+  4단계(`comparison`, `cleanup_request`, `resolve_cleanup`)만 남음.
+- 끝난 기능 (이슈 닫힘): FR-1~7, FR-11, FR-14(옮긴 파일 추적), FR-15(첫 실행 설정), FR-16(연결 끊김), FR-17(모듈 이름 주차).
+- 진행 중: FR-12 주차 순서 #15 (같은 주차 안 순서·사용자 순서 남음), FR-13 메인 창 #16·#34 (예원 디자인 개편),
+  FR-19 일정 #30 (플래너 끝, 주차학습 영상은 예원의 요청 경로 확인 대기).
+- 빌드한 앱 + 실제 LMS로 확인: 정리, 주차 이름 맞추기, 옮긴 파일 따라가기, 중복 창·휴지통, 앱이 꺼졌을 때 보관, 일정, 첫 실행 설정.
+- 화면 기본값은 아직 목업(`VITE_BACKEND`). 예원 개편 뒤 `tauri`로 바꾼다.
+- 작업한 브랜치는 머지 후에도 지우지 않고 남겨 둔다. 쌓인 PR은 머지 전에 대상 브랜치를 확인한다 (#28이 main이 아닌 곳에 들어간 적 있음).
 
 ## 다음 할 일
 
-1. 앱 내부 명령을 `docs/app-api.md` 순서대로 채우기 (준우). 2단계: `setup_status`, `request_downloads_access`, `open_system_settings`,
-   `assign_request`/`assign_course`/`skip_assign`. 3단계: `overview`(+ `overview-changed`), `course_detail`, 과목 추가·이름 바꾸기·휴지통,
-   `open_file`/`reveal_in_finder`, `duplicate_notice`/`resolve_duplicate`(FR-7). "앱 내부에서 새로 필요한 것" 표(학기, 최근 변경 기록 등)도 같이.
-2. FR-14 파일 추적 (xattr로 과목 ID·content_id 새기기, 옮긴 파일 따라가기), FR-16 실제 다운로드로 보관 확인.
-3. FR-19 일정 (#30): 과제·퀴즈는 확장이 Canvas 플래너 API 조회(LMS 열려 있을 때, 한 시간에 한 번까지),
-   주차학습 영상은 사용자가 연 페이지의 응답을 읽음(MV3 content script `world: "MAIN"`). 쿠키·토큰은 다루지 않음.
-   주차학습 요청 경로는 예원이 확인 중. 확인 내용(인증 방식)은 비공개 문서로만 공유받음 → 저장소에 넣지 않는다.
-4. 기본 정리 폴더 `~/Sorted`가 이 Mac에서 저장소와 같은 문제 정리 (저장소 옮기기 또는 기본 경로 바꾸기). 시연 전 필수.
-5. probe(스파이크 #3 확인 코드)는 화면이 새 명령으로 옮겨 가면 제거 (메시지 기록 창은 예원과 상의).
-6. README에 아키텍처 Mermaid 그림 넣기 (교수님 시연용, `docs/plan.md`에서 빠진 그림도).
-7. 시연 전: 설계 문서 영어 번역.
+1. 예원에게 전할 것 (화면): 과목 화면·일정 탭이 `overview-changed`를 구독해 다운로드 직후 바로 바뀌게,
+   설정 창이 열려 있는 동안 상태를 다시 불러오게 (지금은 앱이 창을 새로 고침), 디자인 개편 뒤 기본값을 `tauri`로.
+2. probe(스파이크 #3 확인 코드) 제거와 메시지 기록 창 정리 (예원과 상의).
+3. 시연 준비: README에 아키텍처 Mermaid 그림 (`docs/plan.md`에서 빠진 그림도), 설계 문서 영어 번역, 3분 영어 대본·리허설.
+   시연은 기본 정리 폴더 `~/Sorted`로 (테스트 폴더 기록과 섞이지 않게 시작 전 정리).
+4. 4단계 (시연엔 설계로만): FR-9 변경 비교·FR-10 구버전 정리 (#12, #13), FR-18 판정 보조 서버 (#24).
+5. FR-19 주차학습 영상: 요청 경로를 받으면 content script(`world: "MAIN"`)로 응답 읽기. 쿠키·토큰은 다루지 않는다.
+   확인 내용(인증 방식)은 비공개 문서로만 공유받음 → 저장소에 넣지 않는다.
+6. 로컬 Rust(1.94)가 CI(1.99)보다 낮아 새 clippy 규칙을 놓칠 수 있다 → `rustup update stable` 검토.

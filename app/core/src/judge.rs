@@ -74,6 +74,8 @@ pub enum Decision {
     Duplicate { existing: PathBuf },
     /// 같은 문서의 새 내용 (FR-8: 번호를 붙여 따로 저장)
     NewVersion { number: u32 },
+    /// 같은 내용을 가졌었지만 그 파일이 정리 폴더에서 사라졌다 (FR-14). 그 버전 자리에 다시 정리한다
+    Restore { number: u32 },
 }
 
 pub fn decide(lib: &Library, key: &DocKey, sha256: &str) -> Decision {
@@ -81,6 +83,9 @@ pub fn decide(lib: &Library, key: &DocKey, sha256: &str) -> Decision {
         return Decision::New;
     };
     if let Some(v) = doc.versions.iter().find(|v| v.sha256 == sha256) {
+        if v.missing {
+            return Decision::Restore { number: v.number };
+        }
         return Decision::Duplicate {
             existing: v.path.clone(),
         };
@@ -137,6 +142,7 @@ mod tests {
                 size: 1,
                 path: "/S/OS/1주차/a.pdf".into(),
                 added_at_ms: 0,
+                missing: false,
             }],
         });
         (lib, key)
@@ -162,5 +168,12 @@ mod tests {
             }
         );
         assert_eq!(decide(&lib, &key, "h2"), Decision::NewVersion { number: 2 });
+    }
+
+    #[test]
+    fn same_content_as_a_missing_file_is_restored() {
+        let (mut lib, key) = lib_with("h1");
+        lib.documents[0].versions[0].missing = true;
+        assert_eq!(decide(&lib, &key, "h1"), Decision::Restore { number: 1 });
     }
 }

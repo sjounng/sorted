@@ -87,3 +87,85 @@ export async function lookupCourse(fetchText, courseId, hint) {
     return { courseName: null, courseCode: null, week: null, error: String(err?.message ?? err) };
   }
 }
+
+// ── 일정 (FR-19) ──────────────────────────────────────
+// 과제·퀴즈·시험·화상 강의 마감은 Canvas 플래너에서 읽는다. 공지와 그 밖의 종류는 버린다.
+// 앱에는 정리한 일정만 넘긴다: 사용자 번호, 서명이 붙은 이미지 주소, 링크의 쿼리는 넘기지 않는다.
+
+/** 플래너에서 읽는 기간: 2주 전 ~ 4달 뒤 */
+const PLANNER_PAST_DAYS = 14;
+const PLANNER_AHEAD_DAYS = 120;
+/** 한 번에 읽는 최대 쪽 수 (쪽마다 50개) */
+const PLANNER_MAX_PAGES = 10;
+
+const PLANNER_KIND = { assignment: "assignment", quiz: "quiz", calendar_event: "event" };
+
+/** 첫 쪽 주소 */
+export function plannerUrl(nowMs) {
+  const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const DAY = 24 * 60 * 60 * 1000;
+  const start = day(nowMs - PLANNER_PAST_DAYS * DAY);
+  const end = day(nowMs + PLANNER_AHEAD_DAYS * DAY);
+  return `${LMS_ORIGIN}/api/v1/planner/items?start_date=${start}&end_date=${end}&per_page=50`;
+}
+
+/** `Link` 헤더의 rel="next" 주소. LMS 주소가 아니면 따라가지 않는다. */
+export function nextLink(header) {
+  for (const part of (header ?? "").split(",")) {
+    const m = /<([^>]+)>\s*;\s*rel="next"/.exec(part);
+    if (m && m[1].startsWith(`${LMS_ORIGIN}/`)) return m[1];
+  }
+  return null;
+}
+
+/** LMS 안의 상대·절대 주소를 쿼리 없는 절대 주소로. LMS 밖이면 빈 문자열. */
+function lmsUrl(path) {
+  try {
+    const u = new URL(path ?? "", LMS_ORIGIN);
+    return u.origin === LMS_ORIGIN ? `${u.origin}${u.pathname}` : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 플래너 항목을 앱의 일정(ScheduleItem, docs/app-api.md)으로 바꾼다.
+ * 마감 시각을 모르는 항목, 공지 등은 버린다.
+ */
+export function planItems(raw) {
+  return (raw ?? []).flatMap((p) => {
+    const kind = PLANNER_KIND[p?.plannable_type];
+    if (!kind || p.plannable_id == null) return [];
+    const plannable = p.plannable ?? {};
+    const when = kind === "event" ? plannable.start_at : (plannable.due_at ?? p.plannable_date);
+    const dueAtMs = Date.parse(when ?? "");
+    if (!Number.isFinite(dueAtMs)) return [];
+    return [
+      {
+        id: `${kind}-${p.plannable_id}`,
+        kind,
+        courseId: p.course_id == null ? "" : String(p.course_id),
+        courseName: splitCourseName(p.context_name).name,
+        title: plannable.title ?? plannable.name ?? "",
+        dueAtMs,
+        done: p.submissions?.submitted === true || p.planner_override?.marked_complete === true,
+        url: lmsUrl(p.html_url),
+      },
+    ];
+  });
+}
+
+/**
+ * 플래너를 쪽마다 읽어 일정으로 바꾼다. 실패하면 예외를 던진다 (부른 쪽이 다음에 다시 시도).
+ * @param fetchPage (url) => Promise<{ text: string, link: string | null }>  쿠키를 실어 GET
+ */
+export async function lookupPlanner(fetchPage, nowMs) {
+  const raw = [];
+  let url = plannerUrl(nowMs);
+  for (let i = 0; url && i < PLANNER_MAX_PAGES; i++) {
+    const { text, link } = await fetchPage(url);
+    raw.push(...parseCanvasJson(text));
+    url = nextLink(link);
+  }
+  return planItems(raw);
+}
