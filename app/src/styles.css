@@ -240,7 +240,7 @@ h1 {
     var(--avatar-to, var(--brand))
   );
   box-shadow: 0 2px 8px rgba(74, 46, 68, 0.2);
-  color: #fff;
+  color: var(--avatar-ink, #fff);
   font-size: 22px;
   font-weight: 700;
 }
@@ -271,7 +271,7 @@ h1 {
   top: calc(100% + 6px);
   left: 4px;
   display: grid;
-  grid-template-columns: repeat(4, 30px);
+  grid-template-columns: repeat(5, 30px);
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--line);

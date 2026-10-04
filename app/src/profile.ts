@@ -48,34 +48,48 @@ export function initial(name: string): string {
   return name ? Array.from(name)[0].toUpperCase() : "S";
 }
 
-// 프로필 동그라미 색. 앱 팔레트에 어울리는 그라데이션 몇 가지 중에서 고른다. 이름처럼 화면 저장소에 둔다.
+// 프로필 동그라미 색. 팬톤 팔레트 다섯 가지 중에서 고른다. 이름처럼 화면 저장소에 둔다.
 
 export interface AvatarColor {
   id: string;
   label: string;
   from: string;
   to: string;
+  /** 동그라미 안 이니셜 색. 밝은 색 위에서는 진한 갈색 */
+  ink: string;
 }
 
+// 팬톤 팔레트: Transparent Yellow · Sceptre Red · Cerulean Blue · Potting Soil · Java Brown
+// 각 색에 아주 살짝 명암만 준다 (from → to)
 export const AVATAR_COLORS: AvatarColor[] = [
-  { id: "mist", label: "Mist", from: "#7fb5b7", to: "#7d5a77" },
-  { id: "rose", label: "Rose", from: "#e5a3b3", to: "#a35b78" },
-  { id: "lavender", label: "Lavender", from: "#c3b2e3", to: "#7a68a8" },
-  { id: "sage", label: "Sage", from: "#b5c9a8", to: "#6f8a6b" },
-  { id: "peach", label: "Peach", from: "#f2c1a0", to: "#c27a63" },
-  { id: "dusk", label: "Dusk", from: "#8fa3c9", to: "#5b5480" },
-  { id: "berry", label: "Berry", from: "#d68aa8", to: "#7a3f62" },
-  { id: "sand", label: "Sand", from: "#e2cfa8", to: "#a08262" },
+  {
+    id: "transparent-yellow",
+    label: "Transparent Yellow",
+    from: "#f9f5d9",
+    to: "#f5efc6",
+    ink: "#4a2e27",
+  },
+  { id: "sceptre-red", label: "Sceptre Red", from: "#6b1c22", to: "#4d0e12", ink: "#f5efc6" },
+  { id: "cerulean-blue", label: "Cerulean Blue", from: "#bccde2", to: "#a5bcd6", ink: "#231815" },
+  { id: "potting-soil", label: "Potting Soil", from: "#5f3d34", to: "#4a2e27", ink: "#f5efc6" },
+  { id: "java-brown", label: "Java Brown", from: "#3a2a24", to: "#231815", ink: "#f5efc6" },
 ];
 
+/** 고르기 전 기본 색 */
+const DEFAULT_COLOR = "cerulean-blue";
+
 const COLOR_KEY = "sorted.avatarColor";
+
+function fallback(): AvatarColor {
+  return AVATAR_COLORS.find((c) => c.id === DEFAULT_COLOR) ?? AVATAR_COLORS[0];
+}
 
 function readColor(): AvatarColor {
   try {
     const id = localStorage.getItem(COLOR_KEY);
-    return AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS[0];
+    return AVATAR_COLORS.find((c) => c.id === id) ?? fallback();
   } catch {
-    return AVATAR_COLORS[0];
+    return fallback();
   }
 }
 
@@ -92,7 +106,7 @@ export function useAvatarColor(): [AvatarColor, (id: string) => void] {
   }, []);
 
   const choose = (id: string) => {
-    const next = AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS[0];
+    const next = AVATAR_COLORS.find((c) => c.id === id) ?? fallback();
     try {
       localStorage.setItem(COLOR_KEY, next.id);
     } catch {

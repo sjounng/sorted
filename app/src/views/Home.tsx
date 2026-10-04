@@ -237,7 +237,13 @@ function Profile({ name, onEditName }: { name: string; onEditName: () => void })
         <span
           className="avatar"
           aria-hidden
-          style={{ "--avatar-from": color.from, "--avatar-to": color.to } as React.CSSProperties}
+          style={
+            {
+              "--avatar-from": color.from,
+              "--avatar-to": color.to,
+              "--avatar-ink": color.ink,
+            } as React.CSSProperties
+          }
         >
           {initial(name)}
         </span>
