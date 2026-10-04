@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
 import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
+import { isOverdue } from "../schedule";
 import { useFitCount } from "../useFitCount";
 import { useLoad } from "../useLoad";
 import { MonthCalendar, firstOfMonth } from "./ScheduleView";
@@ -55,10 +56,12 @@ export function Dashboard(props: {
       : { name: item.courseName, color: "var(--muted)" };
   };
 
-  const upcoming = items
-    .filter((i) => !i.done && i.dueAtMs >= now)
-    .sort((a, b) => a.dueAtMs - b.dueAtMs)
-    .slice(0, upCount);
+  // 지났는데 안 한 것(7일 이내)을 맨 위에, 그다음 다가오는 마감
+  const overdue = items.filter((i) => isOverdue(i, now)).sort((a, b) => a.dueAtMs - b.dueAtMs);
+  const upcoming = [
+    ...overdue,
+    ...items.filter((i) => !i.done && i.dueAtMs >= now).sort((a, b) => a.dueAtMs - b.dueAtMs),
+  ].slice(0, upCount);
   const soon = items.filter((i) => !i.done && i.dueAtMs >= now && daysLeft(i.dueAtMs, now) <= 3);
 
   // 달성률: 일주일 안에 마감인 것까지 (이미 지난 것 포함)
@@ -92,7 +95,7 @@ export function Dashboard(props: {
             </button>
           )}
           <p className="muted">
-            {dateLabel(now)} ·{" "}
+            {dateLabel(now)} · {overdue.length > 0 && `${overdue.length} overdue · `}
             {soon.length > 0
               ? `${soon.length} ${soon.length === 1 ? "deadline" : "deadlines"} in the next 3 days.`
               : "No deadlines in the next 3 days."}
@@ -114,7 +117,7 @@ export function Dashboard(props: {
               return (
                 <li key={item.id}>
                   <button
-                    className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
+                    className={`up-item ${item.dueAtMs < now ? "overdue" : left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
                     style={{ "--course": color } as React.CSSProperties}
                     onClick={() => api.openInBrowser(item.url)}
                     title="Open in LMS"

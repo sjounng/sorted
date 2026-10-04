@@ -248,6 +248,8 @@ interface ScheduleItem {
   dueAtMs: number;
   /** 영상: 볼 수 있게 열리는 시각 */
   startAtMs?: number;
+  /** 영상: 마감 뒤 지각으로 인정받을 수 있는 마지막 시각 (주차학습 late_at). 없으면 지각 인정 없음 */
+  lateUntilMs?: number;
   /** 제출함 / 시청 완료 */
   done: boolean;
   /** LMS에서 이 항목을 여는 주소 (쿼리 없이) */

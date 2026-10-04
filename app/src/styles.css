@@ -1740,6 +1740,16 @@ button.link {
   color: var(--on-brand);
 }
 
+/* 마감이 지났는데 안 한 것: 빨간 D+N, 목록 맨 위 "Overdue" 묶음 */
+.sched-row.overdue .dday {
+  background: var(--danger);
+  color: var(--on-brand);
+}
+
+.sched-day.overdue {
+  color: var(--danger);
+}
+
 .sched-row.done .dday {
   background: none;
   color: var(--ok);
@@ -1977,6 +1987,11 @@ button.link {
   font-weight: 600;
 }
 
+.up-item.overdue .up-date {
+  border-color: var(--danger);
+}
+
+.up-item.overdue .up-date small,
 .up-item.urgent .up-date small {
   color: var(--danger);
 }
