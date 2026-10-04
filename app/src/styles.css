@@ -9,26 +9,30 @@
   --sidebar: #ece2e1;
   --bg: #fbf7f3; /* 카드·목록·입력 칸 */
   --panel: #e5d6db; /* 위젯 상자 */
-  --fg: #4a3e48;
-  --muted: #8c7d89;
+  /* 글자·채우기 색: 팬톤 팔레트 (Transparent Yellow #f5efc6 · Sceptre Red #4d0e12 · Cerulean Blue #a5bcd6
+     · Potting Soil #4a2e27 · Java Brown #231815). 배경(모브·크림)은 그대로 */
+  --fg: #231815; /* Java Brown */
+  --muted: color-mix(in srgb, #4a2e27 78%, var(--bg)); /* Potting Soil을 흐리게 */
   --line: #ddcdd3;
   --hover: #efe5e6;
-  --accent: #7d5a77;
-  --brand: #7d5a77; /* 자두색: 선택, 배지, 달성률 카드 */
-  --brand-deep: #6b4b66;
-  --accent-soft: rgba(125, 90, 119, 0.14);
-  --warn: #c0723c;
-  --warn-soft: rgba(192, 114, 60, 0.12);
-  --danger: #c2445f;
-  --added: #5f9b7c;
-  --added-soft: rgba(95, 155, 124, 0.16);
-  --ok: #5f9b7c;
-  --pass: #3f8a5f;
-  --fail: #c2445f;
+  --accent: #4d0e12; /* Sceptre Red: 링크·강조 글자 */
+  --brand: #4d0e12; /* Sceptre Red: 선택한 메뉴, 버튼, 배지, 달성률 카드 */
+  --brand-deep: #4d0e12;
+  --on-brand: #f5efc6; /* Transparent Yellow: 채운 색 위의 글자 */
+  --accent-soft: rgba(77, 14, 18, 0.1);
+  --warn: #4a2e27; /* Potting Soil: 주의 글자 */
+  --warn-fill: #4a2e27; /* Potting Soil: 주의로 채우는 곳 (처리 못한 파일 카드, D-2·3 배지) */
+  --warn-soft: rgba(74, 46, 39, 0.1);
+  --danger: #4d0e12;
+  --added: color-mix(in srgb, #a5bcd6 45%, #231815); /* Cerulean Blue를 글자로 읽히게 어둡게 */
+  --added-soft: rgba(165, 188, 214, 0.35);
+  --ok: color-mix(in srgb, #a5bcd6 45%, #231815);
+  --pass: color-mix(in srgb, #a5bcd6 45%, #231815);
+  --fail: #4d0e12;
   /* 달성률 고리 색 */
-  --ring-pink: #e5607f;
-  --ring-teal: #7fb5b7;
-  --ring-yellow: #f2c14e;
+  --ring-pink: #f5efc6; /* Transparent Yellow */
+  --ring-teal: #a5bcd6; /* Cerulean Blue */
+  --ring-yellow: #f5efc6;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -42,22 +46,24 @@
     --sidebar: #241d22;
     --bg: #352c33;
     --panel: #3d3139;
-    --fg: #f2e9ef;
-    --muted: #b8a7b3;
+    --fg: #f5efc6; /* Transparent Yellow */
+    --muted: color-mix(in srgb, #f5efc6 62%, var(--bg));
     --line: #4d3f49;
     --hover: #40343d;
-    --accent: #d2a6c8;
-    --brand: #9b7393;
-    --brand-deep: #b48aac;
-    --accent-soft: rgba(210, 166, 200, 0.16);
-    --warn: #e6995f;
-    --warn-soft: rgba(230, 153, 95, 0.14);
-    --danger: #f07a90;
-    --added: #8cc7a6;
-    --added-soft: rgba(140, 199, 166, 0.16);
-    --ok: #8cc7a6;
-    --pass: #8cc7a6;
-    --fail: #f07a90;
+    --accent: #a5bcd6; /* Cerulean Blue: 어두운 바탕에서 읽히는 강조 */
+    --brand: color-mix(in srgb, #4d0e12 80%, #f5efc6); /* Sceptre Red를 조금 밝게 */
+    --brand-deep: #a5bcd6;
+    --on-brand: #f5efc6;
+    --accent-soft: rgba(165, 188, 214, 0.16);
+    --warn: color-mix(in srgb, #4a2e27 40%, #f5efc6);
+    --warn-fill: color-mix(in srgb, #4a2e27 88%, #f5efc6);
+    --warn-soft: rgba(245, 239, 198, 0.1);
+    --danger: color-mix(in srgb, #4d0e12 45%, #f5efc6);
+    --added: #a5bcd6;
+    --added-soft: rgba(165, 188, 214, 0.18);
+    --ok: #a5bcd6;
+    --pass: #a5bcd6;
+    --fail: color-mix(in srgb, #4d0e12 45%, #f5efc6);
   }
 }
 
@@ -68,22 +74,24 @@
   --sidebar: #241d22;
   --bg: #352c33;
   --panel: #3d3139;
-  --fg: #f2e9ef;
-  --muted: #b8a7b3;
+  --fg: #f5efc6; /* Transparent Yellow */
+  --muted: color-mix(in srgb, #f5efc6 62%, var(--bg));
   --line: #4d3f49;
   --hover: #40343d;
-  --accent: #d2a6c8;
-  --brand: #9b7393;
-  --brand-deep: #b48aac;
-  --accent-soft: rgba(210, 166, 200, 0.16);
-  --warn: #e6995f;
-  --warn-soft: rgba(230, 153, 95, 0.14);
-  --danger: #f07a90;
-  --added: #8cc7a6;
-  --added-soft: rgba(140, 199, 166, 0.16);
-  --ok: #8cc7a6;
-  --pass: #8cc7a6;
-  --fail: #f07a90;
+  --accent: #a5bcd6; /* Cerulean Blue: 어두운 바탕에서 읽히는 강조 */
+  --brand: color-mix(in srgb, #4d0e12 80%, #f5efc6); /* Sceptre Red를 조금 밝게 */
+  --brand-deep: #a5bcd6;
+  --on-brand: #f5efc6;
+  --accent-soft: rgba(165, 188, 214, 0.16);
+  --warn: color-mix(in srgb, #4a2e27 40%, #f5efc6);
+  --warn-fill: color-mix(in srgb, #4a2e27 88%, #f5efc6);
+  --warn-soft: rgba(245, 239, 198, 0.1);
+  --danger: color-mix(in srgb, #4d0e12 45%, #f5efc6);
+  --added: #a5bcd6;
+  --added-soft: rgba(165, 188, 214, 0.18);
+  --ok: #a5bcd6;
+  --pass: #a5bcd6;
+  --fail: color-mix(in srgb, #4d0e12 45%, #f5efc6);
 }
 
 :root[data-theme="light"] {
@@ -195,7 +203,7 @@ h1 {
   place-items: center;
   border-radius: 11px;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-size: 18px;
   font-weight: 700;
 }
@@ -380,8 +388,8 @@ h1 {
   padding: 0 6px;
   box-sizing: border-box;
   border-radius: 10px;
-  background: var(--ring-pink);
-  color: #fff;
+  background: var(--brand);
+  color: var(--on-brand);
   font-size: 11px;
   font-weight: 700;
   line-height: 20px;
@@ -552,13 +560,13 @@ button:disabled {
 button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 button.danger {
   border-color: var(--danger);
   background: var(--danger);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 button.link {
@@ -648,7 +656,7 @@ button.link {
 .step.done .mark {
   border-color: var(--ok);
   background: var(--ok);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .step.failed .mark {
@@ -989,7 +997,7 @@ button.link {
   box-sizing: border-box;
   border-radius: 9px;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
@@ -1615,7 +1623,7 @@ button.link {
 
 .cal-day.today .num {
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   font-weight: 700;
 }
 
@@ -1676,7 +1684,7 @@ button.link {
 .chip.active {
   border-color: var(--brand);
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .check {
@@ -1724,12 +1732,12 @@ button.link {
 
 .sched-row.urgent .dday {
   background: var(--danger);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .sched-row.soon .dday {
-  background: var(--warn);
-  color: #fff;
+  background: var(--warn-fill);
+  color: var(--on-brand);
 }
 
 .sched-row.done .dday {
@@ -2062,7 +2070,7 @@ button.link {
   border: 0;
   border-radius: 24px;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   text-align: center;
 }
 
@@ -2079,7 +2087,7 @@ button.link {
 
 .ring-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: color-mix(in srgb, var(--on-brand) 16%, transparent);
   stroke-width: 7;
 }
 
@@ -2091,7 +2099,7 @@ button.link {
 }
 
 .ring-text {
-  fill: #fff;
+  fill: var(--on-brand);
   font-size: 19px;
   font-weight: 500;
 }
@@ -2108,7 +2116,7 @@ button.link {
 }
 
 .stat-warn {
-  background: var(--ring-pink);
+  background: var(--warn-fill);
   cursor: pointer;
 }
 
