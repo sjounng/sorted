@@ -100,8 +100,13 @@
 
 | 명령                | 인자                                      | 돌려주는 것       | 뜻                                                               | 단계 | 상태 |
 | ------------------- | ----------------------------------------- | ----------------- | ---------------------------------------------------------------- | ---- | ---- |
-| `duplicate_notice`  | `{ id: string }`                          | `DuplicateNotice` | "이미 받은 파일이에요" 창에 보여 줄 것                           | 3    | 새로 |
-| `resolve_duplicate` | `{ id: string; choice: DuplicateChoice }` | 없음              | `openExisting`: 기존 파일 열고 받은 복사본은 휴지통 / `keepBoth` | 3    | 새로 |
+| `duplicate_notice`  | `{ id: string }`                          | `DuplicateNotice` | "이미 받은 파일이에요" 창에 보여 줄 것                           | 3    | 있음 |
+| `resolve_duplicate` | `{ id: string; choice: DuplicateChoice }` | 없음              | `openExisting`: 기존 파일 열고 받은 복사본은 휴지통 / `keepBoth` | 3    | 있음 |
+
+- 중복 안내 창은 **앱 내부가 띄운다**: 정리 결과가 `duplicate`이면 바로 `index.html?view=duplicate&id=<id>` 창(이름 `duplicate-<id>`)을 연다. `id`는 받은 메시지 번호다.
+- `openExisting`: 기존 파일을 기본 앱으로 열고, 방금 받은 복사본은 macOS 휴지통으로 보낸다 (되살릴 수 있음). 보내기 전에 받은 파일이 정리 폴더 밖에 있고 내용(SHA-256)이 기존 버전과 지금도 같은지 다시 확인하고, 아니면 이유를 담아 거절한다.
+- `keepBoth`: 아무것도 지우지 않는다. 받은 파일은 다운로드 폴더에 그대로 남는다.
+- 기존 파일을 사용자가 옮겼으면 새 위치를 따라간다 (FR-14). 중복 기록은 앱이 켜져 있는 동안만 기억한다.
 
 ### 변경 비교·구버전 정리 (FR-9, FR-10)
 
