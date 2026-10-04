@@ -75,10 +75,10 @@ export function Dashboard(props: {
       <header className="dash-head">
         <div className="dash-greet">
           <h1>
-            Hello{name ? ", " : "!"}
+            Hello{name ? ", " : "."}
             {name && (
               <>
-                <span className="greet-name">{name}</span>!
+                <span className="greet-name">{name}</span>.
               </>
             )}
           </h1>
