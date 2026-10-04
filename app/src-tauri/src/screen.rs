@@ -23,39 +23,66 @@ pub struct Course {
     pub latest_week: String,
 }
 
-/// 목록에 있는 과목들을 화면 모양으로
+/// 목록에 있는 과목들을 화면 모양으로 (Sorted 휴지통에 든 과목은 뺀다)
 pub fn courses(lib: &Library) -> Vec<Course> {
     lib.courses
         .iter()
-        .map(|c| {
-            // 정리 폴더에서 사라진 버전(missing)은 세지 않는다 (FR-14)
-            let docs = lib.documents.iter().filter(|d| d.course == c.name);
-            let file_count = docs
-                .clone()
-                .map(|d| d.versions.iter().filter(|v| !v.missing).count())
-                .sum();
-            let latest_week = docs
-                .filter_map(|d| {
-                    d.versions
-                        .iter()
-                        .filter(|v| !v.missing)
-                        .map(|v| v.added_at_ms)
-                        .max()
-                        .map(|t| (t, d))
-                })
-                .max_by_key(|(t, _)| *t)
-                .map(|(_, d)| d.week.clone())
-                .unwrap_or_default();
-            Course {
-                id: c.id(),
-                name: c.name.clone(),
-                lms_title: None,
-                term: String::new(),
-                file_count,
-                latest_week,
-            }
-        })
+        .filter(|c| !c.is_removed())
+        .map(|c| card(lib, c))
         .collect()
+}
+
+/// Sorted 휴지통에 든 과목. 최근에 지운 것부터
+pub fn trashed(lib: &Library) -> Vec<TrashedCourse> {
+    let mut list: Vec<TrashedCourse> = lib
+        .courses
+        .iter()
+        .filter_map(|c| {
+            c.removed_at_ms.map(|removed_at_ms| TrashedCourse {
+                course: card(lib, c),
+                removed_at_ms,
+            })
+        })
+        .collect();
+    list.sort_by_key(|t| std::cmp::Reverse(t.removed_at_ms));
+    list
+}
+
+/// Sorted 휴지통에 든 과목. 되살리면 자료·최근 변경과 함께 돌아온다
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashedCourse {
+    pub course: Course,
+    pub removed_at_ms: u64,
+}
+
+fn card(lib: &Library, c: &sorted_core::library::Course) -> Course {
+    // 정리 폴더에서 사라진 버전(missing)은 세지 않는다 (FR-14)
+    let docs = lib.documents.iter().filter(|d| d.course == c.name);
+    let file_count = docs
+        .clone()
+        .map(|d| d.versions.iter().filter(|v| !v.missing).count())
+        .sum();
+    let latest_week = docs
+        .filter_map(|d| {
+            d.versions
+                .iter()
+                .filter(|v| !v.missing)
+                .map(|v| v.added_at_ms)
+                .max()
+                .map(|t| (t, d))
+        })
+        .max_by_key(|(t, _)| *t)
+        .map(|(_, d)| d.week.clone())
+        .unwrap_or_default();
+    Course {
+        id: c.id(),
+        name: c.name.clone(),
+        lms_title: None,
+        term: String::new(),
+        file_count,
+        latest_week,
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]

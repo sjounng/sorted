@@ -31,17 +31,39 @@ pub struct Course {
     /// 파일명·첫 페이지에서 본 과목 코드 (예: "CSE406"). 과목 ID를 모를 때 과목을 찾는 데 쓴다.
     #[serde(default)]
     pub codes: Vec<String>,
+    /// LMS 과목이 아닐 때의 고정 ID. 이름을 바꿔도 ID가 그대로이도록 처음 정한 것을 저장한다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_id: Option<String>,
+    /// Sorted 휴지통에 넣은 시각. 있으면 화면에서 숨긴다 (파일·폴더는 그대로)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at_ms: Option<u64>,
 }
 
 impl Course {
     /// 화면이 쓰는 과목 ID. LMS 과목이면 LMS 과목 ID, 직접 지정한 과목이면 `local-` + 과목명 해시.
     /// 화면이 창 이름에 쓰므로 영문·숫자·`-`만 들어간다 (docs/app-api.md).
     pub fn id(&self) -> String {
-        match &self.lms_id {
-            Some(id) => id.clone(),
-            None => format!("local-{}", short_hash(&self.name)),
+        match (&self.lms_id, &self.local_id) {
+            (Some(id), _) | (None, Some(id)) => id.clone(),
+            (None, None) => local_id_for(&self.name),
         }
     }
+
+    /// 지금의 ID를 고정한다. 이름을 바꾸기 전에 부르면 바꾼 뒤에도 ID가 같다.
+    pub fn pin_id(&mut self) {
+        if self.lms_id.is_none() && self.local_id.is_none() {
+            self.local_id = Some(local_id_for(&self.name));
+        }
+    }
+
+    pub fn is_removed(&self) -> bool {
+        self.removed_at_ms.is_some()
+    }
+}
+
+/// 직접 만든 과목의 ID: `local-` + 과목명 해시
+pub fn local_id_for(name: &str) -> String {
+    format!("local-{}", short_hash(name))
 }
 
 /// 같은 강의자료를 알아보는 기준. 위에 있는 것일수록 믿을 만하다 (FR-3).
@@ -193,6 +215,8 @@ impl Library {
                     lms_id: lms_id.map(str::to_owned),
                     name: name.to_owned(),
                     codes: Vec::new(),
+                    local_id: None,
+                    removed_at_ms: None,
                 });
                 self.courses.last_mut().expect("just pushed")
             }
@@ -336,5 +360,19 @@ mod tests {
                 "{id}"
             );
         }
+    }
+
+    #[test]
+    fn pinned_id_survives_a_rename() {
+        let mut lib = Library::default();
+        lib.remember_course(None, "운영체제", &[]);
+        let before = lib.courses[0].id();
+        lib.courses[0].pin_id();
+        lib.courses[0].name = "OS".into();
+        assert_eq!(lib.courses[0].id(), before);
+        // 예전 목록(local_id 없음)도 그대로 읽힌다
+        let old: Course = serde_json::from_str(r#"{"lmsId":null,"name":"운영체제"}"#).unwrap();
+        assert_eq!(old.id(), before);
+        assert!(!old.is_removed());
     }
 }
