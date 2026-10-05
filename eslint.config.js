@@ -14,6 +14,15 @@ export default tseslint.config(
     },
   },
   {
+    // 크롬 확장의 콘텐츠 스크립트: LMS 페이지 안에서 돌아 window 등 브라우저 전역을 쓴다 (FR-19).
+    // 모듈이 아니라 일반 스크립트로 들어간다.
+    files: ["extension/src/weekly-page.js", "extension/src/weekly-bridge.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: { ...globals.browser, chrome: "readonly" },
+    },
+  },
+  {
     // Tauri 앱 화면
     files: ["app/src/**/*.{ts,tsx}"],
     extends: [tseslint.configs.recommended],

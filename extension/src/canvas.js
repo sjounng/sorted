@@ -19,7 +19,10 @@ export function parseCanvasJson(text) {
  */
 export function splitCourseName(raw) {
   const m = /^(\d{6})([A-Z]{1,4}\d{3,6})_(.+)$/.exec(raw ?? "");
-  return m ? { name: m[3].trim(), code: m[2] } : { name: (raw ?? "").trim(), code: null };
+  if (m) return { name: m[3].trim(), code: m[2] };
+  // 과목 번호 없이 학기만 붙은 이름: "202620HY_커리어개발 II" → "커리어개발 II"
+  const term = /^\d{6}[A-Z]{0,4}_(.+)$/.exec(raw ?? "");
+  return { name: (term ? term[1] : (raw ?? "")).trim(), code: null };
 }
 
 /** URL 경로의 `modules/items/<숫자>`. 자료 뷰어 탭에서 지금 보는 모듈 항목 번호 */
@@ -100,6 +103,19 @@ const PLANNER_MAX_PAGES = 10;
 
 const PLANNER_KIND = { assignment: "assignment", quiz: "quiz", calendar_event: "event" };
 
+/**
+ * 플래너 항목의 종류와 ID. 점수가 있는 토론(assignment_id가 있는 discussion_topic)은 과제로 본다
+ * ("[완성하기] N주차: 생각해보기" 같은 것). ID는 과제 번호로 맞춰 과제 목록의 lock_at과 이을 수 있게 한다.
+ */
+function kindAndId(p) {
+  if (p?.plannable_type === "discussion_topic") {
+    const assignmentId = p.plannable?.assignment_id;
+    return assignmentId == null ? null : { kind: "assignment", id: `assignment-${assignmentId}` };
+  }
+  const kind = PLANNER_KIND[p?.plannable_type];
+  return kind && p.plannable_id != null ? { kind, id: `${kind}-${p.plannable_id}` } : null;
+}
+
 /** 첫 쪽 주소 */
 export function plannerUrl(nowMs) {
   const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -134,20 +150,25 @@ function lmsUrl(path) {
  */
 export function planItems(raw) {
   return (raw ?? []).flatMap((p) => {
-    const kind = PLANNER_KIND[p?.plannable_type];
-    if (!kind || p.plannable_id == null) return [];
+    const picked = kindAndId(p);
+    if (!picked) return [];
+    const { kind, id } = picked;
     const plannable = p.plannable ?? {};
     const when = kind === "event" ? plannable.start_at : (plannable.due_at ?? p.plannable_date);
     const dueAtMs = Date.parse(when ?? "");
     if (!Number.isFinite(dueAtMs)) return [];
+    // 제출이 닫히는 시각: 마감 뒤에도 그때까지는 늦게 낼 수 있다 (화면의 "지각 인정 중")
+    const lockAtMs = Date.parse(plannable.lock_at ?? "");
+    const late = kind !== "event" && Number.isFinite(lockAtMs) && lockAtMs > dueAtMs;
     return [
       {
-        id: `${kind}-${p.plannable_id}`,
+        id,
         kind,
         courseId: p.course_id == null ? "" : String(p.course_id),
         courseName: splitCourseName(p.context_name).name,
         title: plannable.title ?? plannable.name ?? "",
         dueAtMs,
+        ...(late && { lateUntilMs: lockAtMs }),
         done: p.submissions?.submitted === true || p.planner_override?.marked_complete === true,
         url: lmsUrl(p.html_url),
       },
@@ -156,10 +177,50 @@ export function planItems(raw) {
 }
 
 /**
+ * 과제·퀴즈의 제출이 닫히는 시각(lock_at)을 채운다. 플래너 응답에는 lock_at이 없어서,
+ * 과제·퀴즈가 있는 과목마다 과제 목록을 한 번씩 받는다 (과제 수가 아니라 과목 수만큼).
+ * 퀴즈는 과제 목록의 quiz_id로 맞춘다. 실패한 과목은 건너뛴다.
+ * @param fetchPage (url) => Promise<{ text, link }>
+ */
+export async function addLockTimes(fetchPage, items) {
+  const courses = [
+    ...new Set(
+      items
+        .filter((i) => (i.kind === "assignment" || i.kind === "quiz") && i.courseId)
+        .map((i) => i.courseId),
+    ),
+  ];
+  const lockOf = new Map();
+  for (const courseId of courses) {
+    try {
+      let url = `${LMS_ORIGIN}/api/v1/courses/${encodeURIComponent(courseId)}/assignments?per_page=100`;
+      for (let page = 0; url && page < PLANNER_MAX_PAGES; page++) {
+        const { text, link } = await fetchPage(url);
+        for (const a of parseCanvasJson(text)) {
+          const lock = Date.parse(a?.lock_at ?? "");
+          if (!Number.isFinite(lock)) continue;
+          lockOf.set(`assignment-${a.id}`, lock);
+          if (a.quiz_id != null) lockOf.set(`quiz-${a.quiz_id}`, lock);
+        }
+        url = nextLink(link);
+      }
+    } catch {
+      // 이 과목은 지각 마감 없이 둔다
+    }
+  }
+  return items.map((i) => {
+    const lock = lockOf.get(i.id);
+    return lock !== undefined && lock > i.dueAtMs && i.lateUntilMs === undefined
+      ? { ...i, lateUntilMs: lock }
+      : i;
+  });
+}
+
+/**
  * 플래너를 쪽마다 읽어 일정으로 바꾼다. 실패하면 예외를 던진다 (부른 쪽이 다음에 다시 시도).
  * @param fetchPage (url) => Promise<{ text: string, link: string | null }>  쿠키를 실어 GET
  */
-export async function lookupPlanner(fetchPage, nowMs) {
+export async function lookupPlanner(fetchPage, nowMs, log = () => {}) {
   const raw = [];
   let url = plannerUrl(nowMs);
   for (let i = 0; url && i < PLANNER_MAX_PAGES; i++) {
@@ -167,5 +228,9 @@ export async function lookupPlanner(fetchPage, nowMs) {
     raw.push(...parseCanvasJson(text));
     url = nextLink(link);
   }
-  return planItems(raw);
+  const items = planItems(raw);
+  log(`플래너 ${raw.length}개 중 일정 ${items.length}개`);
+  const withLocks = await addLockTimes(fetchPage, items);
+  log(`지각 마감 ${withLocks.filter((i) => i.lateUntilMs !== undefined).length}개`);
+  return withLocks;
 }

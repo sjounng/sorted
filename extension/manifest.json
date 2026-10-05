@@ -12,5 +12,20 @@
   },
   "action": {
     "default_title": "Sorted 앱 연결 확인"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://learning.hanyang.ac.kr/*"],
+      "js": ["src/weekly-page.js"],
+      "world": "MAIN",
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://learning.hanyang.ac.kr/*"],
+      "js": ["src/weekly-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
 }

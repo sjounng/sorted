@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findWeek,
+  addLockTimes,
   lookupCourse,
   lookupPlanner,
   nextLink,
@@ -51,6 +52,13 @@ describe("splitCourseName", () => {
     expect(splitCourseName("202620HY11171_소프트웨어공학")).toEqual({
       name: "소프트웨어공학",
       code: "HY11171",
+    });
+  });
+
+  it("removes a term prefix without a course number", () => {
+    expect(splitCourseName("202620HY_커리어개발 II 학생용 수업자료 강의실")).toEqual({
+      name: "커리어개발 II 학생용 수업자료 강의실",
+      code: null,
     });
   });
 
@@ -248,6 +256,37 @@ describe("planItems", () => {
     });
   });
 
+  it("reads graded discussions as assignments by their assignment id", () => {
+    const [graded, ungraded] = planItems([
+      {
+        plannable_type: "discussion_topic",
+        plannable_id: 509114,
+        course_id: 211699,
+        plannable: { title: "생각해보기", due_at: "2026-12-20T14:59:59Z", assignment_id: 2807995 },
+      },
+      { plannable_type: "discussion_topic", plannable_id: 1, plannable: { title: "그냥 토론" } },
+    ]);
+    expect(graded).toMatchObject({ id: "assignment-2807995", kind: "assignment" });
+    expect(ungraded).toBeUndefined();
+  });
+
+  it("uses lock_at after the due time as the late deadline", () => {
+    const [late, noLate] = planItems([
+      {
+        plannable_type: "assignment",
+        plannable_id: 1,
+        plannable: { due_at: "2026-10-09T04:00:00Z", lock_at: "2026-10-12T14:59:00Z" },
+      },
+      {
+        plannable_type: "assignment",
+        plannable_id: 2,
+        plannable: { due_at: "2026-10-09T04:00:00Z", lock_at: "2026-10-09T04:00:00Z" },
+      },
+    ]);
+    expect(late.lateUntilMs).toBe(Date.parse("2026-10-12T14:59:00Z"));
+    expect("lateUntilMs" in noLate).toBe(false);
+  });
+
   it("never passes links outside the LMS", () => {
     expect(items[3]).toMatchObject({ url: "", courseId: "" });
   });
@@ -279,5 +318,35 @@ describe("planner paging", () => {
     }, Date.now());
     expect(seen[1]).toBe("https://learning.hanyang.ac.kr/p2");
     expect(items).toHaveLength(4);
+  });
+});
+
+describe("addLockTimes", () => {
+  const due = Date.parse("2026-10-09T04:00:00Z");
+  const items = [
+    { id: "assignment-1", kind: "assignment", courseId: "210208", dueAtMs: due },
+    { id: "quiz-7", kind: "quiz", courseId: "210208", dueAtMs: due },
+    { id: "assignment-2", kind: "assignment", courseId: "999", dueAtMs: due },
+    { id: "event-3", kind: "event", courseId: "210208", dueAtMs: due },
+  ];
+
+  it("asks once per course and fills lock_at after the due time", async () => {
+    const asked = [];
+    const out = await addLockTimes(async (url) => {
+      asked.push(url);
+      if (url.includes("/courses/999/")) throw new Error("HTTP 403");
+      return {
+        text: wrap([
+          { id: 1, lock_at: "2026-10-12T14:59:00Z" },
+          { id: 5, quiz_id: 7, lock_at: "2026-10-10T14:59:00Z" },
+        ]),
+        link: null,
+      };
+    }, items);
+    expect(asked).toHaveLength(2);
+    expect(out[0].lateUntilMs).toBe(Date.parse("2026-10-12T14:59:00Z"));
+    expect(out[1].lateUntilMs).toBe(Date.parse("2026-10-10T14:59:00Z"));
+    expect("lateUntilMs" in out[2]).toBe(false);
+    expect("lateUntilMs" in out[3]).toBe(false);
   });
 });
