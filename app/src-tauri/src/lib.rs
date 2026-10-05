@@ -11,7 +11,10 @@ mod pipeline;
 mod probe;
 mod schedule;
 mod screen;
+mod settings;
+mod text;
 
+use crate::text::tr;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -32,6 +35,8 @@ use screen::{
     AssignChoice, AssignRequest, CourseDetail, DuplicateChoice, DuplicateNotice, Overview,
     Permission, SetupStatus, TrashedCourse,
 };
+use settings::{Settings, SettingsStore};
+use text::Language;
 
 /// 메인 창. 과목·일정·최근 변경·처리 못한 파일·휴지통 화면이 여기 뜬다.
 const MAIN: &str = "main";
@@ -66,7 +71,7 @@ fn course_detail(
 ) -> Result<CourseDetail, String> {
     organizer
         .course_detail(&course_id)
-        .ok_or_else(|| "없는 과목이에요.".into())
+        .ok_or_else(|| tr("없는 과목이에요.", "This class doesn't exist."))
 }
 
 // 과목 추가·이름 바꾸기·Sorted 휴지통
@@ -126,6 +131,36 @@ fn changed(app: &AppHandle) {
     let _ = app.emit("overview-changed", ());
 }
 
+// 설정 (이슈 #46)
+
+#[tauri::command]
+fn settings(store: State<'_, SettingsStore>) -> Settings {
+    store.get()
+}
+
+/// 언어를 바꾼다. 앱 내부 문구와 열린 대화 창 제목이 바로 바뀌고, 화면에는 `settings-changed`로 알린다.
+#[tauri::command]
+fn set_language(app: AppHandle, language: Language) -> Settings {
+    let settings = app.state::<SettingsStore>().set_language(language);
+    for (label, window) in app.webview_windows() {
+        if label == "setup" {
+            let _ = window.set_title(&setup_title());
+        } else if label.starts_with("duplicate-") {
+            let _ = window.set_title(&duplicate_title());
+        }
+    }
+    let _ = app.emit("settings-changed", &settings);
+    settings
+}
+
+fn setup_title() -> String {
+    tr("Sorted 시작하기", "Get started with Sorted")
+}
+
+fn duplicate_title() -> String {
+    tr("이미 받은 파일", "Already downloaded")
+}
+
 // 일정 (FR-19)
 
 #[tauri::command]
@@ -137,7 +172,10 @@ fn schedule(store: State<'_, ScheduleStore>) -> Schedule {
 #[tauri::command]
 fn open_in_browser(url: String) -> Result<(), String> {
     if !schedule::is_lms_url(&url) {
-        return Err("LMS 주소만 열 수 있어요.".into());
+        return Err(tr(
+            "LMS 주소만 열 수 있어요.",
+            "Only LMS links can be opened.",
+        ));
     }
     open([url])
 }
@@ -149,9 +187,12 @@ fn duplicate_notice(
     organizer: State<'_, Organizer>,
     id: String,
 ) -> Result<DuplicateNotice, String> {
-    organizer
-        .duplicate_notice(parse_id(&id)?)
-        .ok_or_else(|| "이미 처리했거나 모르는 중복이에요.".into())
+    organizer.duplicate_notice(parse_id(&id)?).ok_or_else(|| {
+        tr(
+            "이미 처리했거나 모르는 중복이에요.",
+            "This duplicate was already handled or is unknown.",
+        )
+    })
 }
 
 /// [기존 파일 열기]: 기존 파일을 열고 받은 복사본은 휴지통으로. [둘 다 보관]: 아무것도 지우지 않는다.
@@ -180,20 +221,14 @@ fn show_duplicate_window(app: &AppHandle, id: u64) {
         app,
         &format!("duplicate-{id}"),
         &query,
-        "이미 받은 파일",
+        &duplicate_title(),
         (420.0, 260.0),
     );
 }
 
 /// 첫 실행 설정 창을 띄운다 (FR-15).
 fn show_setup_window(app: &AppHandle) {
-    show_dialog(
-        app,
-        "setup",
-        "view=setup",
-        "Sorted 시작하기",
-        (460.0, 520.0),
-    );
+    show_dialog(app, "setup", "view=setup", &setup_title(), (460.0, 520.0));
 }
 
 /// 설정 창이 열려 있으면 새로 고쳐 상태를 다시 불러오게 한다.
@@ -244,13 +279,19 @@ fn reveal_in_finder(organizer: State<'_, Organizer>, path: PathBuf) -> Result<()
 /// 화면이 넘긴 경로로 아무 파일이나 열지 않게 막는다.
 fn inside(root: &Path, path: &Path) -> Result<PathBuf, String> {
     let root = root.canonicalize().map_err(|e| e.to_string())?;
-    let path = path
-        .canonicalize()
-        .map_err(|_| "파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.".to_string())?;
+    let path = path.canonicalize().map_err(|_| {
+        tr(
+            "파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.",
+            "Can't find the file. It may have been moved or deleted.",
+        )
+    })?;
     if path.starts_with(&root) {
         Ok(path)
     } else {
-        Err("정리 폴더 밖의 파일은 열지 않아요.".into())
+        Err(tr(
+            "정리 폴더 밖의 파일은 열지 않아요.",
+            "Files outside the Sorted folder can't be opened.",
+        ))
     }
 }
 
@@ -312,7 +353,12 @@ fn assign_request(
 ) -> Result<AssignRequest, String> {
     organizer
         .assign_request(parse_id(&file_id)?)
-        .ok_or_else(|| "과목을 기다리는 파일이 아니에요.".into())
+        .ok_or_else(|| {
+            tr(
+                "과목을 기다리는 파일이 아니에요.",
+                "This file isn't waiting for a class.",
+            )
+        })
 }
 
 /// 고른 과목으로 정리한다. 정리되거나 이미 있는 파일이면 성공, 그 밖에는 이유를 돌려준다.
@@ -323,10 +369,19 @@ fn assign_course(app: AppHandle, file_id: String, choice: AssignChoice) -> Resul
     report(&app, id, &outcome);
     match outcome {
         Outcome::Organized { .. } | Outcome::Duplicate { .. } => Ok(()),
-        Outcome::Missing { .. } => Err("파일이 다운로드 폴더에서 사라졌어요.".into()),
-        Outcome::NeedsPermission { .. } => Err("다운로드 폴더를 읽을 권한이 없어요.".into()),
+        Outcome::Missing { .. } => Err(tr(
+            "파일이 다운로드 폴더에서 사라졌어요.",
+            "The file is no longer in the Downloads folder.",
+        )),
+        Outcome::NeedsPermission { .. } => Err(tr(
+            "다운로드 폴더를 읽을 권한이 없어요.",
+            "Sorted can't read the Downloads folder.",
+        )),
         Outcome::Error { message } => Err(message),
-        other => Err(format!("정리하지 못했어요: {other:?}")),
+        other => Err(format!(
+            "{}: {other:?}",
+            tr("정리하지 못했어요", "Couldn't sort the file")
+        )),
     }
 }
 
@@ -336,13 +391,17 @@ fn skip_assign(app: AppHandle, file_id: String) -> Result<(), String> {
         let _ = app.emit("overview-changed", ());
         Ok(())
     } else {
-        Err("과목을 기다리는 파일이 아니에요.".into())
+        Err(tr(
+            "과목을 기다리는 파일이 아니에요.",
+            "This file isn't waiting for a class.",
+        ))
     }
 }
 
 /// 화면은 ID를 문자열로 다룬다 (docs/app-api.md). 보류 목록의 번호로 바꾼다.
 fn parse_id(id: &str) -> Result<u64, String> {
-    id.parse().map_err(|_| format!("잘못된 파일 ID: {id}"))
+    id.parse()
+        .map_err(|_| format!("{}: {id}", tr("잘못된 파일 ID", "Invalid file ID")))
 }
 
 fn downloads_dir() -> PathBuf {
@@ -383,6 +442,8 @@ pub fn run() {
             open_in_browser,
             duplicate_notice,
             resolve_duplicate,
+            settings,
+            set_language,
             add_course,
             rename_course,
             remove_course,
@@ -442,6 +503,8 @@ fn show_window(app: &AppHandle, label: &str) {
 fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
     let paths = Paths::from_env();
     paths.ensure_data_dir()?;
+    // 언어부터 정한다: 이 뒤에 띄우는 창 제목과 문구가 이 언어를 따른다
+    app.manage(SettingsStore::open(paths.data_dir().join("settings.json")));
     app.manage(ProbeHistory(paths.data_dir().join("probe-history.jsonl")));
     app.manage(ScheduleStore::open(paths.data_dir().join("schedule.json")));
     let marker = paths.data_dir().join("setup-done");
