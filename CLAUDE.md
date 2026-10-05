@@ -34,7 +34,7 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 
 > 저장소는 `~/dev/sorted`에 있다 (2026-10-04에 `~/sorted`에서 옮김: 디스크가 대소문자를 구분하지 않아 `~/Sorted`와 겹쳤음).
 > 개발 중 확인은 테스트 폴더로: `open --env SORTED_ROOT="$HOME/SortedTest" app/target/release/bundle/macos/Sorted.app`
-> 실제 데이터 화면으로 보려면 `VITE_BACKEND=tauri npm run tauri build -- --bundles app`로 빌드한다 (기본은 목업).
+> 빌드한 앱 안에서는 실제 데이터, 브라우저 개발 화면(`localhost:1420`)에서는 목업을 쓴다 (#47). `VITE_BACKEND=mock|tauri`로 고정할 수 있다.
 > 테스트 폴더를 문서·데스크톱 같은 보호 폴더 안에 두지 않는다: 빌드마다 서명이 바뀌어 macOS가 권한 창을 다시 띄운다.
 
 ## 확인 명령 (CI와 같음)
@@ -88,7 +88,7 @@ cd app && npm run tauri build -- --bundles app && open target/release/bundle/mac
   4단계(`comparison`, `cleanup_request`, `resolve_cleanup`)만 남음.
 - 끝난 기능 (이슈 닫힘): FR-1~7, FR-11, FR-14(옮긴 파일 추적), FR-15(첫 실행 설정), FR-16(연결 끊김), FR-17(모듈 이름 주차).
 - 진행 중: FR-12 주차 순서 #15 (같은 주차 안 순서·사용자 순서 남음), FR-13 메인 창 #16·#34 (예원 디자인 개편),
-  FR-19 일정 #30 (플래너 끝, 주차학습 영상은 예원의 요청 경로 확인 대기).
+  FR-19 일정 #30 (플래너·주차학습 영상·지각 마감까지 실제 LMS로 확인).
 - 빌드한 앱 + 실제 LMS로 확인: 정리, 주차 이름 맞추기, 옮긴 파일 따라가기, 중복 창·휴지통, 앱이 꺼졌을 때 보관, 일정, 첫 실행 설정.
 - 화면 기본값은 아직 목업(`VITE_BACKEND`). 예원 개편 뒤 `tauri`로 바꾼다.
 - 작업한 브랜치는 머지 후에도 지우지 않고 남겨 둔다. 쌓인 PR은 머지 전에 대상 브랜치를 확인한다 (#28이 main이 아닌 곳에 들어간 적 있음).
@@ -101,6 +101,6 @@ cd app && npm run tauri build -- --bundles app && open target/release/bundle/mac
 3. 시연 준비: README에 아키텍처 Mermaid 그림 (`docs/plan.md`에서 빠진 그림도), 설계 문서 영어 번역, 3분 영어 대본·리허설.
    시연은 기본 정리 폴더 `~/Sorted`로 (테스트 폴더 기록과 섞이지 않게 시작 전 정리).
 4. 4단계 (시연엔 설계로만): FR-9 변경 비교·FR-10 구버전 정리 (#12, #13), FR-18 판정 보조 서버 (#24).
-5. FR-19 주차학습 영상: 요청 경로를 받으면 content script(`world: "MAIN"`)로 응답 읽기. 쿠키·토큰은 다루지 않는다.
-   확인 내용(인증 방식)은 비공개 문서로만 공유받음 → 저장소에 넣지 않는다.
+5. FR-19 남은 것: 같은 수업의 "수업자료 강의실"(별도 LMS 과목)을 한 과목으로 묶어 보기 (필요하면).
+   LMS 인증 방식·실제 응답 원문은 비공개로만 공유받음 → 저장소·로그에 넣지 않는다.
 6. 로컬 Rust(1.94)가 CI(1.99)보다 낮아 새 clippy 규칙을 놓칠 수 있다 → `rustup update stable` 검토.

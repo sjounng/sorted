@@ -78,10 +78,10 @@ Chrome 확장 ──sendNativeMessage──▶ Chrome ──stdin/stdout──�
 
 모두 JSON 한 줄이고 `type`으로 구분한다. 앱은 받자마자 `{"ok": true}`로 답하고, 처리는 따로 한다.
 
-| `type`     | 언제                                              | 담는 것                                                                                                      |
-| ---------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `hello`    | 확장 설치·Chrome 시작·아이콘 클릭                 | `reason`, `extensionVersion`                                                                                 |
-| `download` | LMS 다운로드가 끝났을 때                          | 파일 경로, 쿼리 없는 URL·referrer, `contentId`, 과목 ID, 탭 제목, LMS의 과목명·주차 (`extension/src/lms.js`) |
-| `schedule` | LMS 탭이 열려 있을 때 한 시간에 한 번까지 (FR-19) | `source`(`planner`/`weekly`), `items`(앱의 `ScheduleItem`, docs/app-api.md), `fetchedAt`                     |
+| `type`     | 언제                                                                                                  | 담는 것                                                                                                      |
+| ---------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `hello`    | 확장 설치·Chrome 시작·아이콘 클릭                                                                     | `reason`, `extensionVersion`                                                                                 |
+| `download` | LMS 다운로드가 끝났을 때                                                                              | 파일 경로, 쿼리 없는 URL·referrer, `contentId`, 과목 ID, 탭 제목, LMS의 과목명·주차 (`extension/src/lms.js`) |
+| `schedule` | 플래너: LMS 탭이 열려 있을 때 한 시간에 한 번까지·아이콘 클릭 / 영상: 주차학습 페이지를 열 때 (FR-19) | `source`(`planner` 또는 `weekly:<과목 ID>`), `items`(앱의 `ScheduleItem`, docs/app-api.md), `fetchedAt`      |
 
 URL의 쿼리, 사용자 번호, 쿠키·토큰은 어느 메시지에도 넣지 않는다.
