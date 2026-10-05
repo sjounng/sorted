@@ -2467,14 +2467,15 @@ button.link {
    제목과 큰 숫자는 보통 굵기의 세리프, 라벨은 자간을 넓힌 작은 대문자.
    한 곳에 모아 두어 글씨만 바꿀 때 여기만 고치면 된다. */
 
-/* 작은 대문자 라벨: 달성률 카드 제목, 일정 날짜 구분, 요일, 검색 그룹 */
+/* 작은 대문자 라벨: 달성률 카드 제목, 일정 날짜 구분, 요일, 검색 그룹.
+   Dashboard 인사 "Hello,"와 같은 세리프 보통 굵기 */
 .stat-title,
 .sched-day,
 .sr-group,
 .cal-wd {
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
