@@ -154,11 +154,11 @@ fn set_language(app: AppHandle, language: Language) -> Settings {
 }
 
 fn setup_title() -> String {
-    tr("Sorted 시작하기", "Get started with Sorted")
+    tr("Sorted 시작하기", "Welcome to Sorted")
 }
 
 fn duplicate_title() -> String {
-    tr("이미 받은 파일", "Already downloaded")
+    tr("이미 받은 파일", "Already Downloaded")
 }
 
 // 일정 (FR-19)
@@ -228,7 +228,7 @@ fn show_duplicate_window(app: &AppHandle, id: u64) {
 
 /// 첫 실행 설정 창을 띄운다 (FR-15).
 fn show_setup_window(app: &AppHandle) {
-    show_dialog(app, "setup", "view=setup", &setup_title(), (460.0, 520.0));
+    show_dialog(app, "setup", "view=setup", &setup_title(), (460.0, 640.0));
 }
 
 /// 설정 창이 열려 있으면 새로 고쳐 상태를 다시 불러오게 한다.
