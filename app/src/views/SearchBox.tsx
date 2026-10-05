@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Course, type CourseFile, type Overview } from "../api";
+import { t } from "../i18n";
+import { weekLabel } from "../format";
 import { courseColor } from "../courseColor";
 
 interface FileHit {
@@ -123,8 +125,8 @@ export function SearchBox(props: {
         <input
           ref={input}
           type="search"
-          placeholder="Search classes and files"
-          aria-label="Search classes and files"
+          placeholder={t("Search classes and files", "과목·파일 찾기")}
+          aria-label={t("Search classes and files", "과목·파일 찾기")}
           aria-expanded={showList}
           aria-controls="search-results"
           aria-activedescendant={showList && hits[active] ? `sr-${active}` : undefined}
@@ -144,11 +146,16 @@ export function SearchBox(props: {
         <div className="search-results" id="search-results" role="listbox">
           {hits.length === 0 ? (
             <p className="sr-empty muted">
-              {files ? `No classes or files match “${query.trim()}”.` : "Searching…"}
+              {files
+                ? t(
+                    `No classes or files match “${query.trim()}”.`,
+                    `“${query.trim()}”에 맞는 과목이나 파일이 없어요.`,
+                  )
+                : t("Searching…", "찾는 중…")}
             </p>
           ) : (
             <>
-              {classHits.length > 0 && <p className="sr-group">Classes</p>}
+              {classHits.length > 0 && <p className="sr-group">{t("Classes", "과목")}</p>}
               {classHits.map((hit) => {
                 const i = hits.indexOf(hit);
                 const course = (hit as { course: Course }).course;
@@ -169,15 +176,20 @@ export function SearchBox(props: {
                     <span className="sr-text">
                       <strong>{course.name}</strong>
                       <span className="sr-meta">
-                        {course.fileCount} files
-                        {course.latestWeek ? ` · up to ${course.latestWeek}` : ""}
+                        {t(`${course.fileCount} files`, `파일 ${course.fileCount}개`)}
+                        {course.latestWeek
+                          ? t(
+                              ` · up to ${weekLabel(course.latestWeek)}`,
+                              ` · ${course.latestWeek}까지`,
+                            )
+                          : ""}
                       </span>
                     </span>
                   </button>
                 );
               })}
 
-              {fileHits.length > 0 && <p className="sr-group">Files</p>}
+              {fileHits.length > 0 && <p className="sr-group">{t("Files", "파일")}</p>}
               {fileHits.map((hit) => {
                 const i = hits.indexOf(hit);
                 const { file, course, week } = hit as FileHit;
@@ -193,7 +205,7 @@ export function SearchBox(props: {
                     }
                     onMouseEnter={() => setActive(i)}
                     onClick={() => choose(hit)}
-                    title="Open PDF"
+                    title={t("Open PDF", "PDF 열기")}
                   >
                     <span className="sr-pdf" aria-hidden>
                       PDF
@@ -201,7 +213,7 @@ export function SearchBox(props: {
                     <span className="sr-text">
                       <strong>{file.fileName}</strong>
                       <span className="sr-meta">
-                        {course.name} · {week}
+                        {course.name} · {weekLabel(week)}
                       </span>
                     </span>
                   </button>

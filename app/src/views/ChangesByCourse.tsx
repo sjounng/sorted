@@ -1,12 +1,17 @@
 import { api, type Change, type Course, type Overview } from "../api";
+import { t } from "../i18n";
 import { courseColor } from "../courseColor";
 import { ago } from "../format";
 import { openView } from "../windows";
 
 const LABEL: Record<Change["kind"], (c: Change) => string> = {
-  organized: () => "Organized",
-  newVersion: (c) => `New version · ${c.changedPages ?? 0} pages changed`,
-  duplicate: () => "Already downloaded",
+  organized: () => t("Organized", "정리됨"),
+  newVersion: (c) =>
+    t(
+      `New version · ${c.changedPages ?? 0} pages changed`,
+      `새 버전 · ${c.changedPages ?? 0}장 바뀜`,
+    ),
+  duplicate: () => t("Already downloaded", "이미 받은 파일"),
 };
 
 /** 최근 변경 탭: 과목별로 묶어 보여 준다. 과목 순서는 과목 탭과 같다. */
@@ -24,7 +29,8 @@ export function ChangesByCourse(props: {
     }))
     .filter((g) => g.changes.length > 0);
 
-  if (groups.length === 0) return <p className="empty muted">No recent changes.</p>;
+  if (groups.length === 0)
+    return <p className="empty muted">{t("No recent changes.", "최근 변경이 없어요.")}</p>;
 
   return (
     <div className="stack">
@@ -40,13 +46,19 @@ export function ChangesByCourse(props: {
               <span className="group-title">
                 <strong>{course.name}</strong>
                 <span className="muted">
-                  {changes.length} {changes.length === 1 ? "change" : "changes"} ·{" "}
-                  {ago(changes[0].atMs)}
+                  {t(
+                    `${changes.length} ${changes.length === 1 ? "change" : "changes"}`,
+                    `변경 ${changes.length}개`,
+                  )}{" "}
+                  · {ago(changes[0].atMs)}
                 </span>
               </span>
               {newVersions > 0 && (
                 <span className="pill">
-                  {newVersions} new {newVersions === 1 ? "version" : "versions"}
+                  {t(
+                    `${newVersions} new ${newVersions === 1 ? "version" : "versions"}`,
+                    `새 버전 ${newVersions}개`,
+                  )}
                 </span>
               )}
               <span className="chevron" aria-hidden>

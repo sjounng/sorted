@@ -204,3 +204,10 @@ export interface CleanupRequest {
 }
 
 export type CleanupChoice = "delete" | "keep";
+
+export type Language = "ko" | "en";
+
+/** 앱 설정 (#46). 언어는 앱 본체가 저장하고, 바뀌면 settings-changed로 알린다 */
+export interface Settings {
+  language: Language;
+}

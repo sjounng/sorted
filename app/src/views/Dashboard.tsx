@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { api, type Change, type Course, type Overview, type ScheduleItem } from "../api";
 import { courseColor } from "../courseColor";
 import { ago, clock, dateLabel, dDay, daysLeft } from "../format";
+import { t } from "../i18n";
 import { UnprocessedIcon } from "../icons";
 import { isLateOpen } from "../schedule";
 import { useFitCount } from "../useFitCount";
@@ -11,18 +12,30 @@ import { SearchBox } from "./SearchBox";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
-const KIND_LABEL: Record<ScheduleItem["kind"], string> = {
-  assignment: "Assignment",
-  quiz: "Quiz",
-  video: "Video",
-  event: "Event",
-};
+/** 일정 종류 이름. 언어가 바뀌면 다시 읽도록 함수로 둔다 */
+function kindLabel(kind: ScheduleItem["kind"]): string {
+  switch (kind) {
+    case "assignment":
+      return t("Assignment", "과제");
+    case "quiz":
+      return t("Quiz", "퀴즈");
+    case "video":
+      return t("Video", "영상");
+    case "event":
+      return t("Event", "일정");
+  }
+}
 
-const CHANGE_LABEL: Record<Change["kind"], string> = {
-  organized: "Organized",
-  newVersion: "New version",
-  duplicate: "Already downloaded",
-};
+function changeLabel(kind: Change["kind"]): string {
+  switch (kind) {
+    case "organized":
+      return t("Organized", "정리됨");
+    case "newVersion":
+      return t("New version", "새 버전");
+    case "duplicate":
+      return t("Already downloaded", "이미 받은 파일");
+  }
+}
 
 /**
  * 앱을 열면 처음 보이는 화면: 다가오는 마감, 최근 변경, 이번 달 일정, 달성률을 한눈에.
@@ -83,33 +96,43 @@ export function Dashboard(props: {
       <header className="dash-head">
         <div className="dash-greet">
           <h1>
-            Hello{name ? ", " : "."}
+            {t("Hello", "안녕하세요")}
+            {name ? ", " : "."}
             {name && (
               <>
                 <span className="greet-name" ref={nameRef}>
                   {name}
                 </span>
-                .
+                {t(".", " 님.")}
               </>
             )}
           </h1>
           {!name && (
             <button className="link name-cta" onClick={onEditName}>
-              Set your name for a proper hello ›
+              {t("Set your name for a proper hello ›", "인사말에 쓸 이름을 정해 주세요 ›")}
             </button>
           )}
           <p className="muted">
             {dateLabel(now)} ·{" "}
             {soon.length > 0
-              ? `${soon.length} ${soon.length === 1 ? "deadline" : "deadlines"} in the next 3 days.`
-              : "No deadlines in the next 3 days."}
+              ? t(
+                  `${soon.length} ${soon.length === 1 ? "deadline" : "deadlines"} in the next 3 days.`,
+                  `3일 안에 마감이 ${soon.length}개 있어요.`,
+                )
+              : t("No deadlines in the next 3 days.", "3일 안에 마감이 없어요.")}
           </p>
           {lateOpen.length > 0 && (
             <button className="late-strip" onClick={() => onOpenSchedule()}>
               <UnprocessedIcon />
               <span>
-                <strong>{lateOpen.length} still open late</strong> · {lateOpen[0].title} until{" "}
-                {dateLabel(lateOpen[0].lateUntilMs!)} {clock(lateOpen[0].lateUntilMs!)}
+                <strong>
+                  {t(`${lateOpen.length} still open late`, `지각 제출 가능 ${lateOpen.length}개`)}
+                </strong>{" "}
+                · {lateOpen[0].title}{" "}
+                {t(
+                  `until ${dateLabel(lateOpen[0].lateUntilMs!)} ${clock(lateOpen[0].lateUntilMs!)}`,
+                  `${dateLabel(lateOpen[0].lateUntilMs!)} ${clock(lateOpen[0].lateUntilMs!)}까지`,
+                )}
               </span>
               <span aria-hidden>›</span>
             </button>
@@ -120,10 +143,16 @@ export function Dashboard(props: {
 
       <div className="dash-main">
         <section className="widget">
-          <WidgetHead title="Upcoming deadlines" more="See all" onMore={() => onOpenSchedule()} />
+          <WidgetHead
+            title={t("Upcoming deadlines", "다가오는 마감")}
+            more={t("See all", "모두 보기")}
+            onMore={() => onOpenSchedule()}
+          />
           <ul className="up-list" ref={upRef}>
             {upcoming.length === 0 && (
-              <li className="widget-empty muted">No upcoming deadlines.</li>
+              <li className="widget-empty muted">
+                {t("No upcoming deadlines.", "다가오는 마감이 없어요.")}
+              </li>
             )}
             {upcoming.map((item) => {
               const { name, color } = look(item);
@@ -134,7 +163,7 @@ export function Dashboard(props: {
                     className={`up-item ${left <= 1 ? "urgent" : left <= 3 ? "soon" : ""}`}
                     style={{ "--course": color } as React.CSSProperties}
                     onClick={() => api.openInBrowser(item.url)}
-                    title="Open in LMS"
+                    title={t("Open in LMS", "LMS에서 열기")}
                   >
                     <span className="up-date">
                       <strong>{new Date(item.dueAtMs).getDate()}</strong>
@@ -143,7 +172,7 @@ export function Dashboard(props: {
                     <span className="up-text">
                       <strong>{item.title}</strong>
                       <span className="muted">
-                        {KIND_LABEL[item.kind]} · {name} · {clock(item.dueAtMs)}
+                        {kindLabel(item.kind)} · {name} · {clock(item.dueAtMs)}
                       </span>
                     </span>
                   </button>
@@ -154,10 +183,16 @@ export function Dashboard(props: {
         </section>
 
         <section className="widget">
-          <WidgetHead title="Recent changes" more="See more" onMore={onOpenChanges} />
+          <WidgetHead
+            title={t("Recent changes", "최근 변경")}
+            more={t("See more", "더 보기")}
+            onMore={onOpenChanges}
+          />
           <ul className="mini-rows" ref={changeRef}>
             {data.changes.length === 0 && (
-              <li className="widget-empty muted">No recent changes.</li>
+              <li className="widget-empty muted">
+                {t("No recent changes.", "최근 변경이 없어요.")}
+              </li>
             )}
             {data.changes.slice(0, changeCount).map((c) => {
               const course = known.get(c.courseId);
@@ -173,7 +208,7 @@ export function Dashboard(props: {
                     <span className="mini-text">
                       <strong>{c.fileName}</strong>
                       <span className="muted">
-                        <span className={`tag ${c.kind}`}>{CHANGE_LABEL[c.kind]}</span>
+                        <span className={`tag ${c.kind}`}>{changeLabel(c.kind)}</span>
                         {c.courseName} · {ago(c.atMs)}
                       </span>
                     </span>
@@ -185,7 +220,11 @@ export function Dashboard(props: {
         </section>
 
         <section className="widget widget-wide">
-          <WidgetHead title="My schedule" more="Open schedule" onMore={() => onOpenSchedule()} />
+          <WidgetHead
+            title={t("My schedule", "내 일정")}
+            more={t("Open schedule", "일정 열기")}
+            onMore={() => onOpenSchedule()}
+          />
           <div className="dash-cal">
             <MonthCalendar
               month={month}
@@ -200,30 +239,33 @@ export function Dashboard(props: {
 
       <aside className="dash-stats">
         <Ring
-          title="Videos watched"
+          title={t("Videos watched", "영상 시청")}
           value={videos}
           color="var(--ring-pink)"
-          note="due within a week"
+          note={t("due within a week", "일주일 안 마감")}
         />
         <Ring
-          title="Work submitted"
+          title={t("Work submitted", "과제 제출")}
           value={homework}
           color="var(--ring-teal)"
-          note="due within a week"
+          note={t("due within a week", "일주일 안 마감")}
         />
         <div className="stat-pair">
           <div className="stat-card stat-small">
-            <span className="stat-title">Files sorted</span>
+            <span className="stat-title">{t("Files sorted", "정리한 파일")}</span>
             <strong className="stat-big">{files}</strong>
             <span className="stat-note">
-              {data.courses.length} {data.courses.length === 1 ? "class" : "classes"}
+              {t(
+                `${data.courses.length} ${data.courses.length === 1 ? "class" : "classes"}`,
+                `과목 ${data.courses.length}개`,
+              )}
             </span>
           </div>
           {data.unprocessed.length > 0 && (
             <button className="stat-card stat-small stat-warn" onClick={onOpenUnprocessed}>
-              <span className="stat-title">Unsorted files</span>
+              <span className="stat-title">{t("Unsorted files", "처리 못한 파일")}</span>
               <strong className="stat-big">{data.unprocessed.length}</strong>
-              <span className="stat-note">Review ›</span>
+              <span className="stat-note">{t("Review ›", "확인하기 ›")}</span>
             </button>
           )}
         </div>
@@ -273,7 +315,9 @@ function Ring(props: {
         </text>
       </svg>
       <span className="stat-note">
-        {value ? `${value.done}/${value.total} · ${note}` : "Nothing scheduled yet"}
+        {value
+          ? `${value.done}/${value.total} · ${note}`
+          : t("Nothing scheduled yet", "아직 일정이 없어요")}
       </span>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, type AssignChoice } from "../api";
+import { t } from "../i18n";
 import { ago } from "../format";
 import { useLoad } from "../useLoad";
 import { closeSelf } from "../windows";
@@ -38,12 +39,19 @@ export function Assign({ id }: { id: string }) {
 
   return (
     <main className="dialog">
-      <h1>Which class is this for?</h1>
+      <h1>{t("Which class is this for?", "어느 과목 자료인가요?")}</h1>
       <p className="file">
         <strong>{data.fileName}</strong>
-        <span className="muted"> · downloaded {ago(data.atMs)}</span>
+        <span className="muted">
+          {" "}
+          · {t(`downloaded ${ago(data.atMs)}`, `${ago(data.atMs)} 받음`)}
+        </span>
       </p>
-      {data.tabTitle && <p className="muted hint">Page open at download: {data.tabTitle}</p>}
+      {data.tabTitle && (
+        <p className="muted hint">
+          {t("Page open at download:", "받을 때 열려 있던 페이지:")} {data.tabTitle}
+        </p>
+      )}
 
       <fieldset className="choices">
         {data.courses.map((c) => (
@@ -64,13 +72,13 @@ export function Assign({ id }: { id: string }) {
             checked={picked === NEW}
             onChange={() => setPicked(NEW)}
           />
-          New class
+          {t("New class", "새 과목")}
         </label>
         {picked === NEW && (
           <input
             className="text"
             autoFocus
-            placeholder="Class name"
+            placeholder={t("Class name", "과목명")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
@@ -78,13 +86,16 @@ export function Assign({ id }: { id: string }) {
       </fieldset>
 
       <p className="muted hint">
-        Files from this class page will be sorted automatically next time.
+        {t(
+          "Files from this class page will be sorted automatically next time.",
+          "다음부터는 이 과목 페이지에서 받은 파일을 알아서 정리해요.",
+        )}
       </p>
 
       <div className="actions">
-        <button onClick={skip}>Later</button>
+        <button onClick={skip}>{t("Later", "나중에")}</button>
         <button className="primary" disabled={!choice || saving} onClick={save}>
-          Sort
+          {t("Sort", "정리하기")}
         </button>
       </div>
     </main>
