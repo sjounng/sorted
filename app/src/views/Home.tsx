@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Course, type Overview, type UnprocessedReason } from "../api";
 import { ago } from "../format";
+import { t } from "../i18n";
 import {
   ChangesIcon,
   ClassesIcon,
   DashboardIcon,
   FolderIcon,
-  MoonIcon,
   ScheduleIcon,
   SettingsIcon,
-  SunIcon,
   TrashIcon,
   UnprocessedIcon,
 } from "../icons";
 import { AVATAR_COLORS, initial, useAvatarColor, useDisplayName } from "../profile";
-import { useTheme } from "../theme";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 import { ChangesByCourse } from "./ChangesByCourse";
@@ -44,7 +42,6 @@ export function Home() {
   const panel = useRef<HTMLElement>(null);
   const [name, setName] = useDisplayName();
   const [editingName, setEditingName] = useState(false);
-  const [theme, toggleTheme] = useTheme();
 
   // 들어가고 나올 때 목록 맨 위에서 시작한다.
   useEffect(() => {
@@ -75,13 +72,13 @@ export function Home() {
   };
 
   const main: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
-    { id: "classes", label: "My Classes", icon: ClassesIcon },
-    { id: "schedule", label: "Schedule", icon: ScheduleIcon },
-    { id: "changes", label: "Recent Changes", icon: ChangesIcon },
+    { id: "dashboard", label: t("Dashboard", "대시보드"), icon: DashboardIcon },
+    { id: "classes", label: t("My Classes", "내 과목"), icon: ClassesIcon },
+    { id: "schedule", label: t("Schedule", "일정"), icon: ScheduleIcon },
+    { id: "changes", label: t("Recent Changes", "최근 변경"), icon: ChangesIcon },
     {
       id: "unprocessed",
-      label: "Unsorted Files",
+      label: t("Unsorted Files", "처리 못한 파일"),
       icon: UnprocessedIcon,
       count: data.unprocessed.length,
     },
@@ -89,7 +86,7 @@ export function Home() {
 
   return (
     <main className="home">
-      <nav className="side-nav" aria-label="Menu">
+      <nav className="side-nav" aria-label={t("Menu", "메뉴")}>
         <div className="brand-logo" aria-label="Sorted">
           <span className="brand-mark" aria-hidden>
             S
@@ -119,7 +116,12 @@ export function Home() {
 
         <ul className="nav-list nav-bottom">
           <NavButton
-            item={{ id: "trash", label: "Trash", icon: TrashIcon, count: data.trashCount }}
+            item={{
+              id: "trash",
+              label: t("Trash", "휴지통"),
+              icon: TrashIcon,
+              count: data.trashCount,
+            }}
             active={tab === "trash"}
             quietCount
             onClick={go}
@@ -127,28 +129,21 @@ export function Home() {
           <li>
             <button
               className="nav-item"
-              title={`Open ${data.sortedFolder}`}
+              title={t(`Open ${data.sortedFolder}`, `${data.sortedFolder} 열기`)}
               onClick={() => api.revealInFinder(data.sortedFolder)}
             >
               <FolderIcon />
-              <span className="nav-label">Open Folder</span>
+              <span className="nav-label">{t("Open Folder", "폴더 열기")}</span>
             </button>
           </li>
           <li>
             <button
               className="nav-item"
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              aria-pressed={theme === "dark"}
-              onClick={toggleTheme}
+              title={t("Settings", "설정")}
+              onClick={() => openView("setup")}
             >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-              <span className="nav-label">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-            </button>
-          </li>
-          <li>
-            <button className="nav-item" title="Settings" onClick={() => openView("setup")}>
               <SettingsIcon />
-              <span className="nav-label">Settings</span>
+              <span className="nav-label">{t("Settings", "설정")}</span>
             </button>
           </li>
         </ul>
@@ -229,8 +224,8 @@ function Profile({ name, onEditName }: { name: string; onEditName: () => void })
     <div className="profile" ref={box}>
       <button
         className="avatar-btn"
-        title="Change color"
-        aria-label="Change avatar color"
+        title={t("Change color", "색 바꾸기")}
+        aria-label={t("Change avatar color", "프로필 색 바꾸기")}
         aria-expanded={picking}
         onClick={() => setPicking((p) => !p)}
       >
@@ -250,16 +245,26 @@ function Profile({ name, onEditName }: { name: string; onEditName: () => void })
       </button>
       <button
         className="profile-name"
-        title="Change name"
-        aria-label={name ? `${name}, change name` : "Set your name"}
+        title={t("Change name", "이름 바꾸기")}
+        aria-label={
+          name
+            ? t(`${name}, change name`, `${name}, 이름 바꾸기`)
+            : t("Set your name", "이름 정하기")
+        }
         onClick={onEditName}
       >
-        {name || "Set your name"}
-        <small>{name ? "Change name" : "for your greeting"}</small>
+        {name || t("Set your name", "이름 정하기")}
+        <small>
+          {name ? t("Change name", "이름 바꾸기") : t("for your greeting", "인사말에 쓸 이름")}
+        </small>
       </button>
 
       {picking && (
-        <div className="avatar-picker" role="radiogroup" aria-label="Avatar color">
+        <div
+          className="avatar-picker"
+          role="radiogroup"
+          aria-label={t("Avatar color", "프로필 색")}
+        >
           {AVATAR_COLORS.map((c) => (
             <button
               key={c.id}
@@ -296,15 +301,17 @@ function NameEditor(props: { initial: string; onDone: (name?: string) => void })
         className="text"
         autoFocus
         maxLength={20}
-        placeholder="Your name"
-        aria-label="Name for your greeting"
+        placeholder={t("Your name", "이름")}
+        aria-label={t("Name for your greeting", "인사말에 쓸 이름")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && props.onDone()}
         onBlur={() => props.onDone(value)}
         onFocus={(e) => e.target.select()}
       />
-      <p className="field-hint muted">Enter to save · Esc to cancel</p>
+      <p className="field-hint muted">
+        {t("Enter to save · Esc to cancel", "Enter 저장 · Esc 취소")}
+      </p>
     </form>
   );
 }
@@ -337,18 +344,31 @@ function NavButton(props: {
   );
 }
 
-const REASON: Record<UnprocessedReason, string> = {
-  unknownCourse: "Couldn’t tell which class",
-  notPdf: "Not a PDF",
-  loginExpired: "LMS login seems to have expired",
-  moveFailed: "Couldn’t move it. Will retry soon",
-};
+/** 처리하지 못한 이유. 언어가 바뀌면 다시 읽도록 함수로 둔다 */
+function reason(r: UnprocessedReason): string {
+  switch (r) {
+    case "unknownCourse":
+      return t("Couldn’t tell which class", "과목을 알아내지 못했어요");
+    case "notPdf":
+      return t("Not a PDF", "PDF가 아니에요");
+    case "loginExpired":
+      return t("LMS login seems to have expired", "LMS 로그인이 만료된 것 같아요");
+    case "moveFailed":
+      return t("Couldn’t move it. Will retry soon", "옮기지 못했어요. 잠시 뒤 다시 시도해요");
+  }
+}
 
 function UnprocessedList({ data }: { data: Overview }) {
-  if (data.unprocessed.length === 0) return <Empty text="No unsorted files." />;
+  if (data.unprocessed.length === 0)
+    return <Empty text={t("No unsorted files.", "처리하지 못한 파일이 없어요.")} />;
   return (
     <>
-      <p className="note muted">These files are still in your Downloads folder.</p>
+      <p className="note muted">
+        {t(
+          "These files are still in your Downloads folder.",
+          "아래 파일은 다운로드 폴더에 그대로 있어요.",
+        )}
+      </p>
       <ul className="rows">
         {data.unprocessed.map((u) => (
           <li key={u.id}>
@@ -359,8 +379,10 @@ function UnprocessedList({ data }: { data: Overview }) {
             >
               <strong>{u.fileName}</strong>
               <span className="muted">
-                <span className="warn">{REASON[u.reason]}</span> · {ago(u.atMs)}
-                {u.reason === "unknownCourse" && <span className="accent"> · Choose a class</span>}
+                <span className="warn">{reason(u.reason)}</span> · {ago(u.atMs)}
+                {u.reason === "unknownCourse" && (
+                  <span className="accent"> · {t("Choose a class", "과목 고르기")}</span>
+                )}
               </span>
             </button>
           </li>

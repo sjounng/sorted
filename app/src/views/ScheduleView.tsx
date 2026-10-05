@@ -1,27 +1,42 @@
 import { useMemo, useState } from "react";
 import { api, type Course, type ScheduleItem, type ScheduleKind } from "../api";
 import { courseColor } from "../courseColor";
-import { WEEKDAYS, ago, clock, dateLabel, dDay, daysLeft, monthLabel, startOfDay } from "../format";
+import { weekdays, ago, clock, dateLabel, dDay, daysLeft, monthLabel, startOfDay } from "../format";
+import { t } from "../i18n";
 import { isLateOpen } from "../schedule";
 import { useLoad } from "../useLoad";
 
-const KIND_LABEL: Record<ScheduleKind, string> = {
-  assignment: "Assignment",
-  quiz: "Quiz",
-  video: "Video",
-  event: "Event",
-};
+/** 항목에 붙는 종류 이름. 언어가 바뀌면 다시 읽도록 함수로 둔다 */
+function kindLabel(kind: ScheduleKind): string {
+  switch (kind) {
+    case "assignment":
+      return t("Assignment", "과제");
+    case "quiz":
+      return t("Quiz", "퀴즈");
+    case "video":
+      return t("Video", "영상");
+    case "event":
+      return t("Event", "일정");
+  }
+}
 
 type KindFilter = "all" | ScheduleKind;
 
 /** 거르기 버튼은 여러 개를 고르는 것이라 복수형 (항목에 붙는 종류 표시는 단수형 그대로) */
-const FILTER_LABEL: Record<KindFilter, string> = {
-  all: "All",
-  assignment: "Assignments",
-  quiz: "Quizzes",
-  video: "Videos",
-  event: "Events",
-};
+function filterLabel(kind: KindFilter): string {
+  switch (kind) {
+    case "all":
+      return t("All", "전체");
+    case "assignment":
+      return t("Assignments", "과제");
+    case "quiz":
+      return t("Quizzes", "퀴즈");
+    case "video":
+      return t("Videos", "영상");
+    case "event":
+      return t("Events", "일정");
+  }
+}
 
 /**
  * 일정 탭: LMS의 과제·퀴즈·영상 마감을 한곳에서 본다.
@@ -51,7 +66,10 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
   if (data.fetchedAtMs === null) {
     return (
       <p className="empty muted">
-        No LMS schedule yet. Open the LMS in Chrome once and it will show up here.
+        {t(
+          "No LMS schedule yet. Open the LMS in Chrome once and it will show up here.",
+          "아직 LMS 일정을 불러오지 않았어요. Chrome에서 LMS를 한 번 열면 여기에 모여요.",
+        )}
       </p>
     );
   }
@@ -91,14 +109,14 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
               <>
                 {dateLabel(day)}
                 <button className="link" onClick={() => setDay(undefined)}>
-                  ✕ Back to upcoming
+                  ✕ {t("Back to upcoming", "다가오는 일정 보기")}
                 </button>
               </>
             ) : (
-              "Upcoming"
+              t("Upcoming", "다가오는 일정")
             )}
           </h2>
-          <div className="chips" role="group" aria-label="Type">
+          <div className="chips" role="group" aria-label={t("Type", "종류")}>
             {(["all", "assignment", "quiz", "video", "event"] as KindFilter[]).map((k) => (
               <button
                 key={k}
@@ -106,7 +124,7 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
                 aria-pressed={kind === k}
                 onClick={() => setKind(k)}
               >
-                {FILTER_LABEL[k]}
+                {filterLabel(k)}
               </button>
             ))}
             {day === undefined && (
@@ -116,7 +134,7 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
                   checked={showDone}
                   onChange={(e) => setShowDone(e.target.checked)}
                 />
-                Show completed
+                {t("Show completed", "완료한 것도 보기")}
               </label>
             )}
           </div>
@@ -124,11 +142,15 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
 
         {shown.length === 0 && lateOpen.length === 0 ? (
           <p className="empty muted">
-            {day !== undefined ? "Nothing on this day." : "Nothing coming up."}
+            {day !== undefined
+              ? t("Nothing on this day.", "이날은 일정이 없어요.")
+              : t("Nothing coming up.", "다가오는 일정이 없어요.")}
           </p>
         ) : (
           <ul className="sched-rows">
-            {lateOpen.length > 0 && <li className="sched-day late">Late · still open</li>}
+            {lateOpen.length > 0 && (
+              <li className="sched-day late">{t("Late · still open", "지각 · 아직 낼 수 있음")}</li>
+            )}
             {lateOpen.map((item) => (
               <ScheduleRow key={item.id} item={item} now={now} {...look(item)} />
             ))}
@@ -149,7 +171,12 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
           </ul>
         )}
 
-        <p className="sched-foot muted">Synced from the LMS {ago(data.fetchedAtMs)}.</p>
+        <p className="sched-foot muted">
+          {t(
+            `Synced from the LMS ${ago(data.fetchedAtMs)}.`,
+            `LMS에서 ${ago(data.fetchedAtMs)} 불러왔어요.`,
+          )}
+        </p>
       </section>
     </div>
   );
@@ -179,16 +206,20 @@ function ScheduleRow(props: {
             : "later";
   const notOpenYet = item.startAtMs !== undefined && item.startAtMs > now;
 
+  const at = (ms: number) => `${dateLabel(ms)} ${clock(ms)}`;
   const when =
     item.kind === "event"
-      ? `Starts ${clock(item.dueAtMs)}`
+      ? t(`Starts ${clock(item.dueAtMs)}`, `${clock(item.dueAtMs)} 시작`)
       : late
-        ? `Late until ${dateLabel(item.lateUntilMs!)} ${clock(item.lateUntilMs!)}`
+        ? t(`Late until ${at(item.lateUntilMs!)}`, `${at(item.lateUntilMs!)}까지 지각 제출`)
         : pastDue
-          ? `Was due ${dateLabel(item.dueAtMs)} ${clock(item.dueAtMs)}`
+          ? t(`Was due ${at(item.dueAtMs)}`, `${at(item.dueAtMs)} 마감이었음`)
           : notOpenYet
-            ? `Opens ${dateLabel(item.startAtMs!)} ${clock(item.startAtMs!)} · due ${clock(item.dueAtMs)}`
-            : `Due ${clock(item.dueAtMs)}`;
+            ? t(
+                `Opens ${at(item.startAtMs!)} · due ${clock(item.dueAtMs)}`,
+                `${at(item.startAtMs!)} 열림 · ${clock(item.dueAtMs)} 마감`,
+              )
+            : t(`Due ${clock(item.dueAtMs)}`, `${clock(item.dueAtMs)} 마감`);
 
   return (
     <>
@@ -196,20 +227,20 @@ function ScheduleRow(props: {
       <li className={`sched-row ${urgency}`} style={{ "--course": color } as React.CSSProperties}>
         <span className="dday">
           {item.done
-            ? "Done"
+            ? t("Done", "완료")
             : late
-              ? `${-left}d late`
+              ? t(`${-left}d late`, `${-left}일 지각`)
               : pastDue
-                ? "Missed"
+                ? t("Missed", "놓침")
                 : dDay(item.dueAtMs, now)}
         </span>
         <button
           className="sched-main"
           onClick={() => api.openInBrowser(item.url)}
-          title="Open in LMS"
+          title={t("Open in LMS", "LMS에서 열기")}
         >
           <span className="sched-title">
-            <span className={`kind-tag ${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+            <span className={`kind-tag ${item.kind}`}>{kindLabel(item.kind)}</span>
             <strong>{item.title}</strong>
           </span>
           <span className="sched-meta muted">
@@ -250,21 +281,29 @@ export function MonthCalendar(props: {
   const shift = (n: number) => onMonth(new Date(m.getFullYear(), m.getMonth() + n, 1).getTime());
 
   return (
-    <section className="cal" aria-label="Calendar">
+    <section className="cal" aria-label={t("Calendar", "달력")}>
       <header className="cal-head">
-        <button className="cal-nav" aria-label="Previous month" onClick={() => shift(-1)}>
+        <button
+          className="cal-nav"
+          aria-label={t("Previous month", "이전 달")}
+          onClick={() => shift(-1)}
+        >
           ‹
         </button>
         <strong>{monthLabel(month)}</strong>
-        <button className="cal-nav" aria-label="Next month" onClick={() => shift(1)}>
+        <button
+          className="cal-nav"
+          aria-label={t("Next month", "다음 달")}
+          onClick={() => shift(1)}
+        >
           ›
         </button>
         <button className="link cal-today" onClick={() => onMonth(firstOfMonth(Date.now()))}>
-          Today
+          {t("Today", "오늘")}
         </button>
       </header>
       <div className="cal-grid">
-        {WEEKDAYS.map((w, i) => (
+        {weekdays().map((w, i) => (
           <span key={w} className={`cal-wd ${i === 0 ? "sun" : i === 6 ? "sat" : ""}`}>
             {w}
           </span>
@@ -285,7 +324,14 @@ export function MonthCalendar(props: {
             <button
               key={key}
               className={classes}
-              aria-label={`${dateLabel(key)}${dayItems.length ? `, ${dayItems.length} ${dayItems.length === 1 ? "item" : "items"}` : ""}`}
+              aria-label={`${dateLabel(key)}${
+                dayItems.length
+                  ? t(
+                      `, ${dayItems.length} ${dayItems.length === 1 ? "item" : "items"}`,
+                      `, 일정 ${dayItems.length}개`,
+                    )
+                  : ""
+              }`}
               aria-pressed={key === selected}
               onClick={() => onSelect(key)}
             >
@@ -315,7 +361,7 @@ export function firstOfMonth(ms: number): number {
 /** 목록의 날짜 구분: "오늘", "내일", "10월 9일 (금)" */
 function dayLabel(ms: number, now: number): string {
   const n = daysLeft(ms, now);
-  if (n === 0) return `Today · ${dateLabel(ms)}`;
-  if (n === 1) return `Tomorrow · ${dateLabel(ms)}`;
+  if (n === 0) return `${t("Today", "오늘")} · ${dateLabel(ms)}`;
+  if (n === 1) return `${t("Tomorrow", "내일")} · ${dateLabel(ms)}`;
   return dateLabel(ms);
 }

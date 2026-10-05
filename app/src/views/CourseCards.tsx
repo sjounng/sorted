@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, courseNameProblem, type Change, type Course, type Overview } from "../api";
+import { t } from "../i18n";
+import { weekLabel } from "../format";
 import { courseColor } from "../courseColor";
 import { openView } from "../windows";
 
@@ -102,8 +104,11 @@ function CourseCard(props: {
               initial={course.name}
               courses={courses}
               exceptId={course.id}
-              submitLabel="Save"
-              hint="The class folder in Sorted is renamed too."
+              submitLabel={t("Save", "저장")}
+              hint={t(
+                "The class folder in Sorted is renamed too.",
+                "정리 폴더의 과목 폴더 이름도 바뀌어요.",
+              )}
               serverError={error}
               onSubmit={rename}
               onCancel={() => {
@@ -114,12 +119,16 @@ function CourseCard(props: {
           </div>
         </div>
       ) : (
-        <button className="card-main" onClick={onOpen} aria-label={`Open ${course.name}`}>
+        <button
+          className="card-main"
+          onClick={onOpen}
+          aria-label={t(`Open ${course.name}`, `${course.name} 열기`)}
+        >
           <span className="card-cover" />
           <span className="card-body">
             <strong className="card-title">{course.name}</strong>
             <span className="card-sub" title={course.lmsTitle}>
-              {lmsCode(course) ?? "Added manually"}
+              {lmsCode(course) ?? t("Added manually", "직접 추가한 과목")}
             </span>
             <span className="card-term">{course.term}</span>
           </span>
@@ -129,7 +138,7 @@ function CourseCard(props: {
       {mode !== "rename" && (
         <button
           className="kebab"
-          aria-label={`${course.name} menu`}
+          aria-label={t(`${course.name} menu`, `${course.name} 메뉴`)}
           aria-expanded={mode === "menu"}
           onClick={() => setMode(mode === "menu" ? "view" : "menu")}
         >
@@ -139,10 +148,10 @@ function CourseCard(props: {
       {mode === "menu" && (
         <div className="menu" role="menu">
           <button role="menuitem" onClick={() => setMode("rename")}>
-            Rename
+            {t("Rename", "이름 바꾸기")}
           </button>
           <button role="menuitem" className="danger-text" onClick={() => setMode("confirmDelete")}>
-            Delete
+            {t("Delete", "지우기")}
           </button>
         </div>
       )}
@@ -150,36 +159,44 @@ function CourseCard(props: {
       {mode === "confirmDelete" ? (
         <div className="card-confirm">
           <p>
-            Delete <strong>{course.name}</strong>?
+            {t("Delete ", "")}
+            <strong>{course.name}</strong>
+            {t("?", " 과목을 지울까요?")}
             <br />
             <span className="muted">
               {course.fileCount > 0
-                ? `It moves to Trash with its ${course.fileCount} files. You can restore it from Trash.`
-                : "It moves to Trash. You can restore it from Trash."}
+                ? t(
+                    `It moves to Trash with its ${course.fileCount} files. You can restore it from Trash.`,
+                    `파일 ${course.fileCount}개와 함께 휴지통으로 가요. 휴지통에서 되살릴 수 있어요.`,
+                  )
+                : t(
+                    "It moves to Trash. You can restore it from Trash.",
+                    "휴지통으로 가요. 휴지통에서 되살릴 수 있어요.",
+                  )}
             </span>
           </p>
           {error && <p className="warn">{error}</p>}
           <div className="actions">
-            <button onClick={() => setMode("view")}>Cancel</button>
+            <button onClick={() => setMode("view")}>{t("Cancel", "취소")}</button>
             <button className="danger" onClick={remove}>
-              Move to Trash
+              {t("Move to Trash", "휴지통으로")}
             </button>
           </div>
         </div>
       ) : (
         <div className="card-icons">
-          <span className="icon-stat" title="Files sorted">
+          <span className="icon-stat" title={t("Files sorted", "정리한 파일")}>
             <FileIcon />
             {course.fileCount}
           </span>
-          <span className="icon-stat" title="Latest week">
+          <span className="icon-stat" title={t("Latest week", "최근 주차")}>
             <CalendarIcon />
-            {course.latestWeek || "No files"}
+            {course.latestWeek ? weekLabel(course.latestWeek) : t("No files", "파일 없음")}
           </span>
           {latest && (
             <button
               className="icon-btn"
-              title={`New version: ${latest.fileName}`}
+              title={t(`New version: ${latest.fileName}`, `새 버전: ${latest.fileName}`)}
               onClick={() => openView("compare", latest.documentId)}
             >
               <RefreshIcon />
@@ -214,7 +231,7 @@ function AddCard({ courses }: { courses: Course[] }) {
           <span className="plus" aria-hidden>
             +
           </span>
-          Add class
+          {t("Add class", "과목 추가")}
         </button>
       </li>
     );
@@ -223,12 +240,15 @@ function AddCard({ courses }: { courses: Course[] }) {
   return (
     <li className="card add-card adding">
       <div className="card-body">
-        <strong className="add-title">New class</strong>
+        <strong className="add-title">{t("New class", "새 과목")}</strong>
         <NameForm
           initial=""
           courses={courses}
-          submitLabel="Add"
-          hint="A folder with this name is created in Sorted."
+          submitLabel={t("Add", "추가")}
+          hint={t(
+            "A folder with this name is created in Sorted.",
+            "정리 폴더에 이 이름의 폴더가 만들어져요.",
+          )}
           serverError={error}
           onSubmit={add}
           onCancel={() => {
@@ -272,7 +292,7 @@ function NameForm(props: {
       <input
         className="text"
         autoFocus
-        placeholder="Class name"
+        placeholder={t("Class name", "과목명")}
         value={name}
         aria-invalid={Boolean(shown)}
         onChange={(e) => {
@@ -285,7 +305,7 @@ function NameForm(props: {
       <p className={shown ? "field-error" : "field-hint muted"}>{shown || props.hint}</p>
       <div className="actions">
         <button type="button" onClick={props.onCancel}>
-          Cancel
+          {t("Cancel", "취소")}
         </button>
         <button type="submit" className="primary" disabled={Boolean(problem) || saving}>
           {props.submitLabel}

@@ -2,6 +2,7 @@
 //! 다운로드 폴더 권한 상태, 최근 변경 기록(history.json), 처리하지 못한 파일.
 //! Tauri에 의존하지 않는다. 화면과 주고받는 명령은 lib.rs에 있다 (docs/app-api.md).
 
+use crate::text::tr;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -237,7 +238,13 @@ impl Organizer {
                 outcome
             }
             Err(e) => Outcome::Error {
-                message: format!("다운로드 메시지를 읽지 못함: {e}"),
+                message: format!(
+                    "{}: {e}",
+                    tr(
+                        "다운로드 메시지를 읽지 못함",
+                        "Couldn't read the download message"
+                    )
+                ),
             },
         };
 
@@ -405,9 +412,12 @@ impl Organizer {
         choice: DuplicateChoice,
         trash: &dyn Fn(&Path) -> io::Result<()>,
     ) -> Result<Option<PathBuf>, String> {
-        let dup = self
-            .duplicate(id)
-            .ok_or("이미 처리했거나 모르는 중복이에요.")?;
+        let dup = self.duplicate(id).ok_or_else(|| {
+            tr(
+                "이미 처리했거나 모르는 중복이에요.",
+                "This duplicate was already handled or is unknown.",
+            )
+        })?;
         let forget = || {
             self.duplicates
                 .lock()
@@ -422,26 +432,56 @@ impl Organizer {
         self.locate();
         let (existing, sha256) = {
             let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
-            let (_, version) = lib
-                .version_of(&dup.doc_id, dup.version)
-                .ok_or("기존 파일 기록을 찾을 수 없어요.")?;
+            let (_, version) = lib.version_of(&dup.doc_id, dup.version).ok_or_else(|| {
+                tr(
+                    "기존 파일 기록을 찾을 수 없어요.",
+                    "Can't find the record of the existing file.",
+                )
+            })?;
             if version.missing {
-                return Err("기존 파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.".into());
+                return Err(tr(
+                    "기존 파일을 찾을 수 없어요. 옮겼거나 지웠을 수 있어요.",
+                    "Can't find the existing file. It may have been moved or deleted.",
+                ));
             }
             (version.path.clone(), version.sha256.clone())
         };
         // 받은 복사본을 지워도 되는지: 정리 폴더 밖이고, 지금도 기존 파일과 내용이 같아야 한다
         if dup.downloaded.starts_with(self.root()) {
-            return Err("정리 폴더 안의 파일은 지우지 않아요.".into());
+            return Err(tr(
+                "정리 폴더 안의 파일은 지우지 않아요.",
+                "Files inside the Sorted folder are never deleted.",
+            ));
         }
         match fingerprint::of_file(&dup.downloaded) {
             Ok(fp) if fp.sha256 == sha256 => {
-                trash(&dup.downloaded).map_err(|e| format!("휴지통으로 보내지 못했어요: {e}"))?;
+                trash(&dup.downloaded).map_err(|e| {
+                    format!(
+                        "{}: {e}",
+                        tr(
+                            "휴지통으로 보내지 못했어요",
+                            "Couldn't move it to the Trash"
+                        )
+                    )
+                })?;
             }
-            Ok(_) => return Err("받은 파일 내용이 바뀌어 지우지 않았어요.".into()),
+            Ok(_) => {
+                return Err(tr(
+                    "받은 파일 내용이 바뀌어 지우지 않았어요.",
+                    "The downloaded file has changed, so it wasn't deleted.",
+                ))
+            }
             // 이미 사용자가 치웠으면 지울 것이 없다
             Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("받은 파일을 읽지 못했어요: {e}")),
+            Err(e) => {
+                return Err(format!(
+                    "{}: {e}",
+                    tr(
+                        "받은 파일을 읽지 못했어요",
+                        "Couldn't read the downloaded file"
+                    )
+                ))
+            }
         }
         forget();
         Ok(Some(existing))
@@ -506,11 +546,18 @@ impl Organizer {
     pub fn add_course(&self, name: &str) -> Result<screen::Course, String> {
         let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(problem) = screen::course_name_problem(name, &lib) {
-            return Err(problem.into());
+            return Err(problem);
         }
         let name = name.trim();
-        fs::create_dir_all(self.course_folder(name)?)
-            .map_err(|e| format!("과목 폴더를 만들지 못했어요: {e}"))?;
+        fs::create_dir_all(self.course_folder(name)?).map_err(|e| {
+            format!(
+                "{}: {e}",
+                tr(
+                    "과목 폴더를 만들지 못했어요",
+                    "Couldn't create the class folder"
+                )
+            )
+        })?;
         lib.remember_course(None, name, &[]);
         if let Some(c) = lib.courses.iter_mut().find(|c| c.name == name) {
             c.pin_id();
@@ -519,7 +566,7 @@ impl Organizer {
         let course = screen::courses(&lib)
             .into_iter()
             .find(|c| c.name == name)
-            .ok_or("과목을 추가하지 못했어요.")?;
+            .ok_or_else(|| tr("과목을 추가하지 못했어요.", "Couldn't add the class."))?;
         Ok(course)
     }
 
@@ -531,21 +578,32 @@ impl Organizer {
             .courses
             .iter()
             .position(|c| c.id() == course_id)
-            .ok_or("없는 과목이에요.")?;
+            .ok_or_else(|| tr("없는 과목이에요.", "This class doesn't exist."))?;
         let old = lib.courses[index].name.clone();
         let new = name.trim();
         if new == old {
             return Ok(());
         }
         if let Some(problem) = screen::course_name_problem(new, &lib) {
-            return Err(problem.into());
+            return Err(problem);
         }
         let (from, to) = (self.course_folder(&old)?, self.course_folder(new)?);
         if to.exists() {
-            return Err("같은 이름의 폴더가 정리 폴더에 이미 있어요.".into());
+            return Err(tr(
+                "같은 이름의 폴더가 정리 폴더에 이미 있어요.",
+                "A folder with this name already exists in the Sorted folder.",
+            ));
         }
         if from.is_dir() {
-            fs::rename(&from, &to).map_err(|e| format!("과목 폴더 이름을 바꾸지 못했어요: {e}"))?;
+            fs::rename(&from, &to).map_err(|e| {
+                format!(
+                    "{}: {e}",
+                    tr(
+                        "과목 폴더 이름을 바꾸지 못했어요",
+                        "Couldn't rename the class folder"
+                    )
+                )
+            })?;
         }
 
         lib.courses[index].pin_id();
@@ -597,7 +655,7 @@ impl Organizer {
             .courses
             .iter_mut()
             .find(|c| c.id() == course_id)
-            .ok_or("없는 과목이에요.")?;
+            .ok_or_else(|| tr("없는 과목이에요.", "This class doesn't exist."))?;
         course.pin_id();
         course.removed_at_ms = removed_at_ms;
         self.save_library(&lib);
@@ -620,14 +678,25 @@ impl Organizer {
             .courses
             .iter()
             .position(|c| c.id() == course_id)
-            .ok_or("없는 과목이에요.")?;
+            .ok_or_else(|| tr("없는 과목이에요.", "This class doesn't exist."))?;
         if !lib.courses[index].is_removed() {
-            return Err("휴지통에 있는 과목만 완전히 지울 수 있어요.".into());
+            return Err(tr(
+                "휴지통에 있는 과목만 완전히 지울 수 있어요.",
+                "Only classes in the Trash can be deleted permanently.",
+            ));
         }
         let name = lib.courses[index].name.clone();
         let folder = self.course_folder(&name)?;
         if folder.exists() {
-            trash(&folder).map_err(|e| format!("과목 폴더를 휴지통으로 보내지 못했어요: {e}"))?;
+            trash(&folder).map_err(|e| {
+                format!(
+                    "{}: {e}",
+                    tr(
+                        "과목 폴더를 휴지통으로 보내지 못했어요",
+                        "Couldn't move the class folder to the Trash"
+                    )
+                )
+            })?;
         }
         lib.courses.remove(index);
         lib.documents.retain(|d| d.course != name);
@@ -654,7 +723,10 @@ impl Organizer {
     fn course_folder(&self, name: &str) -> Result<PathBuf, String> {
         let name = name.trim();
         if name.is_empty() || name.starts_with('.') || name.contains(['/', ':']) {
-            return Err("과목 폴더로 쓸 수 없는 이름이에요.".into());
+            return Err(tr(
+                "과목 폴더로 쓸 수 없는 이름이에요.",
+                "This name can't be used for a class folder.",
+            ));
         }
         Ok(self.root().join(name))
     }
@@ -720,19 +792,22 @@ impl Organizer {
 
     /// 사용자가 과목을 골랐다 (FR-5). 고른 과목으로 다시 정리하고, 이후 같은 과목은 기억한다.
     pub fn assign(&self, id: u64, choice: &AssignChoice) -> Result<Outcome, String> {
-        let p = self
-            .waiting_for_course(id)
-            .ok_or("과목을 기다리는 파일이 아니에요.")?;
+        let p = self.waiting_for_course(id).ok_or_else(|| {
+            tr(
+                "과목을 기다리는 파일이 아니에요.",
+                "This file isn't waiting for a class.",
+            )
+        })?;
         let course_name = {
             let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
             match choice {
                 AssignChoice::Existing { course_id } => lib
                     .course_by_id(course_id)
                     .map(|c| c.name.clone())
-                    .ok_or("없는 과목이에요.")?,
+                    .ok_or_else(|| tr("없는 과목이에요.", "This class doesn't exist."))?,
                 AssignChoice::New { new_course_name } => {
                     if let Some(problem) = screen::course_name_problem(new_course_name, &lib) {
-                        return Err(problem.into());
+                        return Err(problem);
                     }
                     new_course_name.trim().to_owned()
                 }

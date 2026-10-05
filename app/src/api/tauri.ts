@@ -1,12 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Backend } from "./backend";
+import type { Settings } from "./types";
 
 // 실제 앱 본체 호출. Rust 쪽에 같은 이름의 #[tauri::command]를 만들면 그대로 동작한다.
 // 인자 이름은 Tauri가 camelCase → snake_case로 바꿔 준다 (fileId → file_id).
 // Sorted 앱 안에서 기본으로 쓴다 (api/index.ts). comparison·cleanup_*는 4단계 예정이라 아직 없다.
 
 export const tauriBackend: Backend = {
+  settings: () => invoke("settings"),
+  setLanguage: (language) => invoke("set_language", { language }),
+  onSettingsChanged: (callback) =>
+    listen<Settings>("settings-changed", (event) => callback(event.payload)),
+
   overview: () => invoke("overview"),
   onOverviewChanged: (callback) => listen("overview-changed", () => callback()),
 

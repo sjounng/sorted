@@ -1,13 +1,20 @@
 import { Fragment, useState } from "react";
 import { api, type PageChange, type PageChangeKind } from "../api";
+import { t } from "../i18n";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 
-const KIND_LABEL: Record<PageChangeKind, string> = {
-  modified: "Edited",
-  added: "Added",
-  removed: "Removed",
-};
+/** 바뀐 종류 이름표. 언어가 바뀌면 다시 읽도록 함수로 둔다 */
+function kindLabel(kind: PageChangeKind): string {
+  switch (kind) {
+    case "modified":
+      return t("Edited", "수정");
+    case "added":
+      return t("Added", "추가");
+    case "removed":
+      return t("Removed", "삭제");
+  }
+}
 
 const anchor = (c: PageChange, i: number) =>
   c.kind === "removed" ? `removed-${i}` : `page-${c.page}`;
@@ -42,11 +49,16 @@ export function Compare({ id }: { id: string }) {
         <div>
           <h1>{data.fileName}</h1>
           <span className="muted">
-            {data.courseName} · v{data.oldVersion} → v{data.newVersion} · {data.changes.length}{" "}
-            {data.changes.length === 1 ? "change" : "changes"}
+            {data.courseName} · v{data.oldVersion} → v{data.newVersion} ·{" "}
+            {t(
+              `${data.changes.length} ${data.changes.length === 1 ? "change" : "changes"}`,
+              `바뀐 곳 ${data.changes.length}개`,
+            )}
           </span>
         </div>
-        <button onClick={() => openView("cleanup", data.documentId)}>Clean up old version…</button>
+        <button onClick={() => openView("cleanup", data.documentId)}>
+          {t("Clean up old version…", "이전 버전 정리…")}
+        </button>
       </header>
 
       <div className="compare-body">
@@ -58,9 +70,11 @@ export function Compare({ id }: { id: string }) {
                   className={selected === i ? "change active" : "change"}
                   onClick={() => jump(i)}
                 >
-                  <span className={`kind ${c.kind}`}>{KIND_LABEL[c.kind]}</span>
+                  <span className={`kind ${c.kind}`}>{kindLabel(c.kind)}</span>
                   <span className="where">
-                    {c.kind === "removed" ? `Old p. ${c.oldPage}` : `p. ${c.page}`}
+                    {c.kind === "removed"
+                      ? t(`Old p. ${c.oldPage}`, `이전 ${c.oldPage}쪽`)
+                      : t(`p. ${c.page}`, `${c.page}쪽`)}
                   </span>
                   <span className="summary">{c.summary}</span>
                 </button>
@@ -89,7 +103,7 @@ export function Compare({ id }: { id: string }) {
                   ].join(" ")}
                 >
                   <div className="frame">
-                    <img src={p.imageUrl} alt={`Page ${p.page}`} loading="lazy" />
+                    <img src={p.imageUrl} alt={t(`Page ${p.page}`, `${p.page}쪽`)} loading="lazy" />
                     {here.flatMap(({ c, i }) =>
                       c.regions.map((r, k) => (
                         <span
@@ -106,10 +120,10 @@ export function Compare({ id }: { id: string }) {
                     )}
                   </div>
                   <figcaption>
-                    Page {p.page}
+                    {t(`Page ${p.page}`, `${p.page}쪽`)}
                     {here.map(({ c, i }) => (
                       <span key={i} className={`kind ${c.kind}`}>
-                        {KIND_LABEL[c.kind]}
+                        {kindLabel(c.kind)}
                       </span>
                     ))}
                   </figcaption>
@@ -129,7 +143,7 @@ export function Compare({ id }: { id: string }) {
 function Removed({ id, change, active }: { id: string; change: PageChange; active: boolean }) {
   return (
     <div id={id} className={active ? "gone active" : "gone"}>
-      <span className="kind removed">Removed</span> {change.summary}
+      <span className="kind removed">{kindLabel("removed")}</span> {change.summary}
     </div>
   );
 }

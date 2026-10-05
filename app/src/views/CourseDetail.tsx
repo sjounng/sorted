@@ -1,5 +1,6 @@
 import { api, type CourseFile } from "../api";
-import { ago, size } from "../format";
+import { t } from "../i18n";
+import { ago, size, weekLabel } from "../format";
 import { useLoad } from "../useLoad";
 import { openView } from "../windows";
 
@@ -17,7 +18,7 @@ export function CourseDetail(props: {
     <div className="course" style={{ "--course": color } as React.CSSProperties}>
       <div className="course-bar">
         <button className="link back" onClick={onBack}>
-          ‹ My Classes
+          ‹ {t("My Classes", "내 과목")}
         </button>
       </div>
 
@@ -29,29 +30,37 @@ export function CourseDetail(props: {
             <div className="course-titles">
               <strong className="card-title">{data.course.name}</strong>
               <span className="card-sub" title={data.course.lmsTitle}>
-                {data.course.lmsTitle ?? "Added manually"}
+                {data.course.lmsTitle ?? t("Added manually", "직접 추가한 과목")}
               </span>
               <span className="muted">
-                {data.course.term} · {data.course.fileCount} files
+                {data.course.term} ·{" "}
+                {t(`${data.course.fileCount} files`, `파일 ${data.course.fileCount}개`)}
               </span>
             </div>
             <button className="course-folder" onClick={() => api.revealInFinder(folder)}>
-              Open Folder
+              {t("Open Folder", "폴더 열기")}
             </button>
           </header>
 
           {data.weeks.length === 0 && (
             <p className="empty muted">
-              No files yet. Download from the LMS or drop PDFs into this class folder.
+              {t(
+                "No files yet. Download from the LMS or drop PDFs into this class folder.",
+                "아직 파일이 없어요. LMS에서 받거나 이 과목 폴더에 PDF를 넣어 주세요.",
+              )}
             </p>
           )}
           {data.weeks.map((w) => (
             <section key={w.week} className="week">
               <h2>
-                {w.week}
+                {weekLabel(w.week)}
                 <span className="muted">
                   {" "}
-                  · {w.files.length} {w.files.length === 1 ? "file" : "files"}
+                  ·{" "}
+                  {t(
+                    `${w.files.length} ${w.files.length === 1 ? "file" : "files"}`,
+                    `파일 ${w.files.length}개`,
+                  )}
                 </span>
               </h2>
               <ul className="files">
@@ -73,7 +82,11 @@ export function CourseDetail(props: {
 function FileRow({ file }: { file: CourseFile }) {
   return (
     <li className="file-row">
-      <button className="file-main" onClick={() => api.openFile(file.path)} title="Open">
+      <button
+        className="file-main"
+        onClick={() => api.openFile(file.path)}
+        title={t("Open", "열기")}
+      >
         <PdfIcon />
         <span className="file-text">
           <strong>{file.fileName}</strong>
@@ -85,7 +98,7 @@ function FileRow({ file }: { file: CourseFile }) {
       </button>
       {file.unseenChange && (
         <button className="pill" onClick={() => openView("compare", file.documentId)}>
-          New version · See changes
+          {t("New version · See changes", "새 버전 · 바뀐 곳 보기")}
         </button>
       )}
     </li>

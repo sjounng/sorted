@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sorted_core::library::Library;
 
+use crate::text::tr;
+
 /// 과목 카드 하나
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -136,22 +138,34 @@ const MAX_COURSE_NAME: usize = 40;
 
 /// 과목명을 폴더 이름으로 쓸 수 있는지 본다. 문제가 없으면 None.
 /// 화면(`app/src/api/validate.ts`)과 같은 규칙으로 한 번 더 막는다.
-pub fn course_name_problem(name: &str, lib: &Library) -> Option<&'static str> {
+pub fn course_name_problem(name: &str, lib: &Library) -> Option<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        return Some("과목명을 입력해 주세요.");
+        return Some(tr("과목명을 입력해 주세요.", "Enter a class name."));
     }
     if trimmed.chars().count() > MAX_COURSE_NAME {
-        return Some("과목명은 40자까지 쓸 수 있어요.");
+        return Some(tr(
+            "과목명은 40자까지 쓸 수 있어요.",
+            "Class names can be up to 40 characters.",
+        ));
     }
     if trimmed.contains(['/', ':']) {
-        return Some("과목명에 / 나 : 는 쓸 수 없어요.");
+        return Some(tr(
+            "과목명에 / 나 : 는 쓸 수 없어요.",
+            "Class names can’t contain / or :.",
+        ));
     }
     if trimmed.starts_with('.') {
-        return Some("과목명은 . 으로 시작할 수 없어요.");
+        return Some(tr(
+            "과목명은 . 으로 시작할 수 없어요.",
+            "Class names can’t start with a dot.",
+        ));
     }
     if lib.courses.iter().any(|c| c.name == trimmed) {
-        return Some("같은 이름의 과목이 이미 있어요.");
+        return Some(tr(
+            "같은 이름의 과목이 이미 있어요.",
+            "A class with this name already exists.",
+        ));
     }
     None
 }

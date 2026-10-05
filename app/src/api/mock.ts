@@ -9,7 +9,9 @@ import type {
   CourseDetail,
   CourseFile,
   DuplicateNotice,
+  Language,
   Overview,
+  Settings,
   PageChange,
   PageImage,
   Region,
@@ -243,7 +245,39 @@ const cleanup: CleanupRequest = {
   hasAnnotations: true,
 };
 
+// 목업의 언어 설정: 이 브라우저 저장소에 두고, 다른 탭(창)에는 storage 이벤트로 알린다
+const LANGUAGE_KEY = "sorted.mock.language";
+function mockLanguage(): Language {
+  try {
+    const v = localStorage.getItem(LANGUAGE_KEY);
+    if (v === "ko" || v === "en") return v;
+  } catch {
+    // 저장소를 못 쓰면 브라우저 언어를 따른다
+  }
+  return navigator.language.toLowerCase().startsWith("ko") ? "ko" : "en";
+}
+const settingsListeners = new Set<(settings: Settings) => void>();
+const settingsChanged = () => settingsListeners.forEach((l) => l({ language: mockLanguage() }));
+window.addEventListener("storage", (e) => {
+  if (e.key === LANGUAGE_KEY) settingsChanged();
+});
+
 export const mockBackend: Backend = {
+  settings: async () => ({ language: mockLanguage() }),
+  setLanguage: async (language) => {
+    try {
+      localStorage.setItem(LANGUAGE_KEY, language);
+    } catch {
+      // 저장하지 못해도 이 창에서는 바뀐다
+    }
+    settingsChanged();
+    return { language };
+  },
+  onSettingsChanged: async (callback) => {
+    settingsListeners.add(callback);
+    return () => settingsListeners.delete(callback);
+  },
+
   overview: () =>
     wait(structuredClone({ ...overview, courses: courses(), trashCount: trashed.length })),
   onOverviewChanged: async (callback) => {

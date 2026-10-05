@@ -10,7 +10,9 @@ import type {
   DuplicateNotice,
   Overview,
   Schedule,
+  Language,
   SetupStatus,
+  Settings,
   TrashedCourse,
 } from "./types";
 
@@ -19,6 +21,13 @@ import type {
  * 목업(mock.ts)과 실제 구현(tauri.ts)이 같은 모양을 갖는다.
  */
 export interface Backend {
+  /** 언어 등 설정 (#46) */
+  settings(): Promise<Settings>;
+  /** 언어를 바꾸고 저장한다. 열린 창들에 settings-changed로 알린다 */
+  setLanguage(language: Language): Promise<Settings>;
+  /** 설정이 바뀔 때마다 부른다. 돌려받은 함수로 구독을 끊는다 */
+  onSettingsChanged(callback: (settings: Settings) => void): Promise<() => void>;
+
   overview(): Promise<Overview>;
   /** 메인 창 데이터가 바뀔 때마다 부른다. 돌려받은 함수로 구독을 끊는다 */
   onOverviewChanged(callback: () => void): Promise<() => void>;

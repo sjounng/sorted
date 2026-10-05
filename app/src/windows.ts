@@ -1,21 +1,42 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { t } from "./i18n";
 
 // 화면 하나 = 창 하나. 모든 창이 같은 index.html을 쓰고 ?view=로 화면을 고른다.
 // 브라우저(목업 확인용)에서는 새 탭으로 연다.
 
 export type View = "main" | "log" | "setup" | "assign" | "duplicate" | "compare" | "cleanup";
 
-const SIZES: Record<View, { title: string; width: number; height: number }> = {
-  main: { title: "Sorted", width: 1200, height: 780 },
-  log: { title: "Sorted Message Log", width: 480, height: 600 },
-  setup: { title: "Welcome to Sorted", width: 460, height: 520 },
-  assign: { title: "Choose a Class", width: 420, height: 480 },
-  duplicate: { title: "Already Downloaded", width: 420, height: 260 },
-  compare: { title: "Compare Versions", width: 1040, height: 700 },
-  cleanup: { title: "Clean Up Old Version", width: 420, height: 300 },
+const SIZES: Record<View, { width: number; height: number }> = {
+  main: { width: 1200, height: 780 },
+  log: { width: 480, height: 600 },
+  setup: { width: 460, height: 640 },
+  assign: { width: 420, height: 480 },
+  duplicate: { width: 420, height: 260 },
+  compare: { width: 1040, height: 700 },
+  cleanup: { width: 420, height: 300 },
 };
+
+/** 창 제목. 지금 언어를 따른다 (앱 내부가 띄우는 창도 같은 제목을 쓴다: lib.rs) */
+export function viewTitle(view: View): string {
+  switch (view) {
+    case "main":
+      return "Sorted";
+    case "log":
+      return t("Sorted Message Log", "Sorted 메시지 기록");
+    case "setup":
+      return t("Welcome to Sorted", "Sorted 시작하기");
+    case "assign":
+      return t("Choose a Class", "과목 지정");
+    case "duplicate":
+      return t("Already Downloaded", "이미 받은 파일");
+    case "compare":
+      return t("Compare Versions", "변경 비교");
+    case "cleanup":
+      return t("Clean Up Old Version", "이전 버전 정리");
+  }
+}
 
 export function currentView(): { view: View; id: string | null } {
   const params = new URLSearchParams(location.search);
@@ -43,7 +64,8 @@ export async function openView(view: View, id?: string) {
     await existing.setFocus();
     return;
   }
-  const { title, width, height } = SIZES[view];
+  const { width, height } = SIZES[view];
+  const title = viewTitle(view);
   new WebviewWindow(label, { url, title, width, height, center: true, focus: true });
 }
 
