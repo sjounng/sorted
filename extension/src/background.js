@@ -4,14 +4,23 @@
 // 2. LMS 다운로드 감지: 다운로드가 끝나면 출처 정보와 LMS의 과목명·주차를 앱에 보낸다
 //    (스파이크 #3, FR-1·FR-11·FR-12의 출발점).
 // 3. 일정 (FR-19): LMS 탭이 열려 있을 때 한 시간에 한 번까지 플래너를 읽어 앱에 보낸다.
+//    영상은 주차학습 페이지가 받은 응답을 weekly-page.js → weekly-bridge.js가 넘겨 주면 과목별로 보낸다.
 //
 // 결과는 아이콘 배지로 보여 준다.
 //   OK  앱이 받음
 //   Q   앱이 꺼져 있어 중계 프로그램이 보관해 둠 (앱이 켜지면 전달됨)
 //   !   중계 프로그램을 찾지 못함 (scripts/install-native-host.sh 실행 필요)
 
-import { lookupCourse, lookupPlanner, moduleItemIdOf } from "./canvas.js";
+import {
+  LMS_ORIGIN,
+  lookupCourse,
+  lookupPlanner,
+  moduleItemIdOf,
+  parseCanvasJson,
+  splitCourseName,
+} from "./canvas.js";
 import { buildDownloadMessage, courseIdOf, isLmsDownload, isLmsHost, queryParam } from "./lms.js";
+import { byCourse, weeklyItems } from "./weekly.js";
 
 /** scripts/install-native-host.sh 가 등록하는 이름과 같아야 한다. */
 const HOST = "dev.sorted.host";
@@ -53,7 +62,11 @@ function hello(reason) {
 
 chrome.runtime.onInstalled.addListener(() => hello("installed"));
 chrome.runtime.onStartup.addListener(() => hello("startup"));
-chrome.action.onClicked.addListener(() => hello("clicked"));
+chrome.action.onClicked.addListener(() => {
+  hello("clicked");
+  // 사용자가 직접 누르면 한 시간 제한 없이 일정을 다시 읽는다
+  refreshSchedule({ force: true });
+});
 
 // ── 다운로드 감지 ──────────────────────────────────────
 // 활성 탭은 다운로드가 "시작될 때" 기록한다. 끝날 때쯤엔 사용자가 다른 탭으로 옮겼을 수 있다.
@@ -100,7 +113,11 @@ function lookupForDownload(item, tab) {
 
 /** 사용자의 LMS 로그인 쿠키를 실어 GET한다. host_permissions에 있는 도메인만 가능하다. */
 async function fetchText(url) {
-  const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  const res = await fetch(url, {
+    credentials: "include",
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(LMS_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 }
@@ -110,6 +127,8 @@ async function fetchText(url) {
 // 확장은 쿠키·인증 토큰을 읽지 않는다. fetch가 로그인 쿠키를 실어 보낼 뿐이다.
 
 const SCHEDULE_EVERY_MS = 60 * 60 * 1000;
+/** LMS 요청 하나를 기다리는 최대 시간 */
+const LMS_TIMEOUT_MS = 15 * 1000;
 
 chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
   if (info.status !== "complete" || !tab.url) return;
@@ -122,13 +141,22 @@ chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
   if (isLmsHost(host)) refreshSchedule();
 });
 
-async function refreshSchedule() {
+async function refreshSchedule({ force = false } = {}) {
   const { scheduleAt = 0 } = await chrome.storage.local.get("scheduleAt");
-  if (Date.now() - scheduleAt < SCHEDULE_EVERY_MS) return;
+  if (!force && Date.now() - scheduleAt < SCHEDULE_EVERY_MS) return;
   // 실패해도 한 시간 동안은 다시 묻지 않는다 (로그아웃 상태에서 LMS를 계속 두드리지 않게)
   await chrome.storage.local.set({ scheduleAt: Date.now() });
   try {
-    const items = await lookupPlanner(fetchPage, Date.now());
+    // 진행 상황만 남긴다 (내용은 남기지 않음)
+    const items = await lookupPlanner(fetchPage, Date.now(), (step) =>
+      console.info("[Sorted] 일정:", step),
+    );
+    // 주차학습 응답에는 과목명이 없어서, 플래너에서 본 과목명을 기억해 둔다
+    const courseNames = Object.fromEntries(
+      items.filter((i) => i.courseId && i.courseName).map((i) => [i.courseId, i.courseName]),
+    );
+    const { courseNames: known = {} } = await chrome.storage.local.get("courseNames");
+    await chrome.storage.local.set({ courseNames: { ...known, ...courseNames } });
     await sendToApp({
       type: "schedule",
       source: "planner",
@@ -143,7 +171,55 @@ async function refreshSchedule() {
 
 /** 쿠키를 실어 GET하고 본문과 다음 쪽(Link 헤더)을 돌려준다. */
 async function fetchPage(url) {
-  const res = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  const res = await fetch(url, {
+    credentials: "include",
+    headers: { Accept: "application/json" },
+    // 응답이 없으면 기다리지 않는다 (과목 하나가 멈춰도 나머지는 계속)
+    signal: AbortSignal.timeout(LMS_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return { text: await res.text(), link: res.headers.get("Link") };
+}
+
+// ── 영상 일정 (FR-19) ──────────────────────────────────
+// 주차학습 페이지가 받은 응답을 weekly-bridge.js가 넘긴다. LMS 페이지에서 온 것만 받는다.
+// 주차학습은 과목 하나씩 열리므로 과목별 출처(weekly:<과목 ID>)로 보내, 앱이 다른 과목을 지우지 않게 한다.
+
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type !== "weekly" || !Array.isArray(message.modules)) return;
+  let host;
+  try {
+    host = new URL(sender.url ?? "").hostname;
+  } catch {
+    return;
+  }
+  if (sender.id !== chrome.runtime.id || !isLmsHost(host)) return;
+  sendWeekly(message.modules);
+});
+
+async function sendWeekly(modules) {
+  const { courseNames = {} } = await chrome.storage.local.get("courseNames");
+  const fetchedAt = new Date().toISOString();
+  for (const [courseId, raw] of byCourse(weeklyItems(modules, courseNames))) {
+    // 기억해 둔 이름도 다듬는다 (예전 규칙으로 저장된 "202620HY_…" 같은 이름)
+    const known = splitCourseName(courseNames[courseId] ?? "").name;
+    const name = known || (await rememberCourseName(courseId, courseNames));
+    const items = raw.map((i) => ({ ...i, courseName: name }));
+    await sendToApp({ type: "schedule", source: `weekly:${courseId}`, items, fetchedAt });
+  }
+}
+
+/** 처음 보는 과목이면 LMS에 과목명을 한 번 묻고 기억한다 (다운로드 때 과목명을 묻는 것과 같은 요청) */
+async function rememberCourseName(courseId, courseNames) {
+  try {
+    const course = parseCanvasJson(
+      await fetchText(`${LMS_ORIGIN}/api/v1/courses/${encodeURIComponent(courseId)}`),
+    );
+    const { name } = splitCourseName(course?.name);
+    if (!name) return "";
+    await chrome.storage.local.set({ courseNames: { ...courseNames, [courseId]: name } });
+    return name;
+  } catch {
+    return "";
+  }
 }

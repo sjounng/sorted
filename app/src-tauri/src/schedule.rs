@@ -1,5 +1,6 @@
 //! 일정 (FR-19). 확장이 LMS에서 읽어 보낸 일정을 출처별로 덮어써 앱 데이터 폴더의
-//! schedule.json에 저장한다. 한쪽 출처(플래너 / 주차학습)를 다시 받아도 다른 쪽은 남는다.
+//! schedule.json에 저장한다. 한쪽 출처를 다시 받아도 다른 쪽은 남는다.
+//! 출처: `planner`(과제·퀴즈·화상 강의, 모든 과목), `weekly:<과목 ID>`(주차학습 영상, 과목 하나씩).
 //! Tauri에 의존하지 않는다. 명령은 lib.rs에 있다 (docs/app-api.md).
 
 use std::collections::BTreeMap;
@@ -12,8 +13,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// 받는 출처
-const SOURCES: [&str; 2] = ["planner", "weekly"];
+/// 받는 출처인가: `planner`, 또는 `weekly:<과목 ID(숫자)>`
+fn known_source(source: &str) -> bool {
+    match source.strip_prefix("weekly:") {
+        Some(course) => !course.is_empty() && course.chars().all(|c| c.is_ascii_digit()),
+        None => source == "planner",
+    }
+}
 /// 출처 하나에서 받는 최대 항목 수
 const MAX_ITEMS: usize = 1000;
 /// 일정 링크로 허락하는 주소
@@ -40,6 +46,9 @@ pub struct ScheduleItem {
     pub due_at_ms: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_at_ms: Option<i64>,
+    /// 마감 뒤에도 늦게 해서 인정받을 수 있는 마지막 시각 (영상의 late_at)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub late_until_ms: Option<i64>,
     pub done: bool,
     pub url: String,
 }
@@ -81,7 +90,7 @@ impl ScheduleStore {
     /// 확장의 `schedule` 메시지로 그 출처의 일정을 덮어쓴다.
     pub fn update(&self, message: &Value) -> Result<usize, String> {
         let source = message["source"].as_str().unwrap_or_default();
-        if !SOURCES.contains(&source) {
+        if !known_source(source) {
             return Err(format!("모르는 일정 출처: {source}"));
         }
         let mut items: Vec<ScheduleItem> = serde_json::from_value(message["items"].clone())
@@ -183,7 +192,7 @@ mod tests {
         let planner = json!({ "type": "schedule", "source": "planner",
                               "items": [item("assignment-1", "assignment", 30), item("quiz-2", "quiz", 10)] });
         assert_eq!(s.update(&planner).unwrap(), 2);
-        let weekly = json!({ "source": "weekly", "items": [item("video-3", "video", 20)] });
+        let weekly = json!({ "source": "weekly:211742", "items": [item("video-3", "video", 20)] });
         s.update(&weekly).unwrap();
 
         let ids: Vec<String> = s.schedule().items.into_iter().map(|i| i.id).collect();
@@ -236,5 +245,30 @@ mod tests {
         assert!(!is_lms_url("https://learning.hanyang.ac.kr.evil.example/"));
         assert!(!is_lms_url("https://user@evil.example/"));
         assert!(!is_lms_url("file:///etc/passwd"));
+    }
+
+    #[test]
+    fn weekly_videos_are_kept_per_course_with_late_deadline() {
+        let (_, s) = store("weekly");
+        let mut a = item("video-1", "video", 10);
+        a["lateUntilMs"] = json!(99);
+        s.update(&json!({ "source": "weekly:1", "items": [a] }))
+            .unwrap();
+        s.update(&json!({ "source": "weekly:2", "items": [item("video-2", "video", 20)] }))
+            .unwrap();
+        // 과목 2를 다시 받아도 과목 1의 영상은 남는다
+        s.update(&json!({ "source": "weekly:2", "items": [] }))
+            .unwrap();
+        let items = s.schedule().items;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].late_until_ms, Some(99));
+        assert_eq!(serde_json::to_value(&items[0]).unwrap()["lateUntilMs"], 99);
+
+        for bad in ["weekly", "weekly:", "weekly:abc", "weekly:1/2"] {
+            assert!(
+                s.update(&json!({ "source": bad, "items": [] })).is_err(),
+                "{bad}"
+            );
+        }
     }
 }
