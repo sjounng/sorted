@@ -33,16 +33,6 @@ export function CourseCards(props: {
   );
 }
 
-/**
- * 카드 아래 줄에는 LMS 이름의 과목 코드만 쓴다 ("202620HY11174_테크노경영학" → "202620HY11174").
- * 과목명은 바로 위에 크게 있으므로 되풀이하면 잘리기만 한다. 전체 이름은 마우스를 올리면 보인다.
- */
-function lmsCode(course: Course): string | undefined {
-  if (!course.lmsTitle) return undefined;
-  const [code] = course.lmsTitle.split("_");
-  return code || course.lmsTitle;
-}
-
 type Mode = "view" | "menu" | "rename" | "confirmDelete";
 
 function CourseCard(props: {
@@ -127,9 +117,6 @@ function CourseCard(props: {
           <span className="card-cover" />
           <span className="card-body">
             <strong className="card-title">{course.name}</strong>
-            <span className="card-sub" title={course.lmsTitle}>
-              {lmsCode(course) ?? t("Added manually", "직접 추가한 과목")}
-            </span>
             <span className="card-term">{course.term}</span>
           </span>
         </button>
