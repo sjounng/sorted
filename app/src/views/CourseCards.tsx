@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, courseNameProblem, type Change, type Course, type Overview } from "../api";
 import { t } from "../i18n";
-import { weekLabel } from "../format";
 import { courseColor } from "../courseColor";
 import { openView } from "../windows";
 
@@ -176,10 +175,6 @@ function CourseCard(props: {
             <FileIcon />
             {course.fileCount}
           </span>
-          <span className="icon-stat" title={t("Latest week", "최근 주차")}>
-            <CalendarIcon />
-            {course.latestWeek ? weekLabel(course.latestWeek) : t("No files", "파일 없음")}
-          </span>
           {latest && (
             <button
               className="icon-btn"
@@ -329,15 +324,6 @@ function FileIcon() {
     <svg {...iconProps}>
       <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
       <path d="M14 3v5h5M9 13h6M9 17h4" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="4" y="5" width="16" height="15" rx="2" />
-      <path d="M8 3v4M16 3v4M4 10h16" />
     </svg>
   );
 }
