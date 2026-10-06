@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, courseNameProblem, type Change, type Course, type Overview } from "../api";
 import { t } from "../i18n";
-import { weekLabel } from "../format";
 import { courseColor } from "../courseColor";
 import { openView } from "../windows";
 
@@ -31,16 +30,6 @@ export function CourseCards(props: {
       <AddCard courses={data.courses} />
     </ul>
   );
-}
-
-/**
- * 카드 아래 줄에는 LMS 이름의 과목 코드만 쓴다 ("202620HY11174_테크노경영학" → "202620HY11174").
- * 과목명은 바로 위에 크게 있으므로 되풀이하면 잘리기만 한다. 전체 이름은 마우스를 올리면 보인다.
- */
-function lmsCode(course: Course): string | undefined {
-  if (!course.lmsTitle) return undefined;
-  const [code] = course.lmsTitle.split("_");
-  return code || course.lmsTitle;
 }
 
 type Mode = "view" | "menu" | "rename" | "confirmDelete";
@@ -127,9 +116,6 @@ function CourseCard(props: {
           <span className="card-cover" />
           <span className="card-body">
             <strong className="card-title">{course.name}</strong>
-            <span className="card-sub" title={course.lmsTitle}>
-              {lmsCode(course) ?? t("Added manually", "직접 추가한 과목")}
-            </span>
             <span className="card-term">{course.term}</span>
           </span>
         </button>
@@ -188,10 +174,6 @@ function CourseCard(props: {
           <span className="icon-stat" title={t("Files sorted", "정리한 파일")}>
             <FileIcon />
             {course.fileCount}
-          </span>
-          <span className="icon-stat" title={t("Latest week", "최근 주차")}>
-            <CalendarIcon />
-            {course.latestWeek ? weekLabel(course.latestWeek) : t("No files", "파일 없음")}
           </span>
           {latest && (
             <button
@@ -342,15 +324,6 @@ function FileIcon() {
     <svg {...iconProps}>
       <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
       <path d="M14 3v5h5M9 13h6M9 17h4" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="4" y="5" width="16" height="15" rx="2" />
-      <path d="M8 3v4M16 3v4M4 10h16" />
     </svg>
   );
 }

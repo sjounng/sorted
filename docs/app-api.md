@@ -143,6 +143,7 @@
 
 ### `overview`·`course_detail` 동작
 
+- `courses`: 정리한 과목과 직접 추가한 과목, 그리고 **LMS 일정(planner·weekly)에 나온 과목**. 일정에만 있는 과목은 id가 LMS 과목 ID, `fileCount` 0, `latestWeek` `""`이고 폴더는 자료를 처음 받을 때 생긴다. 일정을 받을 때와 앱을 켤 때 더하고, 이미 있는 과목(이름을 바꿨거나 휴지통에 든 것 포함)과 같은 이름의 과목이 있으면 건드리지 않는다. 과목 화면은 `ScheduleItem.courseId === Course.id`로 그 과목의 일정을 보여 준다.
 - `changes`: 정리할 때마다 남기는 기록. 앱 데이터 폴더의 `history.json`에 최근 200개까지 남아 앱을 다시 켜도 보인다. 새것부터 온다.
 - `unprocessed`: 과목을 기다리는 파일(`unknownCourse`)과 PDF가 아님·로그인 만료·옮기기 실패. 앱이 켜져 있는 동안만 기억한다 (보류 목록과 같음).
 - `trashCount`: 휴지통이 아직 없어 0.
