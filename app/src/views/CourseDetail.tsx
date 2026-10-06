@@ -21,7 +21,11 @@ export function CourseDetail(props: {
   const { data, error } = useLoad(() => api.courseDetail(courseId), [courseId]);
   const schedule = useLoad(api.schedule);
   const [tab, setTab] = useState<Tab>("files");
-  const items = (schedule.data?.items ?? []).filter((i) => i.courseId === courseId);
+  const [showDone, setShowDone] = useState(false);
+  // 완료한 것은 숨긴다 (Schedule의 "Show completed"와 같음). 탭의 숫자도 보이는 것만 센다
+  const items = (schedule.data?.items ?? []).filter(
+    (i) => i.courseId === courseId && (showDone || !i.done),
+  );
   const count = (k: Tab) =>
     k === "files" ? (data?.course.fileCount ?? 0) : items.filter((i) => i.kind === k).length;
 
@@ -67,6 +71,16 @@ export function CourseDetail(props: {
                 <span className="chip-count">{count(k)}</span>
               </button>
             ))}
+            {tab !== "files" && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={showDone}
+                  onChange={(e) => setShowDone(e.target.checked)}
+                />
+                {t("Show completed", "완료한 것도 보기")}
+              </label>
+            )}
           </div>
 
           {tab !== "files" && (
@@ -74,6 +88,13 @@ export function CourseDetail(props: {
               kind={tab}
               items={items.filter((i) => i.kind === tab)}
               synced={schedule.data ? schedule.data.fetchedAtMs !== null : undefined}
+              hiddenDone={
+                showDone
+                  ? 0
+                  : (schedule.data?.items ?? []).filter(
+                      (i) => i.courseId === courseId && i.kind === tab && i.done,
+                    ).length
+              }
               name={data.course.name}
               color={color}
             />
@@ -118,17 +139,19 @@ export function CourseDetail(props: {
 }
 
 /**
- * 과목 화면의 일정 탭. 지난 것까지 마감 순으로 모두 보여 준다 (영상은 주차 순서대로 쭉).
+ * 과목 화면의 일정 탭. 지난 것까지 마감 순으로 보여 준다 (영상은 주차 순서대로 쭉). 완료한 것은 고를 때만.
  * 누르면 LMS의 그 과제·퀴즈·영상으로 간다.
  */
 function CourseSchedule(props: {
   kind: ScheduleKind;
   items: ScheduleItem[];
   synced: boolean | undefined;
+  /** 완료해서 숨긴 수. 목록이 비었을 때 "다 끝냈어요"로 알린다 */
+  hiddenDone: number;
   name: string;
   color: string;
 }) {
-  const { kind, items, synced, name, color } = props;
+  const { kind, items, synced, hiddenDone, name, color } = props;
   if (synced === undefined) return null;
   const now = Date.now();
   const sorted = [...items].sort((a, b) => a.dueAtMs - b.dueAtMs);
@@ -141,12 +164,17 @@ function CourseSchedule(props: {
               "No LMS schedule yet. Open the LMS in Chrome once and it will show up here.",
               "아직 LMS 일정을 불러오지 않았어요. Chrome에서 LMS를 한 번 열면 여기에 모여요.",
             )
-          : kind === "video"
+          : hiddenDone > 0
             ? t(
-                "No videos yet. Open this class's weekly learning page in the LMS once.",
-                "아직 영상이 없어요. LMS에서 이 과목의 주차학습 페이지를 한 번 열어 주세요.",
+                "All done here. Check “Show completed” to see them.",
+                "다 끝냈어요. “완료한 것도 보기”를 켜면 보여요.",
               )
-            : t("Nothing here.", "아직 없어요.")}
+            : kind === "video"
+              ? t(
+                  "No videos yet. Open this class's weekly learning page in the LMS once.",
+                  "아직 영상이 없어요. LMS에서 이 과목의 주차학습 페이지를 한 번 열어 주세요.",
+                )
+              : t("Nothing here.", "아직 없어요.")}
       </p>
     );
   }
