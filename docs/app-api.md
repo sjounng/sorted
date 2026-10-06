@@ -96,12 +96,20 @@
 
 ### 파일 열기
 
-| 명령               | 인자               | 돌려주는 것 | 뜻                                       | 단계 | 상태 |
-| ------------------ | ------------------ | ----------- | ---------------------------------------- | ---- | ---- |
-| `open_file`        | `{ path: string }` | 없음        | PDF를 기본 앱(미리보기 등)으로           | 3    | 있음 |
-| `reveal_in_finder` | `{ path: string }` | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌 | 3    | 있음 |
+| 명령                | 인자                                                                    | 돌려주는 것 | 뜻                                            | 단계 | 상태 |
+| ------------------- | ----------------------------------------------------------------------- | ----------- | --------------------------------------------- | ---- | ---- |
+| `open_file`         | `{ path: string }`                                                      | 없음        | PDF를 기본 앱(미리보기 등)으로                | 3    | 있음 |
+| `reveal_in_finder`  | `{ path: string }`                                                      | 없음        | Finder에서 그 파일·폴더를 선택해 보여 줌      | 3    | 있음 |
+| `open_original`     | `{ documentId: string; version: number }`                               | 없음        | 받은 그대로의 원본을 연다                     | 4    | 새로 |
+| `rename_annotation` | `{ documentId: string; version: number; number: number; name: string }` | 없음        | 필기본 이름 바꾸기 (빈 이름이면 "필기 N"으로) | 4    | 새로 |
 
-두 명령 모두 정리 폴더 안(정리 폴더 자신 포함)의 경로만 받는다. 밖이거나 없는 경로는 이유를 담아 거절한다.
+`open_file`·`reveal_in_finder`는 정리 폴더 안(정리 폴더 자신 포함)의 경로만 받는다. 밖이거나 없는 경로는 이유를 담아 거절한다.
+
+`open_original` (#12, #13): 받은 파일에 아직 필기하지 않았으면 그 파일을 그대로 연다. 필기했으면 앱이 보관한
+원본(`originals/<sha256>.pdf`)을 정리 폴더의 숨김 폴더 `.sorted-opened/<sha256>/<파일 이름>`으로 복사해 연다. 그 사본에 필기하면 다음에 화면을
+불러올 때 받은 파일 옆으로 옮겨 `<이름> (필기 N).pdf` 필기본이 된다 (`CourseFile.annotations`). 보기만 하면 아무것도
+생기지 않는다. 필기본을 다시 고치면 새로 생기지 않고 그 필기본이 바뀐 것으로 본다. 원본을 보관하기 전에 이미
+필기된 파일은 원본이 없어 이유를 담아 거절한다.
 
 ### 과목 지정 (FR-5)
 
@@ -258,6 +266,21 @@ interface CourseFile {
    * 지금 파일의 SHA-256이 받은 때와 다르면 true. 화면을 열 때 수정 시각·크기가 바뀐 파일만 다시 잰다
    */
   annotated: boolean;
+  /**
+   * 필기본들: 받은 파일 자체에 한 필기(1번, annotated일 때) + `open_original`로 연 사본에 새로 한 필기(2번부터).
+   * 비어 있지 않으면 화면은 파일 아래에 원본·필기본을 펼쳐 골라 열게 한다
+   */
+  annotations: Annotation[];
+}
+
+interface Annotation {
+  number: number;
+  /** 사용자가 붙인 이름 (`rename_annotation`). null이면 "필기 N"으로 보여 준다. 파일 이름은 바꾸지 않는다 */
+  label: string | null;
+  fileName: string;
+  path: string;
+  /** 마지막으로 고친 때 */
+  modifiedAtMs: number;
 }
 
 /** 되살리면 자료·최근 변경과 함께 돌아온다 */

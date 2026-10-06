@@ -268,6 +268,29 @@ fn open_file(organizer: State<'_, Organizer>, path: PathBuf) -> Result<(), Strin
     open([path.as_os_str()])
 }
 
+/// 받은 그대로의 원본을 연다. 필기한 파일이면 원본 사본을 임시로 복사해 연다 (#12, #13)
+#[tauri::command]
+fn open_original(
+    organizer: State<'_, Organizer>,
+    document_id: String,
+    version: u32,
+) -> Result<(), String> {
+    let path = organizer.open_original(&document_id, version)?;
+    open([path.as_os_str()])
+}
+
+/// 필기본에 이름을 붙인다. 빈 이름이면 "필기 N"으로 되돌린다 (#12, #13)
+#[tauri::command]
+fn rename_annotation(
+    organizer: State<'_, Organizer>,
+    document_id: String,
+    version: u32,
+    number: u32,
+    name: String,
+) -> Result<(), String> {
+    organizer.rename_annotation(&document_id, version, number, &name)
+}
+
 /// Finder에서 그 파일·폴더를 선택해 보여 준다. 정리 폴더 안의 것만.
 #[tauri::command]
 fn reveal_in_finder(organizer: State<'_, Organizer>, path: PathBuf) -> Result<(), String> {
@@ -437,6 +460,8 @@ pub fn run() {
             assign_course,
             skip_assign,
             open_file,
+            open_original,
+            rename_annotation,
             reveal_in_finder,
             schedule,
             open_in_browser,

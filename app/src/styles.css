@@ -525,10 +525,6 @@ h1 {
   color: var(--accent);
 }
 
-.tag.annotated {
-  color: var(--warn);
-}
-
 .tag.organized {
   color: var(--ok);
 }
@@ -1143,9 +1139,119 @@ button.link {
 
 .file-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 0 8px;
   border-bottom: 1px solid var(--line);
+}
+
+/* 필기본 펼치기: 파일 오른쪽 */
+.notes-toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-right: 12px;
+  padding: 3px 6px 3px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.notes-toggle .chevron {
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.notes-toggle.open .chevron {
+  transform: rotate(90deg);
+}
+
+.file-error {
+  flex-basis: 100%;
+  margin: 0 0 6px;
+  padding: 0 12px 0 50px;
+  font-size: 12px;
+}
+
+/* 원본·필기본 고르기: 파일 바로 아래에 펼친다 */
+.annotations {
+  flex-basis: 100%;
+  margin: 0 0 6px;
+  padding: 0 0 0 50px;
+  list-style: none;
+}
+
+.annotations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.annotations li > button:first-child {
+  flex: 1;
+}
+
+.annotations .annotation-rename {
+  flex: none;
+  width: auto;
+  padding: 2px 8px;
+  border-left: 0;
+  color: var(--muted);
+  opacity: 0;
+}
+
+.annotations li:hover .annotation-rename,
+.annotation-rename:focus-visible {
+  opacity: 1;
+}
+
+.annotation-name {
+  flex: 1;
+  margin: 2px 12px 2px 10px;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
+.annotations .warn {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 2px 12px;
+  font-size: 12px;
+}
+
+.annotations button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 12px 5px 10px;
+  border: 0;
+  border-left: 2px solid var(--line);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+.annotations button:hover {
+  background: var(--hover);
+}
+
+.annotations strong {
+  flex: none;
+  font-weight: 500;
+}
+
+.annotations .muted {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-main {

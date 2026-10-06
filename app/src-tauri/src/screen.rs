@@ -1,10 +1,10 @@
 //! 화면에 보내는 데이터 모양 (docs/app-api.md). 화면의 `app/src/api/types.ts`와 같은 모양이다.
 //! Tauri에 의존하지 않는다. 명령은 lib.rs에 있다.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use sorted_core::library::Library;
+use sorted_core::library::{Library, Version};
 
 use crate::text::tr;
 
@@ -283,6 +283,45 @@ pub struct CourseFile {
     pub unseen_change: bool,
     /// 사용자가 필기했다 (받을 때와 내용이 다름). 원본은 앱이 따로 갖고 있다
     pub annotated: bool,
+    /// 필기본들: 받은 파일에 한 필기(1번, annotated일 때) + 원본을 열어 새로 한 필기(2번부터).
+    /// 비어 있지 않으면 화면은 원본·필기본을 골라 열게 한다
+    pub annotations: Vec<Annotation>,
+}
+
+/// 필기본 하나
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Annotation {
+    pub number: u32,
+    /// 사용자가 붙인 이름. 없으면 화면이 "필기 N"으로
+    pub label: Option<String>,
+    pub file_name: String,
+    pub path: PathBuf,
+    /// 마지막으로 고친 때 (모르면 만든 때)
+    pub modified_at_ms: u64,
+}
+
+fn annotations(v: &Version) -> Vec<Annotation> {
+    let name = |p: &Path| {
+        p.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    };
+    let main = v.annotated.then(|| Annotation {
+        number: 1,
+        label: v.annotation_label.clone(),
+        file_name: name(&v.path),
+        path: v.path.clone(),
+        modified_at_ms: v.checked_mtime_ms.unwrap_or(v.added_at_ms),
+    });
+    let copies = v.copies.iter().filter(|c| !c.missing).map(|c| Annotation {
+        number: c.number,
+        label: c.label.clone(),
+        file_name: name(&c.path),
+        path: c.path.clone(),
+        modified_at_ms: c.modified_at_ms.unwrap_or(c.added_at_ms),
+    });
+    main.into_iter().chain(copies).collect()
 }
 
 /// 과목 하나의 자료 전체. 과목 ID가 없으면 None.
@@ -308,6 +347,7 @@ pub fn course_detail(lib: &Library, course_id: &str) -> Option<CourseDetail> {
                 saved_at_ms: v.added_at_ms,
                 unseen_change: false,
                 annotated: v.annotated,
+                annotations: annotations(v),
             });
         match weeks.iter_mut().find(|w| w.week == doc.week) {
             Some(w) => w.files.extend(files),

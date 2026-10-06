@@ -30,7 +30,7 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 ```
 
 데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), schedule.json(일정), setup-done(첫 설정 끝냄), originals/(받은 그대로의 사본, `<sha256>.pdf`), probe-history.jsonl, logs/)
-정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
+정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (필기본은 옆에 `<이름> (필기 N).pdf`, 원본 열기 임시 사본은 `~/Sorted/.sorted-opened/`) (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
 
 > 저장소는 `~/dev/sorted`에 있다 (2026-10-04에 `~/sorted`에서 옮김: 디스크가 대소문자를 구분하지 않아 `~/Sorted`와 겹쳤음).
 > 개발 중 확인은 테스트 폴더로: `open --env SORTED_ROOT="$HOME/SortedTest" app/target/release/bundle/macos/Sorted.app`

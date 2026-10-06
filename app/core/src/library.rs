@@ -137,6 +137,31 @@ pub struct Version {
     pub checked_mtime_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked_size: Option<u64>,
+    /// 받은 파일 자체에 한 필기(필기 1)에 사용자가 붙인 이름. 없으면 화면이 "필기 1"로 보여 준다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub annotation_label: Option<String>,
+    /// 원본을 열어 새로 필기한 사본들 (필기 2, 3, …). 받은 파일 자체에 한 필기(`annotated`)는 필기 1
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub copies: Vec<AnnotatedCopy>,
+}
+
+/// 원본을 따로 열어 필기한 사본 하나. 받은 파일과 같은 주차 폴더에 `<이름> (필기 N).pdf`로 둔다
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotatedCopy {
+    /// 2부터 (1은 받은 파일 자체)
+    pub number: u32,
+    pub path: PathBuf,
+    pub added_at_ms: u64,
+    /// 정리 폴더에서 찾을 수 없다 (FR-14와 같음)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub missing: bool,
+    /// 사용자가 붙인 이름. 없으면 화면이 "필기 N"으로 보여 준다 (파일 이름은 바꾸지 않는다)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// 마지막으로 본 수정 시각. 화면에 "언제 고쳤는지"로 보여 준다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modified_at_ms: Option<u64>,
 }
 
 fn is_false(b: &bool) -> bool {

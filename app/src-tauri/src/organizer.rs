@@ -13,7 +13,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sorted_core::filetag::{self, Tag};
-use sorted_core::library::{DocKey, Document, Library, Version};
+use sorted_core::library::{AnnotatedCopy, DocKey, Document, Library, Version};
 
 use crate::pipeline::{self, Download, Outcome, Settings};
 use crate::screen::{
@@ -73,6 +73,11 @@ pub struct Organizer {
     history_file: PathBuf,
     /// 받은 그대로의 PDF 사본: originals/<sha256>.pdf (필기와 상관없이 원본끼리 비교·보기용)
     originals_dir: PathBuf,
+    /// "원본 열기"로 연 임시 사본: <정리 폴더>/.sorted-opened/<sha256>/<파일 이름>.
+    /// 필기하면 주차 폴더로 옮겨 필기본이 된다. 앱 데이터 폴더(~/Library) 안에 두면 미리보기가
+    /// 제자리에 저장하지 못하고 "복사본"을 만들게 해서, 정리 폴더 안의 숨김 폴더에 둔다
+    /// (숨김 폴더는 파일 추적·과목 목록에서 건너뛴다)
+    opened_dir: PathBuf,
     history: Mutex<History>,
     /// PDF가 아님·로그인 만료·옮기기 실패. 과목을 기다리는 파일은 보류 목록에 있다
     failures: Mutex<Vec<Unprocessed>>,
@@ -101,6 +106,7 @@ impl Organizer {
         };
         let history_file = library_file.with_file_name("history.json");
         let originals_dir = library_file.with_file_name("originals");
+        let opened_dir = root.join(".sorted-opened");
         let history = load_history(&history_file);
         let organizer = Self {
             settings: Settings { root },
@@ -110,6 +116,7 @@ impl Organizer {
             downloads_access: Mutex::new(Permission::Unknown),
             history_file,
             originals_dir,
+            opened_dir,
             history: Mutex::new(history),
             failures: Mutex::new(Vec::new()),
             last_scan: Mutex::new(None),
@@ -128,11 +135,15 @@ impl Organizer {
         let mut count = 0;
         for doc in &lib.documents {
             for version in &doc.versions {
-                let tag = tag_of(&lib, doc, version);
-                if version.path.is_file() && filetag::read(&version.path).as_ref() != Some(&tag) {
-                    match filetag::write(&version.path, &tag) {
-                        Ok(()) => count += 1,
-                        Err(e) => eprintln!("속성을 붙이지 못함 {}: {e}", version.path.display()),
+                let files = std::iter::once((&version.path, None))
+                    .chain(version.copies.iter().map(|c| (&c.path, Some(c.number))));
+                for (path, copy) in files {
+                    let tag = tag_of(&lib, doc, version, copy);
+                    if path.is_file() && filetag::read(path).as_ref() != Some(&tag) {
+                        match filetag::write(path, &tag) {
+                            Ok(()) => count += 1,
+                            Err(e) => eprintln!("속성을 붙이지 못함 {}: {e}", path.display()),
+                        }
                     }
                 }
             }
@@ -149,8 +160,10 @@ impl Organizer {
     pub fn locate(&self) -> bool {
         let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
         let versions = || lib.documents.iter().flat_map(|d| &d.versions);
-        let lost = versions().any(|v| !v.missing && !v.path.is_file());
-        let has_missing = versions().any(|v| v.missing);
+        let copies = || versions().flat_map(|v| &v.copies);
+        let lost = versions().any(|v| !v.missing && !v.path.is_file())
+            || copies().any(|c| !c.missing && !c.path.is_file());
+        let has_missing = versions().any(|v| v.missing) || copies().any(|c| c.missing);
         let mut last_scan = self.last_scan.lock().unwrap_or_else(|e| e.into_inner());
         let due = has_missing && last_scan.is_none_or(|t| t.elapsed() >= RESCAN_MISSING);
         if !lost && !due {
@@ -166,6 +179,24 @@ impl Organizer {
             let doc_id = doc.key.id();
             let latest = doc.versions.iter().map(|v| v.number).max();
             for version in &mut doc.versions {
+                // 필기본은 경로만 따라간다 (과목·주차는 받은 파일을 따른다)
+                for copy in &mut version.copies {
+                    let now_missing = if copy.path.is_file() {
+                        false
+                    } else if let Some(path) =
+                        found.get(&(doc_id.clone(), version.number, Some(copy.number)))
+                    {
+                        copy.path = path.clone();
+                        changed = true;
+                        false
+                    } else {
+                        true
+                    };
+                    if copy.missing != now_missing {
+                        copy.missing = now_missing;
+                        changed = true;
+                    }
+                }
                 if version.path.is_file() {
                     // 사라졌던 자리에 그대로 다시 넣은 경우
                     if version.missing {
@@ -174,7 +205,7 @@ impl Organizer {
                     }
                     continue;
                 }
-                let Some(path) = found.get(&(doc_id.clone(), version.number)) else {
+                let Some(path) = found.get(&(doc_id.clone(), version.number, None)) else {
                     if !version.missing {
                         version.missing = true;
                         changed = true;
@@ -214,7 +245,7 @@ impl Organizer {
     fn tag_file(&self, path: &Path) {
         let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
         if let Some((doc, version)) = lib.version_at(path) {
-            if let Err(e) = filetag::write(path, &tag_of(&lib, doc, version)) {
+            if let Err(e) = filetag::write(path, &tag_of(&lib, doc, version, None)) {
                 eprintln!("속성을 붙이지 못함 {}: {e}", path.display());
             }
         }
@@ -553,17 +584,21 @@ impl Organizer {
         let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
         let mut changed = false;
         for version in lib.documents.iter_mut().flat_map(|d| &mut d.versions) {
+            // 필기본을 또 고치면 그 필기본이 바뀐 것: 수정 시각만 따라간다
+            for copy in version.copies.iter_mut().filter(|c| !c.missing) {
+                let mtime = fs::metadata(&copy.path).ok().and_then(|m| mtime_ms(&m));
+                if mtime.is_some() && copy.modified_at_ms != mtime {
+                    copy.modified_at_ms = mtime;
+                    changed = true;
+                }
+            }
             if version.missing {
                 continue;
             }
             let Ok(meta) = fs::metadata(&version.path) else {
                 continue;
             };
-            let mtime = meta
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_millis() as u64);
+            let mtime = mtime_ms(&meta);
             if mtime.is_some()
                 && version.checked_mtime_ms == mtime
                 && version.checked_size == Some(meta.len())
@@ -586,12 +621,171 @@ impl Organizer {
         changed
     }
 
-    /// 화면을 보여 주기 전에: 옮긴 파일을 따라가고(FR-14), 필기 여부를 확인한다
+    /// 화면을 보여 주기 전에: 옮긴 파일을 따라가고(FR-14), 원본에 한 필기를 필기본으로 옮기고,
+    /// 필기 여부를 확인한다
     fn refresh_files(&self) {
         if self.locate() {
             self.tag_untagged();
         }
+        self.adopt_opened();
         self.check_annotations();
+    }
+
+    /// "원본 열기": 받은 그대로의 내용을 열 파일 경로를 돌려준다.
+    /// 받은 파일에 아직 필기하지 않았으면 그 파일을 그대로 연다. 필기했으면 원본 사본을
+    /// .sorted-opened/<sha256>/<파일 이름>으로 복사해 그걸 연다 (원본 사본 자체는 열지 않아 망가지지 않는다).
+    /// 그 임시 사본에 필기하면 다음 확인 때 주차 폴더로 옮겨 새 필기본이 된다 (`adopt_opened`).
+    pub fn open_original(&self, document_id: &str, number: u32) -> Result<PathBuf, String> {
+        self.refresh_files();
+        let (sha, path, annotated) = {
+            let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+            let (_, v) = lib
+                .version_of(document_id, number)
+                .filter(|(_, v)| !v.missing)
+                .ok_or_else(|| tr("파일을 찾을 수 없어요.", "Can't find the file."))?;
+            (v.sha256.clone(), v.path.clone(), v.annotated)
+        };
+        if !annotated && path.is_file() {
+            return Ok(path);
+        }
+        let original = self.original_path(&sha);
+        if !original.is_file() {
+            return Err(tr(
+                "이 파일은 원본을 보관하기 전에 필기돼서 원본이 없어요.",
+                "This file was annotated before Sorted kept an original, so there's none.",
+            ));
+        }
+        let name = path
+            .file_name()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "original.pdf".into());
+        let dir = self.opened_dir.join(&sha);
+        let dest = dir.join(name);
+        // 전에 열어 둔 사본이 아직 그대로면 다시 쓴다 (미리보기가 열고 있을 수 있다)
+        if matches!(fingerprint::of_file(&dest), Ok(fp) if fp.sha256 == sha) {
+            return Ok(dest);
+        }
+        fs::create_dir_all(&dir)
+            .and_then(|()| fs::copy(&original, &dest))
+            .map_err(|e| {
+                format!(
+                    "{}: {e}",
+                    tr("원본을 열지 못했어요", "Couldn't open the original")
+                )
+            })?;
+        Ok(dest)
+    }
+
+    /// 필기본에 이름을 붙인다. 빈 이름이면 기본("필기 N")으로 되돌린다. 파일 이름은 바꾸지 않는다.
+    pub fn rename_annotation(
+        &self,
+        document_id: &str,
+        version: u32,
+        number: u32,
+        name: &str,
+    ) -> Result<(), String> {
+        let name = name.trim();
+        if name.chars().count() > 60 || name.contains(['\n', '\r']) {
+            return Err(tr(
+                "이름은 한 줄, 60자까지 쓸 수 있어요.",
+                "Names can be one line of up to 60 characters.",
+            ));
+        }
+        let label = (!name.is_empty()).then(|| name.to_string());
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let not_found = || {
+            tr(
+                "필기본을 찾을 수 없어요.",
+                "Can't find this annotated copy.",
+            )
+        };
+        let v = lib
+            .documents
+            .iter_mut()
+            .filter(|d| d.key.id() == document_id)
+            .flat_map(|d| &mut d.versions)
+            .find(|v| v.number == version)
+            .ok_or_else(not_found)?;
+        match number {
+            1 if v.annotated => v.annotation_label = label,
+            _ => {
+                v.copies
+                    .iter_mut()
+                    .find(|c| c.number == number)
+                    .ok_or_else(not_found)?
+                    .label = label
+            }
+        }
+        self.save_library(&lib);
+        Ok(())
+    }
+
+    /// "원본 열기"로 연 임시 사본 중 필기된 것을 받은 파일 옆으로 옮겨 필기본으로 기록한다.
+    /// 그대로인 사본은 두고(다음에 다시 쓴다), 옮긴 게 있으면 true.
+    pub fn adopt_opened(&self) -> bool {
+        let Ok(dirs) = fs::read_dir(&self.opened_dir) else {
+            return false;
+        };
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let mut adopted = false;
+        for dir in dirs.flatten() {
+            let sha = dir.file_name().to_string_lossy().into_owned();
+            let Ok(files) = fs::read_dir(dir.path()) else {
+                continue;
+            };
+            for file in files.flatten().map(|f| f.path()) {
+                if file
+                    .extension()
+                    .is_none_or(|e| !e.eq_ignore_ascii_case("pdf"))
+                {
+                    continue;
+                }
+                if matches!(fingerprint::of_file(&file), Ok(fp) if fp.sha256 == sha) {
+                    continue;
+                }
+                let Some((doc_index, version_index)) =
+                    lib.documents.iter().enumerate().find_map(|(di, d)| {
+                        d.versions
+                            .iter()
+                            .position(|v| v.sha256 == sha && !v.missing)
+                            .map(|vi| (di, vi))
+                    })
+                else {
+                    continue;
+                };
+                let version = &lib.documents[doc_index].versions[version_index];
+                let number = version.copies.iter().map(|c| c.number).max().unwrap_or(1) + 1;
+                let Some(dest) = copy_path(&version.path, number) else {
+                    continue;
+                };
+                if let Err(e) = fs::rename(&file, &dest) {
+                    eprintln!("필기본을 옮기지 못함 {}: {e}", dest.display());
+                    continue;
+                }
+                let number = copy_number(&dest).unwrap_or(number);
+                let tag = tag_of(&lib, &lib.documents[doc_index], version, Some(number));
+                if let Err(e) = filetag::write(&dest, &tag) {
+                    eprintln!("속성을 붙이지 못함 {}: {e}", dest.display());
+                }
+                let modified_at_ms = fs::metadata(&dest).ok().and_then(|m| mtime_ms(&m));
+                lib.documents[doc_index].versions[version_index]
+                    .copies
+                    .push(AnnotatedCopy {
+                        number,
+                        path: dest,
+                        added_at_ms: now_ms(),
+                        modified_at_ms,
+                        ..Default::default()
+                    });
+                adopted = true;
+            }
+        }
+        if adopted {
+            if let Err(e) = lib.save(&self.library_file) {
+                eprintln!("library.json 저장 실패: {e}");
+            }
+        }
+        adopted
     }
 
     /// 메인 창 전체 (FR-13)
@@ -819,6 +1013,7 @@ impl Organizer {
                 .any(|d| d.versions.iter().any(|v| v.sha256 == sha));
             if !shared {
                 let _ = fs::remove_file(self.original_path(&sha));
+                let _ = fs::remove_dir_all(self.opened_dir.join(&sha));
             }
         }
         self.save_library(&lib);
@@ -974,9 +1169,9 @@ impl Organizer {
     }
 }
 
-/// 정리 폴더 아래에서 앱이 새긴 속성이 있는 파일: (문서 ID, 버전) → 경로.
+/// 정리 폴더 아래에서 앱이 새긴 속성이 있는 파일: (문서 ID, 버전, 필기본 번호) → 경로.
 /// 숨김 파일·폴더와 심볼릭 링크는 건너뛰고, 속성이 없는 파일은 무시한다 (읽기만 한다).
-fn scan_tags(root: &Path) -> HashMap<(String, u32), PathBuf> {
+fn scan_tags(root: &Path) -> HashMap<(String, u32, Option<u32>), PathBuf> {
     let mut found = HashMap::new();
     let mut dirs = vec![root.to_path_buf()];
     while let Some(dir) = dirs.pop() {
@@ -995,7 +1190,7 @@ fn scan_tags(root: &Path) -> HashMap<(String, u32), PathBuf> {
                 dirs.push(path);
             } else if kind.is_file() {
                 if let Some(tag) = filetag::read(&path) {
-                    found.insert((tag.doc, tag.v), path);
+                    found.insert((tag.doc, tag.v, tag.copy), path);
                 }
             }
         }
@@ -1020,7 +1215,7 @@ fn folder_of(root: &Path, path: &Path) -> Option<(String, Option<String>)> {
 }
 
 /// 목록의 문서·버전으로 파일에 새길 속성을 만든다
-fn tag_of(lib: &Library, doc: &Document, version: &Version) -> Tag {
+fn tag_of(lib: &Library, doc: &Document, version: &Version, copy: Option<u32>) -> Tag {
     Tag {
         course: lib
             .courses
@@ -1030,7 +1225,30 @@ fn tag_of(lib: &Library, doc: &Document, version: &Version) -> Tag {
             .unwrap_or_default(),
         doc: doc.key.id(),
         v: version.number,
+        copy,
     }
+}
+
+/// 받은 파일 옆에 둘 필기본 경로: `<이름> (필기 N).pdf`. 같은 이름이 있으면 N을 늘린다
+fn copy_path(main: &Path, number: u32) -> Option<PathBuf> {
+    let dir = main.parent()?;
+    let stem = main.file_stem()?.to_string_lossy();
+    (number..number + 100)
+        .map(|n| dir.join(format!("{stem} ({} {n}).pdf", tr("필기", "Notes"))))
+        .find(|p| !p.exists())
+}
+
+/// `copy_path`가 만든 이름에서 번호를 읽는다
+fn copy_number(path: &Path) -> Option<u32> {
+    let stem = path.file_stem()?.to_string_lossy();
+    stem.strip_suffix(')')?.rsplit(' ').next()?.parse().ok()
+}
+
+fn mtime_ms(meta: &fs::Metadata) -> Option<u64> {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
 }
 
 /// 다운로드 메시지의 파일 이름 (경로 빼고)
@@ -1719,5 +1937,90 @@ mod tests {
         org.remove_course(&id).unwrap();
         org.purge_course(&id, &fake_trash(&dir)).unwrap();
         assert!(!org.original_path(&sha).exists());
+    }
+
+    #[test]
+    fn opening_the_original_before_annotating_opens_the_file_itself() {
+        let (_, org, path) = organized("open-pristine");
+        let id = the_doc(&org).key.id();
+        assert_eq!(org.open_original(&id, 1).unwrap(), path);
+    }
+
+    #[test]
+    fn annotating_the_original_again_makes_new_copies() {
+        let (_, org, path) = organized("copies");
+        let id = the_doc(&org).key.id();
+        fs::write(&path, "%PDF-1.7 a + 필기 1").unwrap();
+
+        // 원본을 열면 임시 사본. 보기만 하면 아무것도 생기지 않는다
+        let opened = org.open_original(&id, 1).unwrap();
+        assert_ne!(opened, path);
+        assert_eq!(fs::read(&opened).unwrap(), b"%PDF-1.7 a");
+        assert!(!org.adopt_opened());
+        assert_eq!(
+            org.open_original(&id, 1).unwrap(),
+            opened,
+            "그대로면 다시 쓴다"
+        );
+
+        // 거기에 필기하면 받은 파일 옆의 필기본 2가 된다
+        fs::write(&opened, "%PDF-1.7 a + 필기 2").unwrap();
+        let course = org.overview().courses[0].id.clone();
+        let file = &org.course_detail(&course).unwrap().weeks[0].files[0];
+        assert!(!opened.exists());
+        let numbers: Vec<u32> = file.annotations.iter().map(|a| a.number).collect();
+        assert_eq!(numbers, [1, 2]);
+        let copy2 = file.annotations[1].path.clone();
+        assert_eq!(copy2.parent(), path.parent());
+        assert_eq!(fs::read(&copy2).unwrap(), "%PDF-1.7 a + 필기 2".as_bytes());
+        assert_eq!(filetag::read(&copy2).unwrap().copy, Some(2));
+
+        // 원본을 또 열어 필기하면 필기본 3
+        let opened = org.open_original(&id, 1).unwrap();
+        assert_eq!(fs::read(&opened).unwrap(), b"%PDF-1.7 a");
+        fs::write(&opened, "%PDF-1.7 a + 필기 3").unwrap();
+        // 필기본 2를 또 고치면 그 필기본이 바뀐 것 (새로 생기지 않는다)
+        fs::write(&copy2, "%PDF-1.7 a + 필기 2 더").unwrap();
+        let file = &org.course_detail(&course).unwrap().weeks[0].files[0];
+        let numbers: Vec<u32> = file.annotations.iter().map(|a| a.number).collect();
+        assert_eq!(numbers, [1, 2, 3]);
+        assert_eq!(file.annotations[1].path, copy2);
+
+        // 필기본을 옮겨도 따라간다 (FR-14)
+        let moved = path.parent().unwrap().join("내 필기.pdf");
+        fs::rename(&copy2, &moved).unwrap();
+        let file = &org.course_detail(&course).unwrap().weeks[0].files[0];
+        assert_eq!(file.annotations[1].path, moved);
+        assert_eq!(file.version, 1, "받은 파일은 그대로");
+    }
+
+    #[test]
+    fn no_original_means_it_cannot_be_opened() {
+        let (_, org, path) = organized("no-original");
+        let doc = the_doc(&org);
+        fs::remove_file(org.original_path(&doc.versions[0].sha256)).unwrap();
+        fs::write(&path, "%PDF-1.7 필기").unwrap();
+        assert!(org.open_original(&doc.key.id(), 1).is_err());
+    }
+
+    #[test]
+    fn annotated_copies_can_be_named_and_reset() {
+        let (_, org, path) = organized("label");
+        let id = the_doc(&org).key.id();
+        fs::write(&path, "%PDF-1.7 a + 필기").unwrap();
+        let course = org.overview().courses[0].id.clone();
+        org.rename_annotation(&id, 1, 1, "  중간고사 정리 ")
+            .unwrap();
+        let label = |org: &Organizer| {
+            org.course_detail(&course).unwrap().weeks[0].files[0].annotations[0]
+                .label
+                .clone()
+        };
+        assert_eq!(label(&org).as_deref(), Some("중간고사 정리"));
+        assert_eq!(path.file_name().unwrap(), "a.pdf", "파일 이름은 그대로");
+        org.rename_annotation(&id, 1, 1, "").unwrap();
+        assert_eq!(label(&org), None);
+        assert!(org.rename_annotation(&id, 1, 7, "x").is_err());
+        assert!(org.rename_annotation(&id, 1, 1, "두\n줄").is_err());
     }
 }

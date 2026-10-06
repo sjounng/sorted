@@ -23,6 +23,9 @@ pub struct Tag {
     pub doc: String,
     /// 버전 번호
     pub v: u32,
+    /// 원본을 열어 새로 필기한 사본이면 그 번호 (2부터). 받은 파일 자체면 없음
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub copy: Option<u32>,
 }
 
 pub fn write(path: &Path, tag: &Tag) -> io::Result<()> {
@@ -53,6 +56,7 @@ mod tests {
             course: "210208".into(),
             doc: "cid-6aa284ef1cf74".into(),
             v: 2,
+            copy: None,
         };
         write(&file, &tag).unwrap();
         assert_eq!(read(&file), Some(tag.clone()));

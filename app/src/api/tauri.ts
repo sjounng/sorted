@@ -29,6 +29,9 @@ export const tauriBackend: Backend = {
   purgeCourse: (courseId) => invoke("purge_course", { courseId }),
   emptyTrash: () => invoke("empty_trash"),
   openFile: (path) => invoke("open_file", { path }),
+  openOriginal: (documentId, version) => invoke("open_original", { documentId, version }),
+  renameAnnotation: (documentId, version, number, name) =>
+    invoke("rename_annotation", { documentId, version, number, name }),
 
   setupStatus: () => invoke("setup_status"),
   requestDownloadsAccess: () => invoke("request_downloads_access"),
