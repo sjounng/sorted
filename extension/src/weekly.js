@@ -20,6 +20,18 @@ function isVideo(item) {
   return item?.content_type === "attendance_item";
 }
 
+/**
+ * 영상을 여는 주소. 응답의 url(LearningX 내부 주소)은 과목 화면 안에서만 열려 브라우저로 바로 열면
+ * 오류가 난다. 그래서 Canvas 모듈 항목 주소(courses/<과목>/modules/items/<번호>)로 연다:
+ * LMS가 과목 안에서 그 영상을 띄워 준다. 번호가 없을 때만 응답의 url을 쓴다.
+ */
+function videoUrl(courseId, moduleItemId, url) {
+  if (moduleItemId != null && /^\d+$/.test(String(moduleItemId))) {
+    return `${LMS_ORIGIN}/courses/${courseId}/modules/items/${moduleItemId}`;
+  }
+  return lmsUrl(url);
+}
+
 /** LMS 안의 주소를 쿼리 없는 절대 주소로. LMS 밖이면 빈 문자열 */
 function lmsUrl(path) {
   try {
@@ -63,7 +75,7 @@ export function weeklyItems(modules, courseNames = {}) {
           ...(startAtMs !== undefined && { startAtMs }),
           ...(lateUntilMs !== undefined && lateUntilMs > dueAtMs && { lateUntilMs }),
           done: item.completed === true,
-          url: lmsUrl(item.url),
+          url: videoUrl(courseId, item.module_item_id, item.url),
         },
       ];
     }),

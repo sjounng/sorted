@@ -80,16 +80,34 @@ describe("weeklyItems", () => {
       dueAtMs: Date.parse("2026-10-04T14:59:59Z"),
       startAtMs: Date.parse("2026-09-28T07:00:00Z"),
       done: true,
-      url: "https://learning.hanyang.ac.kr/learningx/lti/lecture_attendance/items/view/77",
+      url: "https://learning.hanyang.ac.kr/courses/211742/modules/items/501",
     });
   });
 
-  it("reads the late deadline and makes links absolute", () => {
+  it("reads the late deadline and links to the Canvas module item", () => {
     expect(items[1]).toMatchObject({
       done: false,
       lateUntilMs: Date.parse("2026-10-18T14:59:59Z"),
-      url: "https://learning.hanyang.ac.kr/learningx/lti/lecture_attendance/items/view/78",
+      url: "https://learning.hanyang.ac.kr/courses/211742/modules/items/601",
     });
+  });
+
+  it("falls back to the LearningX link without a module item number", () => {
+    const [only] = weeklyItems([
+      {
+        module_items: [
+          {
+            id: "x",
+            content_type: "attendance_item",
+            url: "/learningx/lti/lecture_attendance/items/view/9?a=1",
+            content_data: { course_id: 1, due_at: "2026-10-11T14:59:59Z" },
+          },
+        ],
+      },
+    ]);
+    expect(only.url).toBe(
+      "https://learning.hanyang.ac.kr/learningx/lti/lecture_attendance/items/view/9",
+    );
   });
 
   it("is safe with odd input", () => {
