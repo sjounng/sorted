@@ -7,7 +7,7 @@ import { isLateOpen } from "../schedule";
 import { useLoad } from "../useLoad";
 
 /** 항목에 붙는 종류 이름. 언어가 바뀌면 다시 읽도록 함수로 둔다 */
-function kindLabel(kind: ScheduleKind): string {
+export function kindLabel(kind: ScheduleKind): string {
   switch (kind) {
     case "assignment":
       return t("Assignment", "과제");
@@ -23,7 +23,7 @@ function kindLabel(kind: ScheduleKind): string {
 type KindFilter = "all" | ScheduleKind;
 
 /** 거르기 버튼은 여러 개를 고르는 것이라 복수형 (항목에 붙는 종류 표시는 단수형 그대로) */
-function filterLabel(kind: KindFilter): string {
+export function filterLabel(kind: KindFilter): string {
   switch (kind) {
     case "all":
       return t("All", "전체");
@@ -182,7 +182,7 @@ export function ScheduleView(props: { courses: Course[]; initialDay?: number }) 
   );
 }
 
-function ScheduleRow(props: {
+export function ScheduleRow(props: {
   item: ScheduleItem;
   name: string;
   color: string;
@@ -359,7 +359,7 @@ export function firstOfMonth(ms: number): number {
 }
 
 /** 목록의 날짜 구분: "오늘", "내일", "10월 9일 (금)" */
-function dayLabel(ms: number, now: number): string {
+export function dayLabel(ms: number, now: number): string {
   const n = daysLeft(ms, now);
   if (n === 0) return `${t("Today", "오늘")} · ${dateLabel(ms)}`;
   if (n === 1) return `${t("Tomorrow", "내일")} · ${dateLabel(ms)}`;
