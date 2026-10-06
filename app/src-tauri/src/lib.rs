@@ -223,12 +223,21 @@ fn show_duplicate_window(app: &AppHandle, id: u64) {
         &query,
         &duplicate_title(),
         (420.0, 260.0),
+        true,
     );
 }
 
 /// 첫 실행 설정 창을 띄운다 (FR-15).
 fn show_setup_window(app: &AppHandle) {
-    show_dialog(app, "setup", "view=setup", &setup_title(), (460.0, 640.0));
+    // 시스템 설정에서 권한을 켜야 하므로 다른 앱 위에 고정하지 않는다
+    show_dialog(
+        app,
+        "setup",
+        "view=setup",
+        &setup_title(),
+        (460.0, 640.0),
+        false,
+    );
 }
 
 /// 설정 창이 열려 있으면 새로 고쳐 상태를 다시 불러오게 한다.
@@ -241,7 +250,16 @@ fn refresh_setup_window(app: &AppHandle) {
 
 /// 화면의 대화 창(`index.html?view=…`)을 띄운다. 같은 이름의 창이 이미 있으면 앞으로 가져온다.
 /// 창 이름은 화면이 쓰는 규칙(`<화면>-<id>`)을 따른다 (src/windows.ts, capabilities).
-fn show_dialog(app: &AppHandle, label: &str, query: &str, title: &str, size: (f64, f64)) {
+/// 다운로드 직후에는 Chrome이 앞에 있으므로 Sorted를 앞으로 가져온다 (안 그러면 창이 Chrome 뒤에 뜬다).
+/// `float`이면 다른 앱 위에 떠 있게 한다: macOS가 뒤에 있던 앱을 앞으로 올리지 않을 때도 보이도록.
+fn show_dialog(
+    app: &AppHandle,
+    label: &str,
+    query: &str,
+    title: &str,
+    size: (f64, f64),
+    float: bool,
+) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.show();
         let _ = window.set_focus();
@@ -253,9 +271,14 @@ fn show_dialog(app: &AppHandle, label: &str, query: &str, title: &str, size: (f6
         .inner_size(size.0, size.1)
         .center()
         .focused(true)
+        .always_on_top(float)
         .build();
-    if let Err(e) = built {
-        eprintln!("{label} 창을 열지 못함: {e}");
+    match built {
+        Ok(window) => {
+            let _ = window.set_focus();
+            let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+        }
+        Err(e) => eprintln!("{label} 창을 열지 못함: {e}"),
     }
 }
 
@@ -515,6 +538,9 @@ fn start_listening(app: AppHandle) -> Result<(), Box<dyn Error>> {
         paths.data_dir().join("library.json"),
     )?);
 
+    // 전에 받아 둔 일정의 과목도 목록에 (이 기능 전에 받은 일정)
+    remember_schedule_courses(&app);
+
     // 소켓을 먼저 연다. 그래야 보관함을 비우는 사이에 온 메시지가 다시 보관함에 남지 않는다.
     let server = Server::bind(&paths.socket())?;
 
@@ -548,10 +574,24 @@ fn receive(app: &AppHandle, line: &[u8], source: Source) -> serde_json::Value {
         } else if item.message["type"] == "schedule" {
             if let Err(e) = app.state::<ScheduleStore>().update(&item.message) {
                 eprintln!("일정 메시지를 처리하지 못함: {e}");
+            } else {
+                remember_schedule_courses(app);
             }
         }
     }
     reply
+}
+
+/// 일정에 나온 LMS 과목을 과목 목록에 더하고, 새로 생기면 메인 창에 알린다.
+fn remember_schedule_courses(app: &AppHandle) {
+    let schedule = app.state::<ScheduleStore>().schedule();
+    let courses = schedule
+        .items
+        .iter()
+        .map(|i| (i.course_id.as_str(), i.course_name.as_str()));
+    if app.state::<Organizer>().remember_lms_courses(courses) > 0 {
+        let _ = app.emit("overview-changed", ());
+    }
 }
 
 /// 정리 폴더. 테스트·개발 중에는 SORTED_ROOT로 바꿀 수 있다. 기본은 ~/Sorted

@@ -570,6 +570,38 @@ impl Organizer {
         Ok(course)
     }
 
+    /// LMS 일정에 나온 과목을 과목 목록에 더한다. PDF를 아직 받지 않은 과목도 My Classes에 보이고,
+    /// 과목 화면에서 그 과목의 과제·영상을 볼 수 있게 한다. `(LMS 과목 ID, 과목명)`을 받는다.
+    /// 이미 있는 과목(휴지통에 든 것 포함)은 건드리지 않는다: 사용자가 바꾼 이름과 지운 과목을 그대로 둔다.
+    /// 같은 이름의 다른 과목이 있거나 폴더 이름으로 쓸 수 없는 이름이면 건너뛴다.
+    /// 폴더는 만들지 않는다 (자료를 처음 받을 때 생긴다). 더한 과목 수를 돌려준다.
+    pub fn remember_lms_courses<'a>(
+        &self,
+        courses: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> usize {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let mut added = 0;
+        for (lms_id, name) in courses {
+            let name = name.trim();
+            let lms_course = !lms_id.is_empty() && lms_id.chars().all(|c| c.is_ascii_digit());
+            if !lms_course || self.course_folder(name).is_err() {
+                continue;
+            }
+            let known = lib
+                .courses
+                .iter()
+                .any(|c| c.lms_id.as_deref() == Some(lms_id) || c.name == name);
+            if !known {
+                lib.remember_course(Some(lms_id), name, &[]);
+                added += 1;
+            }
+        }
+        if added > 0 {
+            self.save_library(&lib);
+        }
+        added
+    }
+
     /// 과목명(= 폴더 이름)을 바꾼다. 과목 ID와 자료는 그대로이고, 폴더 안의 파일은 함께 옮겨진다.
     pub fn rename_course(&self, course_id: &str, name: &str) -> Result<(), String> {
         self.locate();
@@ -1447,6 +1479,37 @@ mod tests {
         let moved = dir.join("Sorted/운영체제/1주차/내 필기.pdf");
         fs::rename(&existing, &moved).unwrap();
         assert_eq!(org.duplicate_notice(2).unwrap().existing_path, moved);
+    }
+
+    #[test]
+    fn lms_courses_from_the_schedule_show_up_without_files() {
+        let (dir, org) = setup("lms-courses");
+        let added = org.remember_lms_courses([
+            ("210788", "문학과예술이론"),
+            ("210788", "문학과예술이론"),
+            ("", "과목 ID 없음"),
+            ("211693", "../밖"),
+        ]);
+        assert_eq!(added, 1);
+        let o = org.overview();
+        assert_eq!(o.courses.len(), 1);
+        assert_eq!(
+            (o.courses[0].id.as_str(), o.courses[0].file_count),
+            ("210788", 0)
+        );
+        assert!(
+            !dir.join("Sorted/문학과예술이론").exists(),
+            "폴더는 만들지 않는다"
+        );
+        assert!(org.course_detail("210788").unwrap().weeks.is_empty());
+
+        // 이름을 바꾸거나 휴지통에 넣은 과목은 일정을 다시 받아도 그대로
+        org.rename_course("210788", "문예이론").unwrap();
+        org.remember_lms_courses([("210788", "문학과예술이론")]);
+        assert_eq!(org.overview().courses[0].name, "문예이론");
+        org.remove_course("210788").unwrap();
+        assert_eq!(org.remember_lms_courses([("210788", "문학과예술이론")]), 0);
+        assert!(org.overview().courses.is_empty());
     }
 
     #[test]
