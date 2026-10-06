@@ -281,6 +281,8 @@ pub struct CourseFile {
     pub saved_at_ms: u64,
     /// 새 버전을 아직 비교해 보지 않았다 (변경 비교는 4단계라 지금은 항상 false)
     pub unseen_change: bool,
+    /// 사용자가 필기했다 (받을 때와 내용이 다름). 원본은 앱이 따로 갖고 있다
+    pub annotated: bool,
 }
 
 /// 과목 하나의 자료 전체. 과목 ID가 없으면 None.
@@ -305,6 +307,7 @@ pub fn course_detail(lib: &Library, course_id: &str) -> Option<CourseDetail> {
                 size_bytes: v.size,
                 saved_at_ms: v.added_at_ms,
                 unseen_change: false,
+                annotated: v.annotated,
             });
         match weeks.iter_mut().find(|w| w.week == doc.week) {
             Some(w) => w.files.extend(files),
@@ -363,6 +366,7 @@ mod tests {
                     path: PathBuf::from("/x"),
                     added_at_ms: *t,
                     missing: false,
+                    ..Default::default()
                 })
                 .collect(),
         }

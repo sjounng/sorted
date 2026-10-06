@@ -117,7 +117,7 @@ pub struct Document {
     pub versions: Vec<Version>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Version {
     /// 1부터. 2 이상이면 파일 이름 끝에 (v2) 같은 표시가 붙는다
@@ -129,6 +129,14 @@ pub struct Version {
     /// 정리 폴더에서 찾을 수 없다 (사용자가 밖으로 옮겼거나 지움, FR-14). 화면에서 숨기고 해시는 남긴다
     #[serde(default, skip_serializing_if = "is_false")]
     pub missing: bool,
+    /// 사용자가 필기했다: 지금 파일 내용이 받을 때(sha256)와 다르다. 원본은 앱 데이터 폴더에 따로 있다
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub annotated: bool,
+    /// 마지막으로 필기 여부를 확인한 때의 파일 수정 시각·크기. 바뀌었을 때만 해시를 다시 계산한다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_mtime_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_size: Option<u64>,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -257,6 +265,7 @@ mod tests {
                 path: "/x/a.pdf".into(),
                 added_at_ms: 1,
                 missing: false,
+                ..Default::default()
             }],
         });
         lib

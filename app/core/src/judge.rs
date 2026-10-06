@@ -143,6 +143,7 @@ mod tests {
                 path: "/S/OS/1주차/a.pdf".into(),
                 added_at_ms: 0,
                 missing: false,
+                ..Default::default()
             }],
         });
         (lib, key)

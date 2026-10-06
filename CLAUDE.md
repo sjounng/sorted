@@ -29,7 +29,7 @@ scripts/            install-native-host.sh / uninstall-native-host.sh
 (server/)           판정 보조 서버 (선택, FR-18, 4단계 예정). Lambda + LLM. API 키는 여기에만 둔다
 ```
 
-데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), schedule.json(일정), setup-done(첫 설정 끝냄), probe-history.jsonl, logs/)
+데이터: `~/Library/Application Support/Sorted/` (sorted.sock, pending.jsonl, library.json, history.json(최근 변경), schedule.json(일정), setup-done(첫 설정 끝냄), originals/(받은 그대로의 사본, `<sha256>.pdf`), probe-history.jsonl, logs/)
 정리 폴더: `~/Sorted/<과목명>/<주차>/<원래 파일명>.pdf` (환경 변수 `SORTED_ROOT`로 바꿀 수 있음)
 
 > 저장소는 `~/dev/sorted`에 있다 (2026-10-04에 `~/sorted`에서 옮김: 디스크가 대소문자를 구분하지 않아 `~/Sorted`와 겹쳤음).

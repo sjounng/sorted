@@ -525,6 +525,10 @@ h1 {
   color: var(--accent);
 }
 
+.tag.annotated {
+  color: var(--warn);
+}
+
 .tag.organized {
   color: var(--ok);
 }

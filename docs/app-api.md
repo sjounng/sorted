@@ -253,6 +253,11 @@ interface CourseFile {
   savedAtMs: number;
   /** 새 버전이 왔는데 아직 변경 비교를 열어 보지 않았다 */
   unseenChange: boolean;
+  /**
+   * 사용자가 받은 뒤 파일을 고쳤다 (필기 등). 앱이 처음 받은 그대로의 사본을 따로 보관하고,
+   * 지금 파일의 SHA-256이 받은 때와 다르면 true. 화면을 열 때 수정 시각·크기가 바뀐 파일만 다시 잰다
+   */
+  annotated: boolean;
 }
 
 /** 되살리면 자료·최근 변경과 함께 돌아온다 */

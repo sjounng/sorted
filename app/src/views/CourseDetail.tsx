@@ -91,6 +91,7 @@ function FileRow({ file }: { file: CourseFile }) {
         <span className="file-text">
           <strong>{file.fileName}</strong>
           <span className="muted">
+            {file.annotated && <span className="tag annotated">{t("Annotated", "필기")}</span>}
             {file.version > 1 && `v${file.version} · `}
             {size(file.sizeBytes)} · {ago(file.savedAtMs)}
           </span>

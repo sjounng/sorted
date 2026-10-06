@@ -71,6 +71,8 @@ pub struct Organizer {
     /// macOS는 권한 창을 띄우지 않고 상태만 물어볼 방법이 없어서, 실제로 읽어 본 결과를 기억한다.
     downloads_access: Mutex<Permission>,
     history_file: PathBuf,
+    /// 받은 그대로의 PDF 사본: originals/<sha256>.pdf (필기와 상관없이 원본끼리 비교·보기용)
+    originals_dir: PathBuf,
     history: Mutex<History>,
     /// PDF가 아님·로그인 만료·옮기기 실패. 과목을 기다리는 파일은 보류 목록에 있다
     failures: Mutex<Vec<Unprocessed>>,
@@ -98,6 +100,7 @@ impl Organizer {
             Err(e) => return Err(e),
         };
         let history_file = library_file.with_file_name("history.json");
+        let originals_dir = library_file.with_file_name("originals");
         let history = load_history(&history_file);
         let organizer = Self {
             settings: Settings { root },
@@ -106,6 +109,7 @@ impl Organizer {
             pending: Mutex::new(Vec::new()),
             downloads_access: Mutex::new(Permission::Unknown),
             history_file,
+            originals_dir,
             history: Mutex::new(history),
             failures: Mutex::new(Vec::new()),
             last_scan: Mutex::new(None),
@@ -113,6 +117,8 @@ impl Organizer {
         };
         // 이 기능(FR-14) 전에 정리된 파일에도 속성을 붙인다
         organizer.tag_untagged();
+        // 이 기능 전에 정리된 파일도 아직 필기 전이면 원본을 남긴다
+        organizer.keep_missing_originals();
         Ok(organizer)
     }
 
@@ -292,6 +298,7 @@ impl Organizer {
                 ..
             } => {
                 self.tag_file(path);
+                self.keep_original(path);
                 // 사라졌던 버전을 다시 정리한 것은 새 버전이 아니다
                 let kind = if *version > 1 && !restored {
                     ChangeKind::NewVersion
@@ -487,11 +494,109 @@ impl Organizer {
         Ok(Some(existing))
     }
 
-    /// 메인 창 전체 (FR-13)
-    pub fn overview(&self) -> Overview {
+    // ── 원본 보관·필기 감지 (#12, #13) ──
+
+    /// 원본 사본 경로
+    pub fn original_path(&self, sha256: &str) -> PathBuf {
+        self.originals_dir.join(format!("{sha256}.pdf"))
+    }
+
+    /// 방금 정리한 파일의 원본 사본을 남긴다. 같은 내용의 사본이 이미 있으면 그대로.
+    /// macOS(APFS)에서 fs::copy는 복제(clonefile)라, 필기로 바뀌기 전까지 디스크를 거의 쓰지 않는다.
+    fn keep_original(&self, path: &Path) {
+        let sha = {
+            let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+            match lib.version_at(path) {
+                Some((_, version)) => version.sha256.clone(),
+                None => return,
+            }
+        };
+        self.copy_original(path, &sha);
+    }
+
+    fn copy_original(&self, path: &Path, sha256: &str) {
+        let dest = self.original_path(sha256);
+        if dest.exists() {
+            return;
+        }
+        let copied = fs::create_dir_all(&self.originals_dir).and_then(|()| fs::copy(path, &dest));
+        if let Err(e) = copied {
+            eprintln!("원본 사본을 남기지 못함 {}: {e}", path.display());
+        }
+    }
+
+    /// 원본 사본이 없는 버전 중, 지금 파일이 받을 때와 같은(필기 전) 것만 원본을 남긴다.
+    /// 이미 필기된 파일은 원본을 되찾을 수 없어 건너뛴다. 남긴 수를 돌려준다.
+    pub fn keep_missing_originals(&self) -> usize {
+        let todo: Vec<(PathBuf, String)> = {
+            let lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+            lib.documents
+                .iter()
+                .flat_map(|d| &d.versions)
+                .filter(|v| !v.missing && !self.original_path(&v.sha256).exists())
+                .map(|v| (v.path.clone(), v.sha256.clone()))
+                .collect()
+        };
+        let mut kept = 0;
+        for (path, sha) in todo {
+            if matches!(fingerprint::of_file(&path), Ok(fp) if fp.sha256 == sha) {
+                self.copy_original(&path, &sha);
+                kept += 1;
+            }
+        }
+        kept
+    }
+
+    /// 필기 여부를 확인한다: 파일의 수정 시각·크기가 마지막 확인 때와 다르면 해시를 다시 계산하고,
+    /// 받을 때와 다르면 annotated. 바뀐 게 없으면 해시를 계산하지 않는다. 무엇이든 바뀌었으면 true.
+    pub fn check_annotations(&self) -> bool {
+        let mut lib = self.library.lock().unwrap_or_else(|e| e.into_inner());
+        let mut changed = false;
+        for version in lib.documents.iter_mut().flat_map(|d| &mut d.versions) {
+            if version.missing {
+                continue;
+            }
+            let Ok(meta) = fs::metadata(&version.path) else {
+                continue;
+            };
+            let mtime = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64);
+            if mtime.is_some()
+                && version.checked_mtime_ms == mtime
+                && version.checked_size == Some(meta.len())
+            {
+                continue;
+            }
+            let Ok(fp) = fingerprint::of_file(&version.path) else {
+                continue;
+            };
+            version.annotated = fp.sha256 != version.sha256;
+            version.checked_mtime_ms = mtime;
+            version.checked_size = Some(meta.len());
+            changed = true;
+        }
+        if changed {
+            if let Err(e) = lib.save(&self.library_file) {
+                eprintln!("library.json 저장 실패: {e}");
+            }
+        }
+        changed
+    }
+
+    /// 화면을 보여 주기 전에: 옮긴 파일을 따라가고(FR-14), 필기 여부를 확인한다
+    fn refresh_files(&self) {
         if self.locate() {
             self.tag_untagged();
         }
+        self.check_annotations();
+    }
+
+    /// 메인 창 전체 (FR-13)
+    pub fn overview(&self) -> Overview {
+        self.refresh_files();
         let lib = self.library();
         // Sorted 휴지통에 든 과목의 최근 변경은 숨긴다 (되살리면 다시 보인다)
         let removed: Vec<String> = lib
@@ -699,7 +804,23 @@ impl Organizer {
             })?;
         }
         lib.courses.remove(index);
+        // 그 과목의 원본 사본도 지운다 (앱 내부 데이터. 같은 내용을 다른 과목이 쓰면 남긴다)
+        let shas: Vec<String> = lib
+            .documents
+            .iter()
+            .filter(|d| d.course == name)
+            .flat_map(|d| d.versions.iter().map(|v| v.sha256.clone()))
+            .collect();
         lib.documents.retain(|d| d.course != name);
+        for sha in shas {
+            let shared = lib
+                .documents
+                .iter()
+                .any(|d| d.versions.iter().any(|v| v.sha256 == sha));
+            if !shared {
+                let _ = fs::remove_file(self.original_path(&sha));
+            }
+        }
         self.save_library(&lib);
         drop(lib);
 
@@ -738,9 +859,7 @@ impl Organizer {
     }
 
     pub fn course_detail(&self, course_id: &str) -> Option<CourseDetail> {
-        if self.locate() {
-            self.tag_untagged();
-        }
+        self.refresh_files();
         screen::course_detail(&self.library(), course_id)
     }
 
@@ -1539,5 +1658,66 @@ mod tests {
         assert!(org.trash().is_empty());
         assert_eq!(org.overview().courses.len(), 1);
         assert!(dir.join("Sorted/다").is_dir());
+    }
+
+    #[test]
+    fn organizing_keeps_a_pristine_original() {
+        let (dir, org, path) = organized("original");
+        let sha = the_doc(&org).versions[0].sha256.clone();
+        let original = org.original_path(&sha);
+        assert_eq!(fs::read(&original).unwrap(), fs::read(&path).unwrap());
+        assert!(original.starts_with(dir.join("originals")));
+    }
+
+    #[test]
+    fn annotating_is_detected_and_the_original_stays() {
+        let (_, org, path) = organized("annotate");
+        assert!(org.check_annotations(), "처음 확인");
+        assert!(!the_doc(&org).versions[0].annotated);
+        assert!(
+            !org.check_annotations(),
+            "바뀐 게 없으면 다시 계산하지 않는다"
+        );
+
+        fs::write(&path, "%PDF-1.7 a + 필기").unwrap();
+        org.check_annotations();
+        let version = the_doc(&org).versions[0].clone();
+        assert!(version.annotated);
+        let original = fs::read(org.original_path(&version.sha256)).unwrap();
+        assert_eq!(original, b"%PDF-1.7 a");
+
+        let detail = org.course_detail(&org.overview().courses[0].id).unwrap();
+        assert!(detail.weeks[0].files[0].annotated);
+    }
+
+    #[test]
+    fn missing_originals_are_backfilled_only_for_pristine_files() {
+        let (dir, org, path) = organized("backfill");
+        let sha = the_doc(&org).versions[0].sha256.clone();
+        fs::remove_file(org.original_path(&sha)).unwrap();
+        let reopened = Organizer::open(dir.join("Sorted"), dir.join("library.json")).unwrap();
+        assert!(
+            reopened.original_path(&sha).exists(),
+            "필기 전이면 다시 남긴다"
+        );
+
+        fs::remove_file(reopened.original_path(&sha)).unwrap();
+        fs::write(&path, "%PDF-1.7 필기됨").unwrap();
+        assert_eq!(
+            reopened.keep_missing_originals(),
+            0,
+            "필기된 파일은 원본이 아니다"
+        );
+        assert!(!reopened.original_path(&sha).exists());
+    }
+
+    #[test]
+    fn purging_a_course_removes_its_originals() {
+        let (dir, org, _) = organized("purge-original");
+        let sha = the_doc(&org).versions[0].sha256.clone();
+        let id = org.overview().courses[0].id.clone();
+        org.remove_course(&id).unwrap();
+        org.purge_course(&id, &fake_trash(&dir)).unwrap();
+        assert!(!org.original_path(&sha).exists());
     }
 }

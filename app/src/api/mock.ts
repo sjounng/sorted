@@ -138,6 +138,7 @@ function details(): CourseDetail[] {
           sizeBytes: fakeSize(fileName),
           savedAtMs,
           unseenChange: isV2,
+          annotated: fi === 0 && wi === last - 2,
         };
       }),
     }));
