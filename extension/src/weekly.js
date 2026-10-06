@@ -10,14 +10,19 @@ import { LMS_ORIGIN } from "./canvas.js";
 //        content_data: { course_id, title, unlock_at, due_at, lock_at, late_at,
 //                        item_content_data: { content_type: "mp4" } } }] }]
 
+/** 출석 항목으로 올라오지만 영상이 아닌 콘텐츠 종류 (워크시트·자료 파일) */
+const DOCUMENT_TYPE =
+  /pdf|doc|ppt|hwp|xls|csv|txt|zip|file|image|jpe?g|png|gif|html?|link|url|text|word|excel|powerpoint/;
+
 /**
- * 영상 항목인가. 콘텐츠 종류가 적혀 있으면 영상(mp4 등)일 때만, 없으면 출석 항목이면 영상으로 본다.
- * 워크시트 같은 파일도 출석 항목으로 올라오므로 종류를 먼저 본다.
+ * 영상 항목인가: 출석 항목 중 문서가 아닌 것.
+ * 영상의 콘텐츠 종류 이름은 올린 방식(mp4, LMS 자체 플레이어, 녹화 등)마다 달라서 영상 이름을 고르면
+ * 같은 주차의 영상도 빠진다. 그래서 문서 종류만 뺀다.
  */
 function isVideo(item) {
+  if (item?.content_type !== "attendance_item") return false;
   const type = String(item?.content_data?.item_content_data?.content_type ?? "").toLowerCase();
-  if (type) return /mp4|movie|video|stream|youtube|vimeo/.test(type);
-  return item?.content_type === "attendance_item";
+  return !DOCUMENT_TYPE.test(type);
 }
 
 /**

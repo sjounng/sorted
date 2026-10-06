@@ -50,6 +50,17 @@ const MODULES = [
       },
       { module_item_id: 602, content_type: "attendance_item", content_data: { course_id: 1 } },
       {
+        // 같은 주차라도 영상 종류 이름이 다를 수 있다 (LMS 자체 플레이어 등)
+        module_item_id: 604,
+        content_type: "attendance_item",
+        content_data: {
+          course_id: 211742,
+          title: "3강-2",
+          due_at: "2026-10-11T14:59:59Z",
+          item_content_data: { content_type: "everlec" },
+        },
+      },
+      {
         module_item_id: 603,
         title: "학생 과제용 워크시트",
         content_type: "attendance_item",
@@ -67,7 +78,7 @@ describe("weeklyItems", () => {
   const items = weeklyItems(MODULES, { 211742: "취업역량개발" });
 
   it("keeps only videos with a deadline (not worksheets)", () => {
-    expect(items.map((i) => i.id)).toEqual(["video-501", "video-601"]);
+    expect(items.map((i) => i.id)).toEqual(["video-501", "video-601", "video-604"]);
   });
 
   it("maps fields to the app's ScheduleItem", () => {
