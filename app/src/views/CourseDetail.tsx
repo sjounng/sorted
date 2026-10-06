@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { api, type CourseFile, type ScheduleItem, type ScheduleKind } from "../api";
+import { useEffect, useState } from "react";
+import {
+  api,
+  type Annotation,
+  type CourseFile,
+  type ScheduleItem,
+  type ScheduleKind,
+} from "../api";
 import { t } from "../i18n";
 import { ago, size, startOfDay, weekLabel } from "../format";
 import { useLoad } from "../useLoad";
@@ -18,7 +24,7 @@ export function CourseDetail(props: {
   onBack: () => void;
 }) {
   const { courseId, folder, color, onBack } = props;
-  const { data, error } = useLoad(() => api.courseDetail(courseId), [courseId]);
+  const { data, error, reload } = useLoad(() => api.courseDetail(courseId), [courseId]);
   const schedule = useLoad(api.schedule);
   const [tab, setTab] = useState<Tab>("files");
   const [showDone, setShowDone] = useState(false);
@@ -28,6 +34,13 @@ export function CourseDetail(props: {
   );
   const count = (k: Tab) =>
     k === "files" ? (data?.course.fileCount ?? 0) : items.filter((i) => i.kind === k).length;
+
+  // 미리보기에서 필기하고 돌아오면 필기본 목록이 바뀌어 있으니 다시 불러온다
+  useEffect(() => {
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+    // reload는 상태 갱신만 해서 처음 것을 계속 써도 된다
+  }, []);
 
   return (
     <div className="course" style={{ "--course": color } as React.CSSProperties}>
@@ -201,12 +214,26 @@ function CourseSchedule(props: {
 }
 
 function FileRow({ file }: { file: CourseFile }) {
+  const notes = file.annotations;
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const openOriginal = async () => {
+    try {
+      setError(undefined);
+      await api.openOriginal(file.documentId, file.version);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   return (
     <li className="file-row">
       <button
         className="file-main"
-        onClick={() => api.openFile(file.path)}
-        title={t("Open", "열기")}
+        // 필기본이 있으면 받은 그대로의 원본을 연다 (필기본은 오른쪽 버튼으로)
+        onClick={() => (notes.length > 0 ? openOriginal() : api.openFile(file.path))}
+        title={notes.length > 0 ? t("Open the original", "원본 열기") : t("Open", "열기")}
       >
         <PdfIcon />
         <span className="file-text">
@@ -217,11 +244,89 @@ function FileRow({ file }: { file: CourseFile }) {
           </span>
         </span>
       </button>
+      {notes.length > 0 && (
+        <button
+          className={`notes-toggle${open ? " open" : ""}`}
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
+          {notes.length === 1
+            ? t("Annotated", "필기본")
+            : t(`${notes.length} annotated`, `필기본 ${notes.length}개`)}
+          <span className="chevron">›</span>
+        </button>
+      )}
       {file.unseenChange && (
         <button className="pill" onClick={() => openView("compare", file.documentId)}>
           {t("New version · See changes", "새 버전 · 바뀐 곳 보기")}
         </button>
       )}
+      {error && <p className="file-error warn">{error}</p>}
+      {open && (
+        <ul className="annotations">
+          {notes.map((n) => (
+            <AnnotationRow key={n.number} file={file} note={n} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/** 필기본 하나: 누르면 열고, 연필 버튼으로 이름을 바꾼다 (빈 이름이면 "필기 N"으로) */
+function AnnotationRow({ file, note }: { file: CourseFile; note: Annotation }) {
+  const [label, setLabel] = useState(note.label);
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string>();
+  const fallback = t(`Annotated ${note.number}`, `필기 ${note.number}`);
+
+  const save = async (name: string) => {
+    setEditing(false);
+    if (name.trim() === (label ?? "")) return;
+    try {
+      await api.renameAnnotation(file.documentId, file.version, note.number, name);
+      setLabel(name.trim() || null);
+      setError(undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <li>
+      {editing ? (
+        <input
+          className="text annotation-name"
+          autoFocus
+          defaultValue={label ?? ""}
+          placeholder={fallback}
+          maxLength={60}
+          onFocus={(e) => e.target.select()}
+          onBlur={(e) => save(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+      ) : (
+        <button onClick={() => api.openFile(note.path)} title={note.fileName}>
+          <strong>{label ?? fallback}</strong>
+          <span className="muted">
+            {note.fileName} · {t("edited", "고침")} {ago(note.modifiedAtMs)}
+          </span>
+        </button>
+      )}
+      {!editing && (
+        <button
+          className="annotation-rename"
+          onClick={() => setEditing(true)}
+          title={t("Rename", "이름 바꾸기")}
+          aria-label={t("Rename", "이름 바꾸기")}
+        >
+          ✎
+        </button>
+      )}
+      {error && <p className="warn">{error}</p>}
     </li>
   );
 }

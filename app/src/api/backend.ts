@@ -53,6 +53,10 @@ export interface Backend {
   emptyTrash(): Promise<void>;
   /** PDF를 기본 앱(미리보기 등)으로 연다 */
   openFile(path: string): Promise<void>;
+  /** 받은 그대로의 원본을 연다. 필기한 파일이면 임시 사본을 열고, 거기에 필기하면 새 필기본이 된다 */
+  openOriginal(documentId: string, version: number): Promise<void>;
+  /** 필기본 이름 바꾸기. 빈 이름이면 "필기 N"으로 되돌린다. 파일 이름은 그대로 */
+  renameAnnotation(documentId: string, version: number, n: number, name: string): Promise<void>;
 
   setupStatus(): Promise<SetupStatus>;
   requestDownloadsAccess(): Promise<SetupStatus>;

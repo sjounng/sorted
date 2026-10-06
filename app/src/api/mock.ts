@@ -138,6 +138,17 @@ function details(): CourseDetail[] {
           sizeBytes: fakeSize(fileName),
           savedAtMs,
           unseenChange: isV2,
+          annotated: fi === 0 && wi === last - 2,
+          annotations:
+            fi === 0 && wi === last - 2
+              ? [1, 2].map((n) => ({
+                  number: n,
+                  label: null,
+                  fileName: n === 1 ? fileName : fileName.replace(/\.pdf$/, ` (필기 ${n}).pdf`),
+                  path: `${SORTED}/${c.name}/${week}/${fileName}`,
+                  modifiedAtMs: now - n * HOUR,
+                }))
+              : [],
         };
       }),
     }));
@@ -287,6 +298,17 @@ export const mockBackend: Backend = {
 
   courseDetail: async (courseId) => wait(structuredClone(findCourse(courseId))),
   openFile: async (path) => log("파일 열기", path),
+  openOriginal: async (documentId, version) => log("원본 열기", `${documentId} v${version}`),
+  renameAnnotation: async (documentId, version, n, name) => {
+    for (const d of library) {
+      for (const f of d.weeks.flatMap((w) => w.files)) {
+        const a = f.annotations.find((a) => a.number === n);
+        if (f.documentId === documentId && f.version === version && a) {
+          a.label = name.trim() || null;
+        }
+      }
+    }
+  },
 
   addCourse: async (name) => {
     checkName(name);

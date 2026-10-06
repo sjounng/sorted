@@ -220,6 +220,7 @@ pub fn process(
         path: placed.clone(),
         added_at_ms: now_ms(),
         missing: false,
+        ..Default::default()
     };
     match library.document_mut(&key) {
         Some(doc) if restored => {

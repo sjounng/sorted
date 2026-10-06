@@ -29,6 +29,26 @@ export interface CourseFile {
   savedAtMs: number;
   /** 새 버전이 왔는데 아직 변경 비교를 열어 보지 않았다 */
   unseenChange: boolean;
+  /**
+   * 사용자가 받은 뒤 파일을 고쳤다 (필기 등). 앱이 처음 받은 그대로의 사본을 따로 보관하고,
+   * 지금 파일의 SHA-256이 받은 때와 다르면 true. 화면을 열 때 수정 시각·크기가 바뀐 파일만 다시 잰다
+   */
+  annotated: boolean;
+  /**
+   * 필기본들: 받은 파일 자체에 한 필기(1번, annotated일 때) + "원본 열기"로 연 사본에 새로 한 필기(2번부터).
+   * 비어 있지 않으면 원본·필기본을 골라 열게 한다
+   */
+  annotations: Annotation[];
+}
+
+export interface Annotation {
+  number: number;
+  /** 사용자가 붙인 이름. null이면 "필기 N"으로 보여 준다 */
+  label: string | null;
+  fileName: string;
+  path: string;
+  /** 마지막으로 고친 때 */
+  modifiedAtMs: number;
 }
 
 export interface WeekGroup {
